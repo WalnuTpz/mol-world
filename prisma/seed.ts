@@ -26,6 +26,16 @@ const prisma = new PrismaClient({ adapter });
 
 const ALLOWED_EXT = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp"]);
 const FEATURED_COUNT = 24;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function shuffle<T>(items: T[]) {
+  const arr = items.slice();
+  for (let i = arr.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
 
 async function loadMemes(): Promise<Prisma.MemeCreateManyInput[]> {
   const originalDir = path.join(process.cwd(), "public", "memes", "original");
@@ -40,6 +50,9 @@ async function loadMemes(): Promise<Prisma.MemeCreateManyInput[]> {
     .filter((file) => ALLOWED_EXT.has(path.extname(file).toLowerCase()))
     .sort((a, b) => a.localeCompare(b, "zh-CN"));
 
+  const order = shuffle(Array.from({ length: files.length }, (_, i) => i + 1));
+  const start = Date.now() - (files.length - 1) * DAY_MS;
+
   return files.map((file, index) => {
     const ext = path.extname(file);
     const baseName = path.basename(file, ext);
@@ -47,6 +60,7 @@ async function loadMemes(): Promise<Prisma.MemeCreateManyInput[]> {
       ext.toLowerCase() === ".gif" ? "ANIMATED" : "STATIC";
     const thumbName = `${baseName}.jpg`;
     const hasThumb = thumbSet.has(thumbName);
+    const createdAt = new Date(start + (order[index] - 1) * DAY_MS);
 
     return {
       title: baseName,
@@ -56,6 +70,7 @@ async function loadMemes(): Promise<Prisma.MemeCreateManyInput[]> {
         ? `/memes/thumb/${thumbName}`
         : `/memes/original/${file}`,
       isFeatured: index < FEATURED_COUNT,
+      createdAt,
     };
   });
 }
