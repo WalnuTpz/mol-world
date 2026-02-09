@@ -23,20 +23,105 @@ export default function MemeCard({
   thumbUrl,
   onDownloaded,
 }: MemeCardProps) {
+  const blobToDataUrl = (blob: Blob) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(blob);
+    });
+
+  const copyText = async (text: string) => {
+    if (!navigator.clipboard?.writeText) return "fail" as const;
+    await navigator.clipboard.writeText(text);
+    return "text" as const;
+  };
+
+  const copyBlobToClipboard = async (blob: Blob) => {
+    if (!navigator.clipboard?.write || typeof ClipboardItem === "undefined") {
+      return "fail" as const;
+    }
+    await navigator.clipboard.write([
+      new ClipboardItem({ [blob.type]: blob }),
+    ]);
+    return "clipboard" as const;
+  };
+
+  const loadImage = (url: string) =>
+    new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error("image load failed"));
+      img.src = url;
+    });
+
+  const copyPngFromUrl = async (url: string) => {
+    const img = await loadImage(url);
+    const canvas = document.createElement("canvas");
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return "fail" as const;
+    ctx.drawImage(img, 0, 0);
+    const pngBlob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, "image/png")
+    );
+    if (!pngBlob) return "fail" as const;
+
+    try {
+      return await copyBlobToClipboard(pngBlob);
+    } catch {
+      const dataUrl = await blobToDataUrl(pngBlob);
+      return await copyText(dataUrl);
+    }
+  };
+
+  const copyGifFromUrl = async (url: string) => {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    if (blob.type !== "image/gif") return "fail" as const;
+    try {
+      return await copyBlobToClipboard(blob);
+    } catch {
+      return "fail" as const;
+    }
+  };
+
   const handleCopy = async () => {
     try {
       if (type === "STATIC") {
-        const res = await fetch(mediaUrl);
-        const blob = await res.blob();
-        await navigator.clipboard.write([
-          new ClipboardItem({ [blob.type]: blob }),
-        ]);
-        alert("已复制图片");
-      } else {
-        await navigator.clipboard.writeText(mediaUrl);
-        alert("已复制动图链接");
+        const result = await copyPngFromUrl(mediaUrl);
+        if (result === "clipboard") {
+          alert("已复制图片");
+          return;
+        }
+        if (result === "text") {
+          alert("已复制图片（文本形式）");
+          return;
+        }
+        alert("复制失败");
+        return;
       }
-    } catch {
+
+      const gifResult = await copyGifFromUrl(mediaUrl);
+      if (gifResult === "clipboard") {
+        alert("已复制动图");
+        return;
+      }
+
+      const thumbResult = await copyPngFromUrl(thumbUrl);
+      if (thumbResult === "clipboard") {
+        alert("已复制封面图");
+        return;
+      }
+      if (thumbResult === "text") {
+        alert("已复制封面图（文本形式）");
+        return;
+      }
+      alert("复制失败");
+    } catch (error) {
+      console.error(error);
       alert("复制失败");
     }
   };
