@@ -118,9 +118,18 @@
 }
 
 .sectionTitle {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
   font-size: 26px;
   font-weight: 700;
   letter-spacing: 0.3px;
+}
+
+.sectionCount {
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.6);
 }
 
 .sectionMeta {
