@@ -25,17 +25,17 @@ export default function MemeCard({
 }: MemeCardProps) {
   const handleCopy = async () => {
     try {
-      if (type !== "STATIC") {
-        alert("动图复制下一步再做");
-        return;
+      if (type === "STATIC") {
+        const res = await fetch(mediaUrl);
+        const blob = await res.blob();
+        await navigator.clipboard.write([
+          new ClipboardItem({ [blob.type]: blob }),
+        ]);
+        alert("已复制图片");
+      } else {
+        await navigator.clipboard.writeText(mediaUrl);
+        alert("已复制动图链接");
       }
-
-      const res = await fetch(mediaUrl);
-      const blob = await res.blob();
-      await navigator.clipboard.write([
-        new ClipboardItem({ [blob.type]: blob }),
-      ]);
-      alert("已复制图片");
     } catch {
       alert("复制失败");
     }
