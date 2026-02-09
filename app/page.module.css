@@ -82,6 +82,11 @@
   transition: all 0.2s ease;
 }
 
+.navItem:hover {
+  border-color: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.08);
+}
+
 .navItemActive {
   background: #ffffff;
   color: #111111;
@@ -125,6 +130,11 @@
   border: 1px solid rgba(255, 255, 255, 0.16);
   color: #f5f5f5;
   font-size: 13px;
+}
+
+.filterBtn:hover {
+  border-color: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .filterActive {
