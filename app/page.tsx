@@ -25,6 +25,15 @@ function parseIntParam(value: string | undefined, fallback: number) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
+function shuffle<T>(items: T[]) {
+  const arr = items.slice();
+  for (let i = arr.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 const select = {
   id: true,
   title: true,
@@ -72,16 +81,11 @@ export default async function Home({
   if (view === "hot") {
     const baseWhere = { status: "PUBLISHED" as const };
     if (hotSort === "random") {
-      const count = await prisma.meme.count({ where: baseWhere });
-      const maxSkip = Math.max(0, count - hotLimit);
-      const skip = maxSkip === 0 ? 0 : Math.floor(Math.random() * (maxSkip + 1));
-      items = await prisma.meme.findMany({
+      const list = await prisma.meme.findMany({
         where: baseWhere,
-        orderBy: { createdAt: "desc" },
-        skip,
-        take: hotLimit,
         select,
       });
+      items = shuffle(list).slice(0, hotLimit);
     } else {
       const orderBy =
         hotSort === "latest"
