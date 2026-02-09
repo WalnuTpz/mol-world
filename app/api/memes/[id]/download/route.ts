@@ -4,9 +4,9 @@ import { prisma } from "@/lib/db";
 
 export async function POST(
   _request: Request,
-  context: { params: { id: string } }
+  context: { params: { id: string } | Promise<{ id: string }> }
 ) {
-  const { id } = context.params;
+  const { id } = await Promise.resolve(context.params);
 
   if (!id) {
     return NextResponse.json(

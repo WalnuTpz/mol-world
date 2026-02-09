@@ -1,6 +1,6 @@
 "use client";
 
-import type { MouseEvent } from "react";
+import { useState, type MouseEvent } from "react";
 
 import styles from "./MemeCard.module.css";
 
@@ -12,7 +12,7 @@ export type MemeCardProps = {
   type: MemeType;
   mediaUrl: string;
   thumbUrl: string;
-  onDownloaded?: (id: string) => void;
+  copyCount: number;
 };
 
 export default function MemeCard({
@@ -21,8 +21,9 @@ export default function MemeCard({
   type,
   mediaUrl,
   thumbUrl,
-  onDownloaded,
+  copyCount,
 }: MemeCardProps) {
+  const [count, setCount] = useState(copyCount);
   const blobToDataUrl = (blob: Blob) =>
     new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
@@ -93,10 +94,12 @@ export default function MemeCard({
       if (type === "STATIC") {
         const result = await copyPngFromUrl(mediaUrl);
         if (result === "clipboard") {
+          await incrementCopy();
           alert("已复制图片");
           return;
         }
         if (result === "text") {
+          await incrementCopy();
           alert("已复制图片（文本形式）");
           return;
         }
@@ -106,16 +109,19 @@ export default function MemeCard({
 
       const gifResult = await copyGifFromUrl(mediaUrl);
       if (gifResult === "clipboard") {
+        await incrementCopy();
         alert("已复制动图");
         return;
       }
 
       const thumbResult = await copyPngFromUrl(thumbUrl);
       if (thumbResult === "clipboard") {
+        await incrementCopy();
         alert("已复制封面图");
         return;
       }
       if (thumbResult === "text") {
+        await incrementCopy();
         alert("已复制封面图（文本形式）");
         return;
       }
@@ -129,14 +135,27 @@ export default function MemeCard({
   const handleDownload = async (e: MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
     try {
-      await fetch(`/api/memes/${id}/download`, { method: "POST" });
-      onDownloaded?.(id);
       const link = document.createElement("a");
       link.href = mediaUrl;
       link.download = "";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+    } catch {
+      // ignore
+    }
+  };
+
+  const incrementCopy = async () => {
+    try {
+      const res = await fetch(`/api/memes/${id}/download`, { method: "POST" });
+      if (!res.ok) return;
+      const data = (await res.json()) as { item?: { downloads?: number } };
+      if (typeof data.item?.downloads === "number") {
+        setCount(data.item.downloads);
+      } else {
+        setCount((prev) => prev + 1);
+      }
     } catch {
       // ignore
     }
@@ -162,7 +181,28 @@ export default function MemeCard({
           下载
         </button>
       </div>
-      <div className={styles.title}>{title ?? "未命名"}</div>
+      <div className={styles.footer}>
+        <div className={styles.title}>{title ?? "未命名"}</div>
+        <div className={styles.copyCount} aria-label={`点击量 ${count}`}>
+          <svg
+            className={styles.copyIcon}
+            viewBox="0 0 24 24"
+            width="14"
+            height="14"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <circle cx="12" cy="12" r="4.5" fill="none" stroke="currentColor" strokeWidth="2" />
+            <path
+              d="M3 12c2.6-4.5 6.9-7 9-7s6.4 2.5 9 7c-2.6 4.5-6.9 7-9 7s-6.4-2.5-9-7z"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            />
+          </svg>
+          <span>{count}</span>
+        </div>
+      </div>
     </div>
   );
 }
