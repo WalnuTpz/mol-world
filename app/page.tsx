@@ -131,9 +131,9 @@ export default async function Home({
     <div className={styles.page}>
       <header className={styles.header}>
         <div className={styles.headerInner}>
-          <div className={styles.brand}>
+          <Link className={styles.brand} href="/">
             Mol<span className={styles.brandAccent}>World</span>
-          </div>
+          </Link>
           <form className={styles.searchForm} action="/" method="get">
             <input
               name="q"
