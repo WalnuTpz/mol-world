@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 type SearchParams = {
   page?: string | string[];
   limit?: string | string[];
+  sort?: string | string[];
 };
 
 function getParam(value: string | string[] | undefined) {
@@ -26,6 +27,11 @@ export default async function AllPage({
 }) {
   const page = parseIntParam(getParam(searchParams?.page), 1);
   const limit = parseIntParam(getParam(searchParams?.limit), 40);
+  const sortParam = getParam(searchParams?.sort);
+  const sort =
+    sortParam === "name" || sortParam === "earliest" || sortParam === "latest"
+      ? sortParam
+      : "latest";
   const skip = (page - 1) * limit;
 
   const where = { status: "PUBLISHED" as const };
@@ -40,10 +46,17 @@ export default async function AllPage({
     createdAt: true,
   };
 
+  const orderBy =
+    sort === "name"
+      ? [{ title: "asc" as const }, { createdAt: "desc" as const }]
+      : sort === "earliest"
+      ? [{ createdAt: "asc" as const }]
+      : [{ createdAt: "desc" as const }];
+
   const [items, total] = await Promise.all([
     prisma.meme.findMany({
       where,
-      orderBy: { createdAt: "desc" },
+      orderBy,
       skip,
       take: limit,
       select,
@@ -58,13 +71,57 @@ export default async function AllPage({
   return (
     <main style={{ padding: 24 }}>
       <h1 style={{ marginBottom: 12 }}>全部表情包</h1>
+      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+        <Link
+          href={`/all?sort=name&page=1&limit=${limit}`}
+          style={{
+            padding: "6px 12px",
+            borderRadius: 999,
+            border: "1px solid #ddd",
+            background: sort === "name" ? "#111" : "#fff",
+            color: sort === "name" ? "#fff" : "#111",
+            textDecoration: "none",
+            fontSize: 14,
+          }}
+        >
+          按名称
+        </Link>
+        <Link
+          href={`/all?sort=latest&page=1&limit=${limit}`}
+          style={{
+            padding: "6px 12px",
+            borderRadius: 999,
+            border: "1px solid #ddd",
+            background: sort === "latest" ? "#111" : "#fff",
+            color: sort === "latest" ? "#fff" : "#111",
+            textDecoration: "none",
+            fontSize: 14,
+          }}
+        >
+          最新
+        </Link>
+        <Link
+          href={`/all?sort=earliest&page=1&limit=${limit}`}
+          style={{
+            padding: "6px 12px",
+            borderRadius: 999,
+            border: "1px solid #ddd",
+            background: sort === "earliest" ? "#111" : "#fff",
+            color: sort === "earliest" ? "#fff" : "#111",
+            textDecoration: "none",
+            fontSize: 14,
+          }}
+        >
+          最早
+        </Link>
+      </div>
       <div style={{ marginBottom: 16, fontSize: 14 }}>
         第 {page} 页 / 共 {totalPages} 页
       </div>
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         {hasPrev ? (
           <Link
-            href={`/all?page=${page - 1}&limit=${limit}`}
+            href={`/all?sort=${sort}&page=${page - 1}&limit=${limit}`}
             style={{ textDecoration: "none" }}
           >
             上一页
@@ -74,7 +131,7 @@ export default async function AllPage({
         )}
         {hasNext ? (
           <Link
-            href={`/all?page=${page + 1}&limit=${limit}`}
+            href={`/all?sort=${sort}&page=${page + 1}&limit=${limit}`}
             style={{ textDecoration: "none" }}
           >
             下一页
