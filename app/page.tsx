@@ -1,65 +1,273 @@
-import Image from "next/image";
+import Link from "next/link";
+
+import MemeGrid from "@/components/MemeGrid";
+import { prisma } from "@/lib/db";
 import styles from "./page.module.css";
 
-export default function Home() {
+export const dynamic = "force-dynamic";
+
+type SearchParams = {
+  view?: string | string[];
+  q?: string | string[];
+  page?: string | string[];
+  limit?: string | string[];
+  sort?: string | string[];
+};
+
+function getParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function parseIntParam(value: string | undefined, fallback: number) {
+  const parsed = Number.parseInt(value ?? "", 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+const select = {
+  id: true,
+  title: true,
+  type: true,
+  mediaUrl: true,
+  thumbUrl: true,
+  downloads: true,
+  isFeatured: true,
+  createdAt: true,
+};
+
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  const viewParam = getParam(searchParams?.view);
+  const q = (getParam(searchParams?.q) ?? "").trim();
+  const limit = parseIntParam(getParam(searchParams?.limit), 24);
+  const page = parseIntParam(getParam(searchParams?.page), 1);
+  const sortParam = getParam(searchParams?.sort);
+  const sort =
+    sortParam === "name" || sortParam === "earliest" || sortParam === "latest"
+      ? sortParam
+      : "latest";
+
+  let view: "hot" | "all" | "search" = "hot";
+  if (viewParam === "all" || viewParam === "search" || viewParam === "hot") {
+    view = viewParam;
+  }
+  if (q) view = "search";
+
+  let items = [];
+  let total = 0;
+  let totalPages = 1;
+
+  if (view === "hot") {
+    items = await prisma.meme.findMany({
+      where: { status: "PUBLISHED", isFeatured: true },
+      orderBy: { downloads: "desc" },
+      take: limit,
+      select,
+    });
+  }
+
+  if (view === "all") {
+    const skip = (page - 1) * limit;
+    const orderBy =
+      sort === "name"
+        ? [{ title: "asc" as const }, { createdAt: "desc" as const }]
+        : sort === "earliest"
+        ? [{ createdAt: "asc" as const }]
+        : [{ createdAt: "desc" as const }];
+
+    const [list, count] = await Promise.all([
+      prisma.meme.findMany({
+        where: { status: "PUBLISHED" },
+        orderBy,
+        skip,
+        take: limit,
+        select,
+      }),
+      prisma.meme.count({ where: { status: "PUBLISHED" } }),
+    ]);
+    items = list;
+    total = count;
+    totalPages = Math.max(1, Math.ceil(total / limit));
+  }
+
+  if (view === "search") {
+    if (!q) {
+      items = [];
+      total = 0;
+      totalPages = 1;
+    } else {
+      const skip = (page - 1) * limit;
+      const [list, count] = await Promise.all([
+        prisma.meme.findMany({
+          where: {
+            status: "PUBLISHED",
+            title: { contains: q },
+          },
+          orderBy: { createdAt: "desc" },
+          skip,
+          take: limit,
+          select,
+        }),
+        prisma.meme.count({
+          where: {
+            status: "PUBLISHED",
+            title: { contains: q },
+          },
+        }),
+      ]);
+      items = list;
+      total = count;
+      totalPages = Math.max(1, Math.ceil(total / limit));
+    }
+  }
+
+  const hasPrev = page > 1;
+  const hasNext = page < totalPages;
+  const encodedQ = encodeURIComponent(q);
+
   return (
     <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className={styles.intro}>
-          <h1>To get started, edit the page.tsx file.</h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+      <header className={styles.header}>
+        <div className={styles.headerInner}>
+          <div className={styles.brand}>
+            Mol<span className={styles.brandAccent}>World</span>
+          </div>
+          <form className={styles.searchForm} action="/" method="get">
+            <input
+              name="q"
+              className={styles.searchInput}
+              placeholder="搜索可爱的表情包"
+              defaultValue={q}
             />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            <input type="hidden" name="view" value="search" />
+            <input type="hidden" name="page" value="1" />
+            <button
+              type="submit"
+              className={styles.searchButton}
+              aria-label="搜索"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                width="18"
+                height="18"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path
+                  d="M11 3a8 8 0 1 1 0 16 8 8 0 0 1 0-16Zm9.7 18.3-4.1-4.1a9.5 9.5 0 1 0-1.4 1.4l4.1 4.1a1 1 0 0 0 1.4-1.4Z"
+                  fill="currentColor"
+                />
+              </svg>
+            </button>
+          </form>
+          <nav className={styles.nav}>
+            <Link
+              className={`${styles.navItem} ${
+                view === "hot" ? styles.navItemActive : ""
+              }`}
+              href="/?view=hot"
+            >
+              热门
+            </Link>
+            <Link
+              className={`${styles.navItem} ${
+                view === "all" ? styles.navItemActive : ""
+              }`}
+              href="/?view=all"
+            >
+              全部
+            </Link>
+          </nav>
         </div>
+      </header>
+
+      <main className={styles.content}>
+        <div className={styles.sectionHeader}>
+          <div>
+            <div className={styles.sectionTitle}>
+              {view === "hot"
+                ? "热门推荐"
+                : view === "all"
+                ? "全部表情包"
+                : "搜索结果"}
+            </div>
+            <div className={styles.sectionMeta}>
+              {view === "hot" && "按下载量排序"}
+              {view === "all" && `共 ${total} 条`}
+              {view === "search" && (q ? `关键词：${q}` : "输入关键词开始")}
+            </div>
+          </div>
+
+          {view === "all" && (
+            <div className={styles.filters}>
+              <Link
+                className={`${styles.filterBtn} ${
+                  sort === "name" ? styles.filterActive : ""
+                }`}
+                href={`/?view=all&sort=name&page=1&limit=${limit}`}
+              >
+                按名称
+              </Link>
+              <Link
+                className={`${styles.filterBtn} ${
+                  sort === "latest" ? styles.filterActive : ""
+                }`}
+                href={`/?view=all&sort=latest&page=1&limit=${limit}`}
+              >
+                最新
+              </Link>
+              <Link
+                className={`${styles.filterBtn} ${
+                  sort === "earliest" ? styles.filterActive : ""
+                }`}
+                href={`/?view=all&sort=earliest&page=1&limit=${limit}`}
+              >
+                最早
+              </Link>
+            </div>
+          )}
+        </div>
+
+        {(view === "all" || view === "search") && totalPages > 1 && (
+          <div className={styles.pager}>
+            {hasPrev ? (
+              <Link
+                className={styles.pagerLink}
+                href={`/?view=${view}${
+                  view === "search" ? `&q=${encodedQ}` : `&sort=${sort}`
+                }&page=${page - 1}&limit=${limit}`}
+              >
+                上一页
+              </Link>
+            ) : (
+              <span className={styles.pagerDisabled}>上一页</span>
+            )}
+            {hasNext ? (
+              <Link
+                className={styles.pagerLink}
+                href={`/?view=${view}${
+                  view === "search" ? `&q=${encodedQ}` : `&sort=${sort}`
+                }&page=${page + 1}&limit=${limit}`}
+              >
+                下一页
+              </Link>
+            ) : (
+              <span className={styles.pagerDisabled}>下一页</span>
+            )}
+          </div>
+        )}
+
+        {view === "search" && !q ? (
+          <div className={styles.emptyState}>请输入关键词开始搜索。</div>
+        ) : items.length === 0 ? (
+          <div className={styles.emptyState}>没有找到结果。</div>
+        ) : (
+          <div className={styles.gridWrap}>
+            <MemeGrid items={items} />
+          </div>
+        )}
       </main>
     </div>
   );
