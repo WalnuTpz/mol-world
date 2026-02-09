@@ -131,6 +131,12 @@ export default function MemeCard({
     try {
       await fetch(`/api/memes/${id}/download`, { method: "POST" });
       onDownloaded?.(id);
+      const link = document.createElement("a");
+      link.href = mediaUrl;
+      link.download = "";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     } catch {
       // ignore
     }
@@ -148,14 +154,13 @@ export default function MemeCard({
         <span className={styles.badge}>
           {type === "STATIC" ? "静态" : "动图"}
         </span>
-        <a href={mediaUrl} download>
-          <button
-            className={styles.downloadBtn}
-            onClick={handleDownload}
-          >
-            下载
-          </button>
-        </a>
+        <button
+          type="button"
+          className={styles.downloadBtn}
+          onClick={handleDownload}
+        >
+          下载
+        </button>
       </div>
       <div className={styles.title}>{title ?? "未命名"}</div>
     </div>
