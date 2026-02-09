@@ -101,8 +101,8 @@ export default async function Home({
       sort === "name"
         ? [{ title: "asc" as const }, { createdAt: "desc" as const }]
         : sort === "earliest"
-        ? [{ createdAt: "asc" as const }]
-        : [{ createdAt: "desc" as const }];
+          ? [{ createdAt: "asc" as const }]
+          : [{ createdAt: "desc" as const }];
 
     const [list, count] = await Promise.all([
       prisma.meme.findMany({
@@ -230,25 +230,22 @@ export default async function Home({
           {view === "hot" && (
             <div className={styles.filters}>
               <Link
-                className={`${styles.filterBtn} ${
-                  hotSort === "latest" ? styles.filterActive : ""
-                }`}
+                className={`${styles.filterBtn} ${hotSort === "latest" ? styles.filterActive : ""
+                  }`}
                 href={`/?view=hot&hotSort=latest&limit=${limit}`}
               >
                 最新
               </Link>
               <Link
-                className={`${styles.filterBtn} ${
-                  hotSort === "hot" ? styles.filterActive : ""
-                }`}
+                className={`${styles.filterBtn} ${hotSort === "hot" ? styles.filterActive : ""
+                  }`}
                 href={`/?view=hot&hotSort=hot&limit=${limit}`}
               >
                 最热
               </Link>
               <Link
-                className={`${styles.filterBtn} ${
-                  hotSort === "random" ? styles.filterActive : ""
-                }`}
+                className={`${styles.filterBtn} ${hotSort === "random" ? styles.filterActive : ""
+                  }`}
                 href={`/?view=hot&hotSort=random&limit=${limit}`}
               >
                 随机
@@ -258,25 +255,22 @@ export default async function Home({
           {view === "all" && (
             <div className={styles.filters}>
               <Link
-                className={`${styles.filterBtn} ${
-                  sort === "name" ? styles.filterActive : ""
-                }`}
+                className={`${styles.filterBtn} ${sort === "name" ? styles.filterActive : ""
+                  }`}
                 href={`/?view=all&sort=name&page=1&limit=${limit}`}
               >
                 按名称
               </Link>
               <Link
-                className={`${styles.filterBtn} ${
-                  sort === "latest" ? styles.filterActive : ""
-                }`}
+                className={`${styles.filterBtn} ${sort === "latest" ? styles.filterActive : ""
+                  }`}
                 href={`/?view=all&sort=latest&page=1&limit=${limit}`}
               >
                 最新
               </Link>
               <Link
-                className={`${styles.filterBtn} ${
-                  sort === "earliest" ? styles.filterActive : ""
-                }`}
+                className={`${styles.filterBtn} ${sort === "earliest" ? styles.filterActive : ""
+                  }`}
                 href={`/?view=all&sort=earliest&page=1&limit=${limit}`}
               >
                 最早
@@ -290,9 +284,8 @@ export default async function Home({
             {hasPrev ? (
               <Link
                 className={styles.pagerLink}
-                href={`/?view=${view}${
-                  view === "search" ? `&q=${encodedQ}` : `&sort=${sort}`
-                }&page=${page - 1}&limit=${limit}`}
+                href={`/?view=${view}${view === "search" ? `&q=${encodedQ}` : `&sort=${sort}`
+                  }&page=${page - 1}&limit=${limit}`}
               >
                 上一页
               </Link>
@@ -302,9 +295,8 @@ export default async function Home({
             {hasNext ? (
               <Link
                 className={styles.pagerLink}
-                href={`/?view=${view}${
-                  view === "search" ? `&q=${encodedQ}` : `&sort=${sort}`
-                }&page=${page + 1}&limit=${limit}`}
+                href={`/?view=${view}${view === "search" ? `&q=${encodedQ}` : `&sort=${sort}`
+                  }&page=${page + 1}&limit=${limit}`}
               >
                 下一页
               </Link>
@@ -324,6 +316,21 @@ export default async function Home({
           </div>
         )}
       </main>
+
+      <footer className={styles.footer}>
+        <div className={styles.footerInner}>
+          <div className={styles.footerSection}>
+            <div className={styles.footerTitle}>关于 molworld</div>
+            <div className={styles.footerText}>
+              十分神秘的 mol 表情包分享平台，致力于传播可爱的 mol 表情包。
+            </div>
+          </div>
+        </div>
+        <div className={styles.footerDivider} />
+        <div className={styles.footerBottom}>
+          © 3000 molworld. 并不保留所有权利。
+        </div>
+      </footer>
     </div>
   );
 }
