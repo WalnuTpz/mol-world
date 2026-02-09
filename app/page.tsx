@@ -160,7 +160,12 @@ export default async function Home({
           <Link className={styles.brand} href="/">
             Mol<span className={styles.brandAccent}>World</span>
           </Link>
-          <form className={styles.searchForm} action="/" method="get">
+          <form
+            key={`${view}-${q}`}
+            className={styles.searchForm}
+            action="/"
+            method="get"
+          >
             <input
               name="q"
               className={styles.searchInput}
