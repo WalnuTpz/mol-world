@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import HomeNav from "@/components/HomeNav";
 import MemeGrid from "@/components/MemeGrid";
 import { prisma } from "@/lib/db";
 import styles from "./page.module.css";
@@ -126,7 +127,6 @@ export default async function Home({
   const hasPrev = page > 1;
   const hasNext = page < totalPages;
   const encodedQ = encodeURIComponent(q);
-
   return (
     <div className={styles.page}>
       <header className={styles.header}>
@@ -162,24 +162,7 @@ export default async function Home({
               </svg>
             </button>
           </form>
-          <nav className={styles.nav}>
-            <Link
-              className={`${styles.navItem} ${
-                view === "hot" ? styles.navItemActive : ""
-              }`}
-              href="/?view=hot"
-            >
-              热门
-            </Link>
-            <Link
-              className={`${styles.navItem} ${
-                view === "all" ? styles.navItemActive : ""
-              }`}
-              href="/?view=all"
-            >
-              全部
-            </Link>
-          </nav>
+          <HomeNav />
         </div>
       </header>
 
