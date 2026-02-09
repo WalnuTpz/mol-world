@@ -14,8 +14,8 @@ const notoSansSC = Noto_Sans_SC({
 });
 
 export const metadata: Metadata = {
-  title: "PigHub",
-  description: "Meme hub for lovely stickers",
+  title: "MolWorld",
+  description: "Meme hub for lovely mol stickers",
 };
 
 export default function RootLayout({
