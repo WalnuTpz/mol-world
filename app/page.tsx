@@ -46,6 +46,7 @@ export default async function Home({
   const viewParam = getParam(resolvedParams?.view);
   const q = (getParam(resolvedParams?.q) ?? "").trim();
   const limit = parseIntParam(getParam(resolvedParams?.limit), 24);
+  const hotLimit = 24;
   const page = parseIntParam(getParam(resolvedParams?.page), 1);
   const sortParam = getParam(resolvedParams?.sort);
   const sort =
@@ -69,16 +70,16 @@ export default async function Home({
   let totalPages = 1;
 
   if (view === "hot") {
-    const baseWhere = { status: "PUBLISHED", isFeatured: true };
+    const baseWhere = { status: "PUBLISHED" as const };
     if (hotSort === "random") {
       const count = await prisma.meme.count({ where: baseWhere });
-      const maxSkip = Math.max(0, count - limit);
+      const maxSkip = Math.max(0, count - hotLimit);
       const skip = maxSkip === 0 ? 0 : Math.floor(Math.random() * (maxSkip + 1));
       items = await prisma.meme.findMany({
         where: baseWhere,
         orderBy: { createdAt: "desc" },
         skip,
-        take: limit,
+        take: hotLimit,
         select,
       });
     } else {
@@ -89,7 +90,7 @@ export default async function Home({
       items = await prisma.meme.findMany({
         where: baseWhere,
         orderBy,
-        take: limit,
+        take: hotLimit,
         select,
       });
     }
@@ -250,23 +251,26 @@ export default async function Home({
           {view === "hot" && (
             <div className={styles.filters}>
               <Link
-                className={`${styles.filterBtn} ${hotSort === "latest" ? styles.filterActive : ""
-                  }`}
-                href={`/?view=hot&hotSort=latest&limit=${limit}`}
+                className={`${styles.filterBtn} ${
+                  hotSort === "latest" ? styles.filterActive : ""
+                }`}
+                href="/?view=hot&hotSort=latest"
               >
                 最新
               </Link>
               <Link
-                className={`${styles.filterBtn} ${hotSort === "hot" ? styles.filterActive : ""
-                  }`}
-                href={`/?view=hot&hotSort=hot&limit=${limit}`}
+                className={`${styles.filterBtn} ${
+                  hotSort === "hot" ? styles.filterActive : ""
+                }`}
+                href="/?view=hot&hotSort=hot"
               >
                 最热
               </Link>
               <Link
-                className={`${styles.filterBtn} ${hotSort === "random" ? styles.filterActive : ""
-                  }`}
-                href={`/?view=hot&hotSort=random&limit=${limit}`}
+                className={`${styles.filterBtn} ${
+                  hotSort === "random" ? styles.filterActive : ""
+                }`}
+                href="/?view=hot&hotSort=random"
               >
                 随机
               </Link>
