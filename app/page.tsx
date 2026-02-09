@@ -155,9 +155,22 @@ export default async function Home({
                 aria-hidden="true"
                 focusable="false"
               >
-                <path
-                  d="M11 3a8 8 0 1 1 0 16 8 8 0 0 1 0-16Zm9.7 18.3-4.1-4.1a9.5 9.5 0 1 0-1.4 1.4l4.1 4.1a1 1 0 0 0 1.4-1.4Z"
-                  fill="currentColor"
+                <circle
+                  cx="11"
+                  cy="11"
+                  r="6.5"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  fill="none"
+                />
+                <line
+                  x1="16.2"
+                  y1="16.2"
+                  x2="20.5"
+                  y2="20.5"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
                 />
               </svg>
             </button>
