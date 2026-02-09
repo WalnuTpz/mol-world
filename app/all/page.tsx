@@ -46,23 +46,46 @@ export default async function AllPage({
     createdAt: true,
   };
 
-  const orderBy =
-    sort === "name"
-      ? [{ title: "asc" as const }, { createdAt: "desc" as const }]
-      : sort === "earliest"
-      ? [{ createdAt: "asc" as const }]
-      : [{ createdAt: "desc" as const }];
+  type MemeItem = Awaited<
+    ReturnType<typeof prisma.meme.findMany>
+  >[number];
+  let items: MemeItem[] = [];
+  let total = 0;
+  if (sort === "name") {
+    const list = await prisma.meme.findMany({ where, select });
+    const collator = new Intl.Collator("zh-Hans-CN", {
+      sensitivity: "base",
+      numeric: true,
+    });
+    list.sort((a, b) => {
+      if (!a.title && !b.title) return 0;
+      if (!a.title) return 1;
+      if (!b.title) return -1;
+      const diff = collator.compare(a.title, b.title);
+      if (diff !== 0) return diff;
+      return b.createdAt.getTime() - a.createdAt.getTime();
+    });
+    total = list.length;
+    items = list.slice(skip, skip + limit);
+  } else {
+    const orderBy =
+      sort === "earliest"
+        ? [{ createdAt: "asc" as const }]
+        : [{ createdAt: "desc" as const }];
 
-  const [items, total] = await Promise.all([
-    prisma.meme.findMany({
-      where,
-      orderBy,
-      skip,
-      take: limit,
-      select,
-    }),
-    prisma.meme.count({ where }),
-  ]);
+    const [list, count] = await Promise.all([
+      prisma.meme.findMany({
+        where,
+        orderBy,
+        skip,
+        take: limit,
+        select,
+      }),
+      prisma.meme.count({ where }),
+    ]);
+    items = list;
+    total = count;
+  }
 
   const totalPages = Math.max(1, Math.ceil(total / limit));
   const hasPrev = page > 1;
