@@ -1,3 +1,7 @@
+"use client";
+
+import type { MouseEvent } from "react";
+
 import styles from "./MemeCard.module.css";
 
 type MemeType = "STATIC" | "ANIMATED";
@@ -37,9 +41,7 @@ export default function MemeCard({
     }
   };
 
-  const handleDownload = async (
-    e: React.MouseEvent<HTMLButtonElement>
-  ) => {
+  const handleDownload = async (e: MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
     try {
       await fetch(`/api/memes/${id}/download`, { method: "POST" });
