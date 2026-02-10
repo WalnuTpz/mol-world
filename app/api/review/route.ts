@@ -2,37 +2,54 @@ import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/db";
 
-export async function GET() {
-  const items = await prisma.meme.findMany({
-    where: {
-      status: "HIDDEN",
-      mediaUrl: {
-        startsWith: "/uploads/",
-      },
+function parseIntParam(value: string | null, fallback: number) {
+  const parsed = Number.parseInt(value ?? "", 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const page = parseIntParam(searchParams.get("page"), 1);
+  const limit = parseIntParam(searchParams.get("limit"), 20);
+  const skip = (page - 1) * limit;
+
+  const where = {
+    status: "HIDDEN" as const,
+    mediaUrl: {
+      startsWith: "/uploads/",
     },
-    orderBy: { createdAt: "desc" },
-    select: {
-      id: true,
-      title: true,
-      type: true,
-      mediaUrl: true,
-      thumbUrl: true,
-      status: true,
-      createdAt: true,
-      tags: {
-        select: {
-          tag: {
-            select: { name: true },
+  };
+
+  const [items, total] = await Promise.all([
+    prisma.meme.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip,
+      take: limit,
+      select: {
+        id: true,
+        title: true,
+        type: true,
+        mediaUrl: true,
+        thumbUrl: true,
+        status: true,
+        createdAt: true,
+        tags: {
+          select: {
+            tag: {
+              select: { name: true },
+            },
           },
         },
       },
-    },
-  });
+    }),
+    prisma.meme.count({ where }),
+  ]);
 
   const normalized = items.map((item) => ({
     ...item,
     tags: item.tags.map((t) => t.tag.name),
   }));
 
-  return NextResponse.json({ items: normalized });
+  return NextResponse.json({ items: normalized, page, limit, total });
 }
