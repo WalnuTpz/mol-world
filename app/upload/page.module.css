@@ -110,6 +110,47 @@
   color: rgba(255, 255, 255, 0.55);
 }
 
+.submitRow {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.submitBtn {
+  padding: 12px 16px;
+  border-radius: 999px;
+  border: none;
+  background: #1f1f1f;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.submitBtn:hover:not(:disabled) {
+  background: #2a2a2a;
+}
+
+.submitBtn:disabled {
+  background: #2a2a2a;
+  color: rgba(255, 255, 255, 0.45);
+  cursor: not-allowed;
+}
+
+.formMessage {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.formMessageSuccess {
+  color: #ffffff;
+}
+
+.formMessageError {
+  color: #ffb4b4;
+}
+
 @media (max-width: 600px) {
   .content {
     min-height: 360px;

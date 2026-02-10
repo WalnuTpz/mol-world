@@ -1,3 +1,6 @@
+"use client";
+
+import { useRef, useState } from "react";
 import Link from "next/link";
 
 import HomeNav from "@/components/HomeNav";
@@ -5,6 +8,40 @@ import baseStyles from "../page.module.css";
 import styles from "./page.module.css";
 
 export default function UploadPage() {
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [status, setStatus] = useState<"idle" | "uploading" | "success" | "error">(
+    "idle"
+  );
+  const [message, setMessage] = useState<string>("");
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    setSelectedFile(file);
+    setStatus("idle");
+    setMessage("");
+  };
+
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!selectedFile) {
+      setStatus("error");
+      setMessage("请先选择图片");
+      return;
+    }
+
+    setStatus("uploading");
+    setMessage("");
+
+    window.setTimeout(() => {
+      setStatus("success");
+      setMessage("已提交，等待审核");
+      setSelectedFile(null);
+      if (fileRef.current) {
+        fileRef.current.value = "";
+      }
+    }, 800);
+  };
   return (
     <div className={baseStyles.page}>
       <header className={baseStyles.header}>
@@ -82,7 +119,7 @@ export default function UploadPage() {
           <h1 className={styles.title}>添加 mol 表情包</h1>
           <div className={styles.subtitle}>点击或拖拽上传 mol 图片</div>
         </div>
-        <div className={styles.uploadCard}>
+        <form className={styles.uploadCard} onSubmit={handleSubmit}>
           <div className={styles.dropZone}>
             <div className={styles.dropIcon}>
               <svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true">
@@ -122,7 +159,13 @@ export default function UploadPage() {
             <div className={styles.dropHint}>
               支持 JPG、PNG、GIF 格式，最大 10MB
             </div>
-            <input className={styles.fileInput} type="file" accept="image/*" />
+            <input
+              ref={fileRef}
+              className={styles.fileInput}
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+            />
           </div>
           <div className={styles.formFields}>
             <label className={styles.field}>
@@ -138,14 +181,33 @@ export default function UploadPage() {
               <input
                 className={styles.input}
                 type="text"
-                placeholder="给你的 mol 取一些标签"
+                placeholder="给你的 mol 想一些标签"
               />
-              <span className={styles.hint}>
-                建议填写识别度高的标签，方便搜索
-              </span>
             </label>
+            <div className={styles.submitRow}>
+              <button
+                type="submit"
+                className={styles.submitBtn}
+                disabled={status === "uploading" || !selectedFile}
+                data-state={status}
+              >
+                {status === "uploading" ? "上传中..." : "提交"}
+              </button>
+              {message ? (
+                <div
+                  className={`${styles.formMessage} ${status === "error"
+                    ? styles.formMessageError
+                    : status === "success"
+                      ? styles.formMessageSuccess
+                      : ""
+                    }`}
+                >
+                  {message}
+                </div>
+              ) : null}
+            </div>
           </div>
-        </div>
+        </form>
       </main>
 
       <footer className={baseStyles.footer}>
