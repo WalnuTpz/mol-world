@@ -113,7 +113,9 @@ export default function UploadPage() {
       <header className={baseStyles.header}>
         <div className={baseStyles.headerInner}>
           <Link className={baseStyles.brand} href="/">
-            Mol<span className={baseStyles.brandAccent}>World</span>
+            <span className={baseStyles.brandText}>
+              Mol<span className={baseStyles.brandAccent}>World</span>
+            </span>
             <img
               className={baseStyles.brandIcon}
               src="/brand-icon.png"
@@ -187,8 +189,7 @@ export default function UploadPage() {
 
       <main className={`${baseStyles.content} ${styles.content}`}>
         <div className={styles.headerBlock}>
-          <h1 className={styles.title}>添加 mol 表情包</h1>
-          <div className={styles.subtitle}>点击或拖拽上传 mol 图片</div>
+          <h1 className={styles.title}>添加表情包</h1>
         </div>
         <form className={styles.uploadCard} onSubmit={handleSubmit}>
           <div className={styles.dropZone}>
@@ -233,12 +234,12 @@ export default function UploadPage() {
               </>
             ) : (
               <>
-            <div className={styles.dropTitle}>
-              拖拽图片到这里、点击上传或直接 Ctrl+V 粘贴
-            </div>
-            <div className={styles.dropHint}>
-              支持 JPG、PNG、GIF 格式，最大 10MB
-            </div>
+                <div className={styles.dropTitle}>
+                  拖拽图片到这里、点击上传或直接 Ctrl+V 粘贴
+                </div>
+                <div className={styles.dropHint}>
+                  支持 JPG、PNG、GIF 格式，最大 10MB
+                </div>
               </>
             )}
             <input

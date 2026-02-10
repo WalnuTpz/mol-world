@@ -36,6 +36,11 @@
   gap: 6px;
 }
 
+.brandText {
+  display: inline-flex;
+  align-items: center;
+}
+
 .brandAccent {
   color: #ffffff;
 }

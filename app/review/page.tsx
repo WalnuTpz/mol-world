@@ -139,7 +139,9 @@ export default function ReviewPage() {
       <header className={baseStyles.header}>
         <div className={baseStyles.headerInner}>
           <Link className={baseStyles.brand} href="/">
-            Mol<span className={baseStyles.brandAccent}>World</span>
+            <span className={baseStyles.brandText}>
+              Mol<span className={baseStyles.brandAccent}>World</span>
+            </span>
             <img
               className={baseStyles.brandIcon}
               src="/brand-icon.png"

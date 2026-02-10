@@ -192,7 +192,9 @@ export default async function Home({
       <header className={styles.header}>
         <div className={styles.headerInner}>
           <Link className={styles.brand} href="/">
-            Mol<span className={styles.brandAccent}>World</span>
+            <span className={styles.brandText}>
+              Mol<span className={styles.brandAccent}>World</span>
+            </span>
             <img
               className={styles.brandIcon}
               src="/brand-icon.png"
