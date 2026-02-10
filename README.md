@@ -1,36 +1,60 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MolWorld
 
-## Getting Started
+一个基于 Next.js + Prisma + SQLite 的表情包网站项目。
+首页整合热门/全部/搜索三种视图，支持复制图片或动图、下载、分页与排序。
 
-First, run the development server:
+## 功能概览
+- 首页三合一视图：热门、全部、搜索
+- 热门页面支持：最新 / 最热 / 随机（固定 24 张，随机每次刷新不同）
+- 全部页面支持：按名称 / 最新 / 最早
+- 搜索页面支持：标题关键字
+- 复制统计：复制成功才计数（展示在卡片右下角）
+- 下载：仅下载，不计数
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## 技术栈
+- Next.js App Router
+- Prisma + SQLite
+- CSS Modules
+- 静态资源：`public/memes`
+
+## 目录结构（简化）
+```
+app/
+  page.tsx             # 首页三合一
+  api/                 # API 路由
+components/            # MemeGrid / MemeCard
+lib/                   # Prisma client 单例
+prisma/                # schema + seed
+public/memes/          # 资源文件
+docs/                  # 项目文档
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 本地运行
+环境配置：
+- Node.js（建议 LTS 版本）与 pnpm
+- 确保 `.env` 中存在 `DATABASE_URL="file:./prisma/dev.db"`
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+pnpm install
+pnpm dev
+```
+访问：`http://localhost:3000`
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 初始化数据库
+```bash
+pnpm prisma migrate dev --name init
+pnpm prisma db seed
+```
 
-## Learn More
+## 资源文件规则
+- 原图/动图：`public/memes/original/`
+- 缩略图：`public/memes/thumb/`
+- 动图缩略图使用同名 `.jpg` 静态封面
 
-To learn more about Next.js, take a look at the following resources:
+## 复制与计数
+- 点击卡片执行复制：
+  - 静态图：复制图片内容
+  - 动图：优先复制 GIF，失败复制封面图
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 致谢
+感谢 pighub 网站为项目提供的灵感来源和某神秘拜谢 QQ 群为项目提供的素材支持。
