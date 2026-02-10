@@ -4,6 +4,7 @@ import { copyFile, mkdir, rename, unlink } from "node:fs/promises";
 import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/db";
+import { generateThumb } from "@/lib/thumbs";
 
 type Payload = {
   title?: string;
@@ -37,7 +38,11 @@ const getUploadSource = (mediaUrl: string) => {
   return { filename, sourcePath };
 };
 
-const moveToLibrary = async (id: string, mediaUrl: string) => {
+const moveToLibrary = async (
+  id: string,
+  mediaUrl: string,
+  animated: boolean
+) => {
   const source = getUploadSource(mediaUrl);
   if (!source) {
     return null;
@@ -52,9 +57,14 @@ const moveToLibrary = async (id: string, mediaUrl: string) => {
 
   await rename(source.sourcePath, targetPath);
 
+  const thumbDir = path.join(process.cwd(), "public", "memes", "thumb");
+  const thumbName = `${id}.${animated ? "gif" : "jpg"}`;
+  const thumbPath = path.join(thumbDir, thumbName);
+  await generateThumb(targetPath, thumbPath, animated);
+
   return {
     mediaUrl: `/memes/original/${targetName}`,
-    thumbUrl: `/memes/original/${targetName}`,
+    thumbUrl: `/memes/thumb/${thumbName}`,
   };
 };
 
@@ -112,12 +122,17 @@ export async function PATCH(
     select: {
       id: true,
       mediaUrl: true,
+      type: true,
     },
   });
 
   const moved =
     status && current
-      ? await moveToLibrary(current.id, current.mediaUrl)
+      ? await moveToLibrary(
+          current.id,
+          current.mediaUrl,
+          current.type === "ANIMATED"
+        )
       : null;
 
   const updated = await prisma.meme.update({
