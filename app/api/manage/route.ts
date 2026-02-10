@@ -11,10 +11,26 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const page = parseIntParam(searchParams.get("page"), 1);
   const limit = parseIntParam(searchParams.get("limit"), 40);
+  const q = (searchParams.get("q") ?? "").trim();
   const skip = (page - 1) * limit;
+
+  const tokens = q
+    .split(/\s+/)
+    .map((token) => token.trim())
+    .filter(Boolean);
 
   const where = {
     status: { in: ["PUBLISHED", "HIDDEN"] as const },
+    ...(tokens.length
+      ? {
+          AND: tokens.map((token) => ({
+            OR: [
+              { title: { contains: token } },
+              { tags: { some: { tag: { name: { contains: token } } } } },
+            ],
+          })),
+        }
+      : {}),
   };
 
   const [items, total] = await Promise.all([
@@ -46,5 +62,5 @@ export async function GET(request: Request) {
     tags: item.tags.map((t) => t.tag.name),
   }));
 
-  return NextResponse.json({ items: normalized, page, limit, total });
+  return NextResponse.json({ items: normalized, page, limit, total, q });
 }

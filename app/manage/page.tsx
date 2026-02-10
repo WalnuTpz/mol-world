@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 import baseStyles from "../page.module.css";
@@ -24,6 +24,8 @@ type DraftState = {
   saving: boolean;
 };
 
+const PAGE_LIMIT = 10;
+
 const statusLabel = (status: ManageItem["status"]) => {
   switch (status) {
     case "PUBLISHED":
@@ -41,18 +43,37 @@ export default function ManagePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [jumpValue, setJumpValue] = useState("1");
 
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
+  const loadPage = useCallback(
+    async (targetPage: number, keyword: string) => {
+      let cancelled = false;
       setLoading(true);
       setError("");
       try {
-        const res = await fetch("/api/manage");
+        const params = new URLSearchParams({
+          page: String(targetPage),
+          limit: String(PAGE_LIMIT),
+          q: keyword,
+        });
+        const res = await fetch(`/api/manage?${params.toString()}`);
         if (!res.ok) throw new Error("加载失败");
-        const data = (await res.json()) as { items: ManageItem[] };
+        const data = (await res.json()) as {
+          items: ManageItem[];
+          page: number;
+          limit: number;
+          total: number;
+        };
         if (cancelled) return;
+        const totalPages = Math.max(1, Math.ceil(data.total / data.limit));
+        if (targetPage > totalPages) {
+          setPage(totalPages);
+          return;
+        }
         setItems(data.items);
+        setTotal(data.total);
         setDrafts(
           Object.fromEntries(
             data.items.map((item) => [
@@ -73,30 +94,22 @@ export default function ManagePage() {
       } finally {
         if (!cancelled) setLoading(false);
       }
-    };
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+      return () => {
+        cancelled = true;
+      };
+    },
+    []
+  );
 
-  const filteredItems = useMemo(() => {
-    const keyword = query.trim();
-    if (!keyword) return items;
-    const tokens = keyword
-      .split(/\s+/)
-      .map((token) => token.trim().toLowerCase())
-      .filter(Boolean);
-    if (tokens.length === 0) return items;
-    return items.filter((item) => {
-      const title = item.title ?? "";
-      const tags = item.tags.join(" ");
-      const haystack = `${title} ${tags}`.toLowerCase();
-      return tokens.every((token) => haystack.includes(token));
-    });
-  }, [items, query]);
+  useEffect(() => {
+    loadPage(page, query.trim());
+  }, [loadPage, page, query]);
 
-  const hasItems = filteredItems.length > 0;
+  useEffect(() => {
+    setJumpValue(String(page));
+  }, [page]);
+
+  const hasItems = items.length > 0;
   const emptyText = useMemo(() => {
     if (loading) return "加载中...";
     if (error) return error;
@@ -176,11 +189,23 @@ export default function ManagePage() {
         body: JSON.stringify({ action: "delete" }),
       });
       if (!res.ok) throw new Error("删除失败");
-      setItems((prev) => prev.filter((meme) => meme.id !== item.id));
+      await loadPage(page, query.trim());
     } catch (err) {
       updateDraft(item.id, { saving: false });
       setError(err instanceof Error ? err.message : "删除失败");
     }
+  };
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_LIMIT));
+  const hasPrev = page > 1;
+  const hasNext = page < totalPages;
+
+  const handleJump = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const next = Number.parseInt(jumpValue, 10);
+    if (!Number.isFinite(next)) return;
+    const clamped = Math.min(Math.max(next, 1), totalPages);
+    setPage(clamped);
   };
 
   return (
@@ -271,7 +296,10 @@ export default function ManagePage() {
             <input
               className={styles.searchInput}
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setPage(1);
+              }}
               placeholder="搜索名称或标签"
               aria-label="搜索表情包"
             />
@@ -303,7 +331,7 @@ export default function ManagePage() {
           <div className={styles.emptyState}>{emptyText}</div>
         ) : (
           <div className={styles.list}>
-            {filteredItems.map((item) => {
+            {items.map((item) => {
               const draft = drafts[item.id];
               const editing = draft?.editing ?? false;
               return (
@@ -391,6 +419,51 @@ export default function ManagePage() {
             })}
           </div>
         )}
+
+        <div className={baseStyles.pagination}>
+          <div className={baseStyles.pageInfo}>
+            当前第 {page} 页 / 共 {totalPages} 页
+          </div>
+          {totalPages > 1 && (
+            <div className={baseStyles.pageControls}>
+              <div className={baseStyles.pageNav}>
+                <button
+                  type="button"
+                  className={hasPrev ? baseStyles.pageNavBtn : baseStyles.pageNavBtnDisabled}
+                  onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                  disabled={!hasPrev}
+                >
+                  上一页
+                </button>
+                <button
+                  type="button"
+                  className={hasNext ? baseStyles.pageNavBtn : baseStyles.pageNavBtnDisabled}
+                  onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
+                  disabled={!hasNext}
+                >
+                  下一页
+                </button>
+              </div>
+              <form className={baseStyles.pageJump} onSubmit={handleJump}>
+                <label className={baseStyles.pageJumpLabel}>
+                  跳转到
+                  <input
+                    className={baseStyles.pageJumpInput}
+                    type="number"
+                    min={1}
+                    max={totalPages}
+                    value={jumpValue}
+                    onChange={(event) => setJumpValue(event.target.value)}
+                  />
+                  页
+                </label>
+                <button className={baseStyles.pageJumpButton} type="submit">
+                  跳转
+                </button>
+              </form>
+            </div>
+          )}
+        </div>
       </main>
 
       <footer className={baseStyles.footer}>
