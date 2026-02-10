@@ -28,7 +28,7 @@
   flex-direction: column;
   gap: 16px;
   min-height: 240px;
-  max-height: 1560px;
+  max-height: none;
 }
 
 .card {
