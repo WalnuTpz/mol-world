@@ -124,6 +124,27 @@ export default function UploadPage() {
             </div>
             <input className={styles.fileInput} type="file" accept="image/*" />
           </div>
+          <div className={styles.formFields}>
+            <label className={styles.field}>
+              <span className={styles.label}>图片名称</span>
+              <input
+                className={styles.input}
+                type="text"
+                placeholder="给你的 mol 取一个可爱的名字"
+              />
+            </label>
+            <label className={styles.field}>
+              <span className={styles.label}>标签</span>
+              <input
+                className={styles.input}
+                type="text"
+                placeholder="给你的 mol 取一些标签"
+              />
+              <span className={styles.hint}>
+                建议填写识别度高的标签，方便搜索
+              </span>
+            </label>
+          </div>
         </div>
       </main>
 
