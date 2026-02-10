@@ -4,7 +4,12 @@ import { prisma } from "@/lib/db";
 
 export async function GET() {
   const items = await prisma.meme.findMany({
-    where: { status: "HIDDEN" },
+    where: {
+      status: "HIDDEN",
+      mediaUrl: {
+        startsWith: "/uploads/",
+      },
+    },
     orderBy: { createdAt: "desc" },
     select: {
       id: true,

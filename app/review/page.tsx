@@ -98,9 +98,7 @@ export default function ReviewPage() {
         const next = prev.map((item) =>
           item.id === id ? data.item : item
         );
-        return status === "PUBLISHED"
-          ? next.filter((item) => item.id !== id)
-          : next;
+        return status ? next.filter((item) => item.id !== id) : next;
       });
       updateDraft(id, {
         title: data.item.title ?? "",
