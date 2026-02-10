@@ -42,5 +42,10 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/review/:path*", "/api/review/:path*"],
+  matcher: [
+    "/review/:path*",
+    "/api/review/:path*",
+    "/manage/:path*",
+    "/api/manage/:path*",
+  ],
 };
