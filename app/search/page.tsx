@@ -30,10 +30,18 @@ export default async function SearchPage({
   const limit = parseIntParam(getParam(searchParams?.limit), 40);
   const skip = (page - 1) * limit;
 
-  const where = q
+  const tokens = q
+    ? q
+        .split(/\s+/)
+        .map((token) => token.trim())
+        .filter(Boolean)
+    : [];
+  const where = tokens.length
     ? {
         status: "PUBLISHED" as const,
-        title: { contains: q },
+        AND: tokens.map((token) => ({
+          title: { contains: token },
+        })),
       }
     : null;
 
@@ -48,7 +56,7 @@ export default async function SearchPage({
     createdAt: true,
   };
 
-  const [items, total] = q
+  const [items, total] = tokens.length > 0
     ? await Promise.all([
         prisma.meme.findMany({
           where: where ?? undefined,

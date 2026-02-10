@@ -151,22 +151,31 @@ export default async function Home({
       totalPages = 1;
     } else {
       const skip = (page - 1) * limit;
+      const tokens = q
+        .split(/\s+/)
+        .map((token) => token.trim())
+        .filter(Boolean);
+      const where =
+        tokens.length > 0
+          ? {
+              status: "PUBLISHED",
+              AND: tokens.map((token) => ({
+                title: { contains: token },
+              })),
+            }
+          : {
+              status: "PUBLISHED",
+            };
       const [list, count] = await Promise.all([
         prisma.meme.findMany({
-          where: {
-            status: "PUBLISHED",
-            title: { contains: q },
-          },
+          where,
           orderBy: { createdAt: "desc" },
           skip,
           take: limit,
           select,
         }),
         prisma.meme.count({
-          where: {
-            status: "PUBLISHED",
-            title: { contains: q },
-          },
+          where,
         }),
       ]);
       items = list;

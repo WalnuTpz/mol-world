@@ -18,12 +18,22 @@ export async function GET(request: Request) {
     return NextResponse.json({ items: [], page, limit, total: 0, q });
   }
 
-  const where = {
-    status: "PUBLISHED" as const,
-    title: {
-      contains: q,
-    },
-  };
+  const tokens = q
+    .split(/\s+/)
+    .map((token) => token.trim())
+    .filter(Boolean);
+  const where = tokens.length
+    ? {
+        status: "PUBLISHED" as const,
+        AND: tokens.map((token) => ({
+          title: {
+            contains: token,
+          },
+        })),
+      }
+    : {
+        status: "PUBLISHED" as const,
+      };
 
   const [items, total] = await Promise.all([
     prisma.meme.findMany({
