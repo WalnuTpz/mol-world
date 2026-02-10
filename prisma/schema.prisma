@@ -14,7 +14,6 @@ enum MemeType {
 enum MemeStatus {
   PUBLISHED
   HIDDEN
-  DELETED
 }
 
 model Meme {

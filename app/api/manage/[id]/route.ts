@@ -1,3 +1,6 @@
+import path from "node:path";
+import { unlink } from "node:fs/promises";
+
 import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/db";
@@ -5,7 +8,8 @@ import { prisma } from "@/lib/db";
 type Payload = {
   title?: string;
   tags?: string[];
-  status?: "PUBLISHED" | "HIDDEN" | "DELETED";
+  status?: "PUBLISHED" | "HIDDEN";
+  action?: "delete";
 };
 
 const normalizeTags = (tags: string[]) =>
@@ -17,6 +21,43 @@ const normalizeTags = (tags: string[]) =>
         .map((tag) => tag.slice(0, 50))
     )
   );
+
+const resolveDeletePath = (url: string) => {
+  const normalized = url.trim();
+  if (normalized.startsWith("/memes/original/")) {
+    const name = path.basename(normalized);
+    if (!name) return null;
+    return path.join(process.cwd(), "public", "memes", "original", name);
+  }
+  if (normalized.startsWith("/memes/thumb/")) {
+    const name = path.basename(normalized);
+    if (!name) return null;
+    return path.join(process.cwd(), "public", "memes", "thumb", name);
+  }
+  if (normalized.startsWith("/uploads/")) {
+    const name = path.basename(normalized);
+    if (!name) return null;
+    return path.join(process.cwd(), "public", "uploads", name);
+  }
+  return null;
+};
+
+const removeFiles = async (urls: string[]) => {
+  const paths = new Set<string>();
+  urls.forEach((url) => {
+    const resolved = resolveDeletePath(url);
+    if (resolved) paths.add(resolved);
+  });
+  for (const filePath of paths) {
+    try {
+      await unlink(filePath);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+        throw error;
+      }
+    }
+  }
+};
 
 export async function PATCH(
   request: Request,
@@ -31,6 +72,27 @@ export async function PATCH(
   const title = body.title?.trim() ?? null;
   const status = body.status;
   const tags = body.tags ? normalizeTags(body.tags) : [];
+
+  if (body.action === "delete") {
+    const current = await prisma.meme.findUnique({
+      where: { id },
+      select: {
+        mediaUrl: true,
+        thumbUrl: true,
+      },
+    });
+
+    if (current) {
+      await removeFiles([current.mediaUrl, current.thumbUrl]);
+    }
+
+    await prisma.$transaction([
+      prisma.memeTag.deleteMany({ where: { memeId: id } }),
+      prisma.meme.delete({ where: { id } }),
+    ]);
+
+    return NextResponse.json({ ok: true });
+  }
 
   const updated = await prisma.meme.update({
     where: { id },

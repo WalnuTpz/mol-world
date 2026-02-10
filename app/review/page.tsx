@@ -12,7 +12,7 @@ type ReviewItem = {
   type: "STATIC" | "ANIMATED";
   mediaUrl: string;
   thumbUrl: string;
-  status: "PUBLISHED" | "HIDDEN" | "DELETED";
+  status: "PUBLISHED" | "HIDDEN";
   tags: string[];
 };
 
@@ -80,14 +80,10 @@ export default function ReviewPage() {
 
   const submit = async (
     id: string,
-    status?: "PUBLISHED" | "HIDDEN" | "DELETED"
+    status?: "PUBLISHED" | "HIDDEN"
   ) => {
     const draft = drafts[id];
     if (!draft || draft.saving) return;
-    if (status === "DELETED") {
-      const ok = window.confirm("确认删除这条表情包吗？此操作不可撤销。");
-      if (!ok) return;
-    }
     updateDraft(id, { saving: true });
     try {
       const res = await fetch(`/api/review/${id}`, {
@@ -115,6 +111,26 @@ export default function ReviewPage() {
     } catch (err) {
       updateDraft(id, { saving: false });
       setError(err instanceof Error ? err.message : "保存失败");
+    }
+  };
+
+  const remove = async (id: string) => {
+    const draft = drafts[id];
+    if (!draft || draft.saving) return;
+    const ok = window.confirm("确认删除这条表情包吗？此操作不可撤销。");
+    if (!ok) return;
+    updateDraft(id, { saving: true });
+    try {
+      const res = await fetch(`/api/review/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "delete" }),
+      });
+      if (!res.ok) throw new Error("删除失败");
+      setItems((prev) => prev.filter((item) => item.id !== id));
+    } catch (err) {
+      updateDraft(id, { saving: false });
+      setError(err instanceof Error ? err.message : "删除失败");
     }
   };
 
@@ -255,7 +271,7 @@ export default function ReviewPage() {
                       <button
                         type="button"
                         className={styles.actionDanger}
-                        onClick={() => submit(item.id, "DELETED")}
+                        onClick={() => remove(item.id)}
                         disabled={draft?.saving}
                       >
                         删除

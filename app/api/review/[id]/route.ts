@@ -8,7 +8,8 @@ import { prisma } from "@/lib/db";
 type Payload = {
   title?: string;
   tags?: string[];
-  status?: "PUBLISHED" | "HIDDEN" | "DELETED";
+  status?: "PUBLISHED" | "HIDDEN";
+  action?: "delete";
 };
 
 export const runtime = "nodejs";
@@ -83,6 +84,29 @@ export async function PATCH(
   const status = body.status;
   const tags = body.tags ? normalizeTags(body.tags) : [];
 
+  if (body.action === "delete") {
+    const current = await prisma.meme.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        mediaUrl: true,
+        thumbUrl: true,
+      },
+    });
+
+    if (current) {
+      await removeFromUploads(current.mediaUrl);
+      await removeFromUploads(current.thumbUrl);
+    }
+
+    await prisma.$transaction([
+      prisma.memeTag.deleteMany({ where: { memeId: id } }),
+      prisma.meme.delete({ where: { id } }),
+    ]);
+
+    return NextResponse.json({ ok: true });
+  }
+
   const current = await prisma.meme.findUnique({
     where: { id },
     select: {
@@ -92,13 +116,9 @@ export async function PATCH(
   });
 
   const moved =
-    status === "PUBLISHED" && current
+    status && current
       ? await moveToLibrary(current.id, current.mediaUrl)
       : null;
-
-  if (status === "DELETED" && current) {
-    await removeFromUploads(current.mediaUrl);
-  }
 
   const updated = await prisma.meme.update({
     where: { id },

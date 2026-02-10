@@ -12,14 +12,14 @@ type ManageItem = {
   type: "STATIC" | "ANIMATED";
   mediaUrl: string;
   thumbUrl: string;
-  status: "PUBLISHED" | "HIDDEN" | "DELETED";
+  status: "PUBLISHED" | "HIDDEN";
   tags: string[];
 };
 
 type DraftState = {
   title: string;
   tags: string;
-  status: "PUBLISHED" | "HIDDEN" | "DELETED";
+  status: "PUBLISHED" | "HIDDEN";
   editing: boolean;
   saving: boolean;
 };
@@ -30,8 +30,6 @@ const statusLabel = (status: ManageItem["status"]) => {
       return "已发布";
     case "HIDDEN":
       return "已隐藏";
-    case "DELETED":
-      return "已删除";
     default:
       return status;
   }
@@ -132,9 +130,7 @@ export default function ManagePage() {
       if (!res.ok) throw new Error("保存失败");
       const data = (await res.json()) as { item: ManageItem };
       setItems((prev) =>
-        data.item.status === "DELETED"
-          ? prev.filter((meme) => meme.id !== item.id)
-          : prev.map((meme) => (meme.id === item.id ? data.item : meme))
+        prev.map((meme) => (meme.id === item.id ? data.item : meme))
       );
       updateDraft(item.id, {
         title: data.item.title ?? "",
@@ -159,7 +155,7 @@ export default function ManagePage() {
       const res = await fetch(`/api/manage/${item.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "DELETED" }),
+        body: JSON.stringify({ action: "delete" }),
       });
       if (!res.ok) throw new Error("删除失败");
       setItems((prev) => prev.filter((meme) => meme.id !== item.id));
@@ -297,7 +293,6 @@ export default function ManagePage() {
                         >
                           <option value="PUBLISHED">已发布</option>
                           <option value="HIDDEN">已隐藏</option>
-                          <option value="DELETED">已删除</option>
                         </select>
                       ) : (
                         <span

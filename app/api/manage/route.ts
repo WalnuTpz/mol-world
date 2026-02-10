@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db";
 export async function GET() {
   const items = await prisma.meme.findMany({
     where: {
-      status: { not: "DELETED" },
+      status: { in: ["PUBLISHED", "HIDDEN"] },
     },
     orderBy: { createdAt: "desc" },
     select: {
