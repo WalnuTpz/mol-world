@@ -78,7 +78,53 @@ export default function UploadPage() {
       </header>
 
       <main className={`${baseStyles.content} ${styles.content}`}>
-        <h1 className={styles.title}>添加 mol 表情包</h1>
+        <div className={styles.headerBlock}>
+          <h1 className={styles.title}>添加 mol 表情包</h1>
+          <div className={styles.subtitle}>点击或拖拽上传 mol 图片</div>
+        </div>
+        <div className={styles.uploadCard}>
+          <div className={styles.dropZone}>
+            <div className={styles.dropIcon}>
+              <svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true">
+                <path
+                  d="M12 4v9"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+                <path
+                  d="M8.5 7.5L12 4l3.5 3.5"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <rect
+                  x="5"
+                  y="12"
+                  width="14"
+                  height="7"
+                  rx="2.5"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  fill="none"
+                />
+                <path
+                  d="M8 16h8"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  opacity="0.6"
+                />
+              </svg>
+            </div>
+            <div className={styles.dropTitle}>拖拽图片到这里或点击上传</div>
+            <div className={styles.dropHint}>
+              支持 JPG、PNG、GIF 格式，最大 10MB
+            </div>
+            <input className={styles.fileInput} type="file" accept="image/*" />
+          </div>
+        </div>
       </main>
 
       <footer className={baseStyles.footer}>

@@ -9,9 +9,76 @@
   min-height: 520px;
 }
 
+.headerBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 22px;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.uploadCard {
+  background: #121212;
+  border-radius: 18px;
+  padding: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.dropZone {
+  position: relative;
+  border-radius: 16px;
+  border: 2px dashed rgba(255, 255, 255, 0.3);
+  padding: 36px 18px;
+  min-height: 280px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: rgba(255, 255, 255, 0.6);
+  text-align: center;
+}
+
+.dropIcon {
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0));
+}
+
+.dropTitle {
+  font-size: 16px;
+  color: #ffffff;
+}
+
+.dropHint {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.fileInput {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
 @media (max-width: 600px) {
   .content {
     min-height: 360px;
+  }
+
+  .dropZone {
+    min-height: 220px;
   }
 
   .title {
