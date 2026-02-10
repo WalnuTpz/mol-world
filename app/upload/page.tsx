@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
 import HomeNav from "@/components/HomeNav";
@@ -39,6 +39,37 @@ export default function UploadPage() {
     setStatus("idle");
     setMessage("");
   };
+
+  useEffect(() => {
+    const handlePaste = (event: ClipboardEvent) => {
+      const items = event.clipboardData?.items;
+      if (!items || items.length === 0) return;
+      const fileItem = Array.from(items).find(
+        (item) => item.kind === "file" && item.type.startsWith("image/")
+      );
+      if (!fileItem) return;
+      const file = fileItem.getAsFile();
+      if (!file) return;
+      if (!isValidFile(file)) {
+        setSelectedFile(null);
+        setStatus("error");
+        setMessage("文件格式不支持或超过 10MB");
+        return;
+      }
+      setSelectedFile(file);
+      setStatus("idle");
+      setMessage("");
+      if (fileRef.current) {
+        fileRef.current.value = "";
+      }
+      event.preventDefault();
+    };
+
+    window.addEventListener("paste", handlePaste);
+    return () => {
+      window.removeEventListener("paste", handlePaste);
+    };
+  }, []);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -202,10 +233,12 @@ export default function UploadPage() {
               </>
             ) : (
               <>
-                <div className={styles.dropTitle}>拖拽图片到这里或点击上传</div>
-                <div className={styles.dropHint}>
-                  支持 JPG、PNG、GIF 格式，最大 10MB
-                </div>
+            <div className={styles.dropTitle}>
+              拖拽图片到这里、点击上传或直接 Ctrl+V 粘贴
+            </div>
+            <div className={styles.dropHint}>
+              支持 JPG、PNG、GIF 格式，最大 10MB
+            </div>
               </>
             )}
             <input
