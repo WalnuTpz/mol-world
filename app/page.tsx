@@ -226,7 +226,12 @@ export default async function Home({
               </svg>
             </button>
           </form>
-          <HomeNav />
+          <div className={styles.headerActions}>
+            <HomeNav />
+            <Link className={styles.uploadBtn} href="/upload">
+              上传
+            </Link>
+          </div>
         </div>
       </header>
 
