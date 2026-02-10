@@ -404,13 +404,12 @@ export default async function Home({
           )}
         </div>
 
-        {(view === "all" || view === "search") && totalPages > 1 && (
+        {view === "search" && totalPages > 1 && (
           <div className={styles.pager}>
             {hasPrev ? (
               <Link
                 className={styles.pagerLink}
-                href={`/?view=${view}${view === "search" ? `&q=${encodedQ}` : `&sort=${sort}`
-                  }&page=${page - 1}&limit=${limit}`}
+                href={`/?view=${view}&q=${encodedQ}&page=${page - 1}&limit=${limit}`}
               >
                 上一页
               </Link>
@@ -420,8 +419,7 @@ export default async function Home({
             {hasNext ? (
               <Link
                 className={styles.pagerLink}
-                href={`/?view=${view}${view === "search" ? `&q=${encodedQ}` : `&sort=${sort}`
-                  }&page=${page + 1}&limit=${limit}`}
+                href={`/?view=${view}&q=${encodedQ}&page=${page + 1}&limit=${limit}`}
               >
                 下一页
               </Link>
@@ -438,6 +436,58 @@ export default async function Home({
         ) : (
           <div className={styles.gridWrap}>
             <MemeGrid items={items} />
+          </div>
+        )}
+
+        {view === "all" && totalPages > 1 && (
+          <div className={styles.pagination}>
+            <div className={styles.pageInfo}>
+              当前第 {page} 页 / 共 {totalPages} 页
+            </div>
+            <div className={styles.pageControls}>
+              <div className={styles.pageNav}>
+                {hasPrev ? (
+                  <Link
+                    className={styles.pageNavBtn}
+                    href={`/?view=all&sort=${sort}&page=${page - 1}&limit=${limit}`}
+                  >
+                    上一页
+                  </Link>
+                ) : (
+                  <span className={styles.pageNavBtnDisabled}>上一页</span>
+                )}
+                {hasNext ? (
+                  <Link
+                    className={styles.pageNavBtn}
+                    href={`/?view=all&sort=${sort}&page=${page + 1}&limit=${limit}`}
+                  >
+                    下一页
+                  </Link>
+                ) : (
+                  <span className={styles.pageNavBtnDisabled}>下一页</span>
+                )}
+              </div>
+              <form className={styles.pageJump} action="/" method="get">
+                <input type="hidden" name="view" value="all" />
+                <input type="hidden" name="sort" value={sort} />
+                <input type="hidden" name="limit" value={limit} />
+                <label className={styles.pageJumpLabel}>
+                  跳转到
+                  <input
+                    className={styles.pageJumpInput}
+                    type="number"
+                    name="page"
+                    min={1}
+                    max={totalPages}
+                    defaultValue={page}
+                  />
+                  页
+                </label>
+                <button className={styles.pageJumpButton} type="submit">
+                  跳转
+                </button>
+              </form>
+            </div>
           </div>
         )}
       </main>
