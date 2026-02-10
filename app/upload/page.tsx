@@ -83,6 +83,11 @@ export default function UploadPage() {
         <div className={baseStyles.headerInner}>
           <Link className={baseStyles.brand} href="/">
             Mol<span className={baseStyles.brandAccent}>World</span>
+            <img
+              className={baseStyles.brandIcon}
+              src="/brand-icon.png"
+              alt="MolWorld"
+            />
           </Link>
           <form className={baseStyles.searchForm} action="/" method="get">
             <input

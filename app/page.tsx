@@ -193,6 +193,11 @@ export default async function Home({
         <div className={styles.headerInner}>
           <Link className={styles.brand} href="/">
             Mol<span className={styles.brandAccent}>World</span>
+            <img
+              className={styles.brandIcon}
+              src="/brand-icon.png"
+              alt="MolWorld"
+            />
           </Link>
           <form className={styles.searchForm} action="/" method="get">
             <input

@@ -31,10 +31,20 @@
   font-weight: 700;
   letter-spacing: 0.5px;
   color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .brandAccent {
   color: #ffffff;
+}
+
+.brandIcon {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  display: block;
 }
 
 .searchForm {
