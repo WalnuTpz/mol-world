@@ -40,6 +40,7 @@ export default function ManagePage() {
   const [drafts, setDrafts] = useState<Record<string, DraftState>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -79,12 +80,29 @@ export default function ManagePage() {
     };
   }, []);
 
-  const hasItems = items.length > 0;
+  const filteredItems = useMemo(() => {
+    const keyword = query.trim();
+    if (!keyword) return items;
+    const tokens = keyword
+      .split(/\s+/)
+      .map((token) => token.trim().toLowerCase())
+      .filter(Boolean);
+    if (tokens.length === 0) return items;
+    return items.filter((item) => {
+      const title = item.title ?? "";
+      const tags = item.tags.join(" ");
+      const haystack = `${title} ${tags}`.toLowerCase();
+      return tokens.every((token) => haystack.includes(token));
+    });
+  }, [items, query]);
+
+  const hasItems = filteredItems.length > 0;
   const emptyText = useMemo(() => {
     if (loading) return "加载中...";
     if (error) return error;
+    if (query.trim()) return "未找到匹配结果";
     return "暂无内容";
-  }, [loading, error]);
+  }, [loading, error, query]);
 
   const updateDraft = (id: string, patch: Partial<DraftState>) => {
     setDrafts((prev) => ({
@@ -235,10 +253,42 @@ export default function ManagePage() {
       </header>
 
       <main className={baseStyles.content}>
-        <div className={styles.headerBlock}>
-          <h1 className={styles.title}>管理表情包</h1>
-          <div className={styles.subtitle}>
-            查看与管理所有表情包的状态
+        <div className={styles.headerRow}>
+          <div className={styles.headerBlock}>
+            <h1 className={styles.title}>管理表情包</h1>
+            <div className={styles.subtitle}>
+              查看与管理所有表情包的状态
+            </div>
+          </div>
+          <div className={styles.searchBox}>
+            <input
+              className={styles.searchInput}
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="搜索名称或标签"
+              aria-label="搜索表情包"
+            />
+            <span className={styles.searchIcon} aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="16" height="16">
+                <circle
+                  cx="11"
+                  cy="11"
+                  r="6.5"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  fill="none"
+                />
+                <line
+                  x1="16.2"
+                  y1="16.2"
+                  x2="20.5"
+                  y2="20.5"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </span>
           </div>
         </div>
 
@@ -246,7 +296,7 @@ export default function ManagePage() {
           <div className={styles.emptyState}>{emptyText}</div>
         ) : (
           <div className={styles.list}>
-            {items.map((item) => {
+            {filteredItems.map((item) => {
               const draft = drafts[item.id];
               const editing = draft?.editing ?? false;
               return (

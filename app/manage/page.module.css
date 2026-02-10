@@ -2,11 +2,19 @@
   min-height: 520px;
 }
 
+.headerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 22px;
+}
+
 .headerBlock {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-bottom: 22px;
 }
 
 .title {
@@ -19,6 +27,42 @@
 .subtitle {
   font-size: 14px;
   color: rgba(255, 255, 255, 0.6);
+}
+
+.searchBox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(30, 30, 30, 0.9);
+  min-width: 220px;
+  max-width: 280px;
+}
+
+.searchInput {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #f0f0f0;
+  font-size: 13px;
+}
+
+.searchInput::placeholder {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.searchIcon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #111111;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
 }
 
 .emptyState {
@@ -191,6 +235,11 @@
 
   .title {
     font-size: 22px;
+  }
+
+  .searchBox {
+    width: 100%;
+    max-width: 100%;
   }
 }
 
