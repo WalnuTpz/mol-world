@@ -14,15 +14,33 @@ export default function UploadPage() {
     "idle"
   );
   const [message, setMessage] = useState<string>("");
+  const [title, setTitle] = useState("");
+  const [tags, setTags] = useState("");
+
+  const isValidFile = (file: File) => {
+    const allowed = ["image/png", "image/jpeg", "image/gif", "image/webp"];
+    if (!allowed.includes(file.type)) return false;
+    if (file.size > 10 * 1024 * 1024) return false;
+    return true;
+  };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null;
+    if (file && !isValidFile(file)) {
+      setSelectedFile(null);
+      setStatus("error");
+      setMessage("文件格式不支持或超过 10MB");
+      if (fileRef.current) {
+        fileRef.current.value = "";
+      }
+      return;
+    }
     setSelectedFile(file);
     setStatus("idle");
     setMessage("");
   };
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!selectedFile) {
       setStatus("error");
@@ -32,15 +50,32 @@ export default function UploadPage() {
 
     setStatus("uploading");
     setMessage("");
+    try {
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+      formData.append("title", title);
+      formData.append("tags", tags);
 
-    window.setTimeout(() => {
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(data?.error || "上传失败");
+      }
       setStatus("success");
       setMessage("已提交，等待审核");
       setSelectedFile(null);
+      setTitle("");
+      setTags("");
       if (fileRef.current) {
         fileRef.current.value = "";
       }
-    }, 800);
+    } catch (err) {
+      setStatus("error");
+      setMessage(err instanceof Error ? err.message : "上传失败");
+    }
   };
   return (
     <div className={baseStyles.page}>
@@ -183,6 +218,8 @@ export default function UploadPage() {
                 className={styles.input}
                 type="text"
                 placeholder="给你的 mol 取一个可爱的名字"
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
               />
             </label>
             <label className={styles.field}>
@@ -191,6 +228,8 @@ export default function UploadPage() {
                 className={styles.input}
                 type="text"
                 placeholder="给你的 mol 想一些标签"
+                value={tags}
+                onChange={(event) => setTags(event.target.value)}
               />
             </label>
             <div className={styles.submitRow}>
