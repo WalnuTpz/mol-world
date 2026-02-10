@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 import baseStyles from "../page.module.css";
@@ -22,48 +22,74 @@ type DraftState = {
   saving: boolean;
 };
 
+const PAGE_LIMIT = 10;
+
 export default function ReviewPage() {
   const [items, setItems] = useState<ReviewItem[]>([]);
   const [drafts, setDrafts] = useState<Record<string, DraftState>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [jumpValue, setJumpValue] = useState("1");
 
-  useEffect(() => {
+  const loadPage = useCallback(async (targetPage: number) => {
     let cancelled = false;
-    const load = async () => {
-      setLoading(true);
-      setError("");
-      try {
-        const res = await fetch("/api/review");
-        if (!res.ok) throw new Error("加载失败");
-        const data = (await res.json()) as { items: ReviewItem[] };
-        if (cancelled) return;
-        setItems(data.items);
-        setDrafts(
-          Object.fromEntries(
-            data.items.map((item) => [
-              item.id,
-              {
-                title: item.title ?? "",
-                tags: item.tags.join(" "),
-                saving: false,
-              },
-            ])
-          )
-        );
-      } catch (err) {
-        if (cancelled) return;
-        setError(err instanceof Error ? err.message : "加载失败");
-      } finally {
-        if (!cancelled) setLoading(false);
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch(
+        `/api/review?page=${targetPage}&limit=${PAGE_LIMIT}`
+      );
+      if (!res.ok) throw new Error("加载失败");
+      const data = (await res.json()) as {
+        items: ReviewItem[];
+        page: number;
+        limit: number;
+        total: number;
+      };
+      if (cancelled) return;
+      const totalPages = Math.max(1, Math.ceil(data.total / data.limit));
+      if (targetPage > totalPages) {
+        setPage(totalPages);
+        return;
       }
-    };
-    load();
+      setItems(data.items);
+      setTotal(data.total);
+      setDrafts(
+        Object.fromEntries(
+          data.items.map((item) => [
+            item.id,
+            {
+              title: item.title ?? "",
+              tags: item.tags.join(" "),
+              saving: false,
+            },
+          ])
+        )
+      );
+    } catch (err) {
+      if (cancelled) return;
+      setError(err instanceof Error ? err.message : "加载失败");
+    } finally {
+      if (!cancelled) setLoading(false);
+    }
     return () => {
       cancelled = true;
     };
   }, []);
 
+  useEffect(() => {
+    loadPage(page);
+  }, [loadPage, page]);
+
+  useEffect(() => {
+    setJumpValue(String(page));
+  }, [page]);
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_LIMIT));
+  const hasPrev = page > 1;
+  const hasNext = page < totalPages;
   const hasItems = items.length > 0;
   const emptyText = useMemo(() => {
     if (loading) return "加载中...";
@@ -96,18 +122,8 @@ export default function ReviewPage() {
         }),
       });
       if (!res.ok) throw new Error("保存失败");
-      const data = (await res.json()) as { item: ReviewItem };
-      setItems((prev) => {
-        const next = prev.map((item) =>
-          item.id === id ? data.item : item
-        );
-        return status ? next.filter((item) => item.id !== id) : next;
-      });
-      updateDraft(id, {
-        title: data.item.title ?? "",
-        tags: data.item.tags.join(" "),
-        saving: false,
-      });
+      await res.json();
+      await loadPage(page);
     } catch (err) {
       updateDraft(id, { saving: false });
       setError(err instanceof Error ? err.message : "保存失败");
@@ -127,11 +143,19 @@ export default function ReviewPage() {
         body: JSON.stringify({ action: "delete" }),
       });
       if (!res.ok) throw new Error("删除失败");
-      setItems((prev) => prev.filter((item) => item.id !== id));
+      await loadPage(page);
     } catch (err) {
       updateDraft(id, { saving: false });
       setError(err instanceof Error ? err.message : "删除失败");
     }
+  };
+
+  const handleJump = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const next = Number.parseInt(jumpValue, 10);
+    if (!Number.isFinite(next)) return;
+    const clamped = Math.min(Math.max(next, 1), totalPages);
+    setPage(clamped);
   };
 
   return (
@@ -216,11 +240,11 @@ export default function ReviewPage() {
           <div className={styles.subtitle}>修改名称与标签后再审核发布</div>
         </div>
 
-        {!hasItems ? (
-          <div className={styles.emptyState}>{emptyText}</div>
-        ) : (
-          <div className={styles.list}>
-            {items.map((item) => {
+        <div className={styles.list}>
+          {!hasItems ? (
+            <div className={styles.emptyState}>{emptyText}</div>
+          ) : (
+            items.map((item) => {
               const draft = drafts[item.id];
               return (
                 <div key={item.id} className={styles.card}>
@@ -287,9 +311,54 @@ export default function ReviewPage() {
                   </div>
                 </div>
               );
-            })}
+            })
+          )}
+        </div>
+
+        <div className={baseStyles.pagination}>
+          <div className={baseStyles.pageInfo}>
+            当前第 {page} 页 / 共 {totalPages} 页
           </div>
-        )}
+          {totalPages > 1 && (
+            <div className={baseStyles.pageControls}>
+              <div className={baseStyles.pageNav}>
+                <button
+                  type="button"
+                  className={hasPrev ? baseStyles.pageNavBtn : baseStyles.pageNavBtnDisabled}
+                  onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                  disabled={!hasPrev}
+                >
+                  上一页
+                </button>
+                <button
+                  type="button"
+                  className={hasNext ? baseStyles.pageNavBtn : baseStyles.pageNavBtnDisabled}
+                  onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
+                  disabled={!hasNext}
+                >
+                  下一页
+                </button>
+              </div>
+              <form className={baseStyles.pageJump} onSubmit={handleJump}>
+                <label className={baseStyles.pageJumpLabel}>
+                  跳转到
+                  <input
+                    className={baseStyles.pageJumpInput}
+                    type="number"
+                    min={1}
+                    max={totalPages}
+                    value={jumpValue}
+                    onChange={(event) => setJumpValue(event.target.value)}
+                  />
+                  页
+                </label>
+                <button className={baseStyles.pageJumpButton} type="submit">
+                  跳转
+                </button>
+              </form>
+            </div>
+          )}
+        </div>
       </main>
 
       <footer className={baseStyles.footer}>
