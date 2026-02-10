@@ -28,6 +28,7 @@ model Meme {
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
   tags       MemeTag[]
+  dailyPools DailyPoolItem[]
 }
 
 model Tag {
@@ -43,4 +44,24 @@ model MemeTag {
   tag    Tag  @relation(fields: [tagId], references: [id])
 
   @@id([memeId, tagId])
+}
+
+model DailyPool {
+  id         String          @id @default(cuid())
+  day        String
+  groupIndex Int
+  items      DailyPoolItem[]
+
+  @@unique([day, groupIndex])
+}
+
+model DailyPoolItem {
+  id     String    @id @default(cuid())
+  poolId String
+  memeId String
+
+  pool DailyPool @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  meme Meme      @relation(fields: [memeId], references: [id], onDelete: Cascade)
+
+  @@unique([poolId, memeId])
 }

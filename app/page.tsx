@@ -34,6 +34,62 @@ function shuffle<T>(items: T[]) {
   return arr;
 }
 
+const DAILY_POOL_GROUPS = 20;
+const DAILY_POOL_SIZE = 24;
+
+const getDayKey = () => new Date().toISOString().slice(0, 10);
+
+const pickRandomSubset = <T,>(items: T[], count: number) => {
+  if (items.length <= count) return items.slice();
+  const arr = items.slice();
+  for (let i = arr.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr.slice(0, count);
+};
+
+const ensureDailyPools = async (day: string, memeIds: string[]) => {
+  if (memeIds.length === 0) return [];
+
+  const existing = await prisma.dailyPool.findMany({
+    where: { day },
+    include: { _count: { select: { items: true } } },
+  });
+
+  const shouldRebuild =
+    existing.length !== DAILY_POOL_GROUPS ||
+    existing.some((group) => group._count.items < DAILY_POOL_SIZE);
+
+  if (shouldRebuild) {
+    await prisma.dailyPoolItem.deleteMany({ where: { pool: { day } } });
+    await prisma.dailyPool.deleteMany({ where: { day } });
+
+    for (let i = 0; i < DAILY_POOL_GROUPS; i += 1) {
+      const ids = pickRandomSubset(memeIds, DAILY_POOL_SIZE);
+      await prisma.dailyPool.create({
+        data: {
+          day,
+          groupIndex: i,
+          items: {
+            create: ids.map((id) => ({
+              meme: { connect: { id } },
+            })),
+          },
+        },
+      });
+    }
+  }
+
+  return prisma.dailyPool.findMany({
+    where: { day },
+    select: {
+      groupIndex: true,
+      items: { select: { memeId: true } },
+    },
+  });
+};
+
 const select = {
   id: true,
   title: true,
@@ -81,11 +137,31 @@ export default async function Home({
   if (view === "hot") {
     const baseWhere = { status: "PUBLISHED" as const };
     if (hotSort === "random") {
-      const list = await prisma.meme.findMany({
+      const ids = await prisma.meme.findMany({
         where: baseWhere,
-        select,
+        select: { id: true },
       });
-      items = shuffle(list).slice(0, hotLimit);
+      const memeIds = ids.map((item) => item.id);
+      const pools = await ensureDailyPools(getDayKey(), memeIds);
+      if (pools.length > 0) {
+        const group = pools[Math.floor(Math.random() * pools.length)];
+        const groupIds = group.items.map((item) => item.memeId);
+        if (groupIds.length > 0) {
+          const list = await prisma.meme.findMany({
+            where: {
+              status: "PUBLISHED" as const,
+              id: { in: groupIds },
+            },
+            select,
+          });
+          const map = new Map(list.map((item) => [item.id, item]));
+          items = groupIds.map((id) => map.get(id)).filter(Boolean);
+        } else {
+          items = [];
+        }
+      } else {
+        items = [];
+      }
     } else {
       const orderBy =
         hotSort === "latest"
