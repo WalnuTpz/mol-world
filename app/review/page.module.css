@@ -97,7 +97,8 @@
 
 .actionBtn,
 .actionPrimary,
-.actionGhost {
+.actionGhost,
+.actionDanger {
   padding: 8px 14px;
   border-radius: 999px;
   font-size: 13px;
@@ -109,7 +110,8 @@
 }
 
 .actionBtn:hover,
-.actionGhost:hover {
+.actionGhost:hover,
+.actionDanger:hover {
   background: #1a1a1a;
   border-color: rgba(255, 255, 255, 0.6);
 }
@@ -129,9 +131,22 @@
   color: rgba(255, 255, 255, 0.8);
 }
 
+.actionDanger {
+  background: rgba(255, 71, 71, 0.15);
+  border-color: rgba(255, 71, 71, 0.6);
+  color: #ff8f8f;
+}
+
+.actionDanger:hover {
+  background: rgba(255, 71, 71, 0.25);
+  border-color: rgba(255, 71, 71, 0.8);
+  color: #ffd0d0;
+}
+
 .actionBtn:disabled,
 .actionPrimary:disabled,
-.actionGhost:disabled {
+.actionGhost:disabled,
+.actionDanger:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }

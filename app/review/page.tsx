@@ -78,9 +78,16 @@ export default function ReviewPage() {
     }));
   };
 
-  const submit = async (id: string, status?: "PUBLISHED" | "HIDDEN") => {
+  const submit = async (
+    id: string,
+    status?: "PUBLISHED" | "HIDDEN" | "DELETED"
+  ) => {
     const draft = drafts[id];
     if (!draft || draft.saving) return;
+    if (status === "DELETED") {
+      const ok = window.confirm("确认删除这条表情包吗？此操作不可撤销。");
+      if (!ok) return;
+    }
     updateDraft(id, { saving: true });
     try {
       const res = await fetch(`/api/review/${id}`, {
@@ -244,6 +251,14 @@ export default function ReviewPage() {
                         disabled={draft?.saving}
                       >
                         仅保存
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.actionDanger}
+                        onClick={() => submit(item.id, "DELETED")}
+                        disabled={draft?.saving}
+                      >
+                        删除
                       </button>
                     </div>
                   </div>

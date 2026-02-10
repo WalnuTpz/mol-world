@@ -1,5 +1,5 @@
 import path from "node:path";
-import { copyFile, mkdir, rename } from "node:fs/promises";
+import { copyFile, mkdir, rename, unlink } from "node:fs/promises";
 
 import { NextResponse } from "next/server";
 
@@ -8,7 +8,7 @@ import { prisma } from "@/lib/db";
 type Payload = {
   title?: string;
   tags?: string[];
-  status?: "PUBLISHED" | "HIDDEN";
+  status?: "PUBLISHED" | "HIDDEN" | "DELETED";
 };
 
 export const runtime = "nodejs";
@@ -27,49 +27,46 @@ const ensureDir = async (dir: string) => {
   await mkdir(dir, { recursive: true });
 };
 
-const toPublicPath = (url: string) =>
-  path.join(process.cwd(), "public", url.replace(/^\//, ""));
-
-const createThumb = async (inputPath: string, baseName: string, ext: string) => {
-  const thumbDir = path.join(process.cwd(), "public", "memes", "thumb");
-  await ensureDir(thumbDir);
-
-  try {
-    const mod = await import("sharp");
-    const sharp = "default" in mod ? mod.default : mod;
-    const outputPath = path.join(thumbDir, `${baseName}.jpg`);
-    await sharp(inputPath)
-      .resize({ width: 480, height: 480, fit: "inside" })
-      .jpeg({ quality: 82 })
-      .toFile(outputPath);
-    return `/memes/thumb/${baseName}.jpg`;
-  } catch {
-    const outputPath = path.join(thumbDir, `${baseName}${ext}`);
-    await copyFile(inputPath, outputPath);
-    return `/memes/thumb/${baseName}${ext}`;
-  }
+const getUploadSource = (mediaUrl: string) => {
+  if (!mediaUrl.startsWith("/uploads/")) return null;
+  const filename = path.basename(mediaUrl);
+  if (!filename) return null;
+  const uploadDir = path.join(process.cwd(), "public", "uploads");
+  const sourcePath = path.join(uploadDir, filename);
+  return { filename, sourcePath };
 };
 
 const moveToLibrary = async (id: string, mediaUrl: string) => {
-  if (!mediaUrl.startsWith("/uploads/")) {
+  const source = getUploadSource(mediaUrl);
+  if (!source) {
     return null;
   }
 
-  const ext = path.extname(mediaUrl) || ".png";
+  const ext = path.extname(source.filename) || ".png";
   const originalDir = path.join(process.cwd(), "public", "memes", "original");
   await ensureDir(originalDir);
 
   const targetName = `${id}${ext}`;
   const targetPath = path.join(originalDir, targetName);
-  const sourcePath = toPublicPath(mediaUrl);
 
-  await rename(sourcePath, targetPath);
-  const thumbUrl = await createThumb(targetPath, id, ext);
+  await rename(source.sourcePath, targetPath);
 
   return {
     mediaUrl: `/memes/original/${targetName}`,
-    thumbUrl,
+    thumbUrl: `/memes/original/${targetName}`,
   };
+};
+
+const removeFromUploads = async (mediaUrl: string) => {
+  const source = getUploadSource(mediaUrl);
+  if (!source) return;
+  try {
+    await unlink(source.sourcePath);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+      throw error;
+    }
+  }
 };
 
 export async function PATCH(
@@ -95,7 +92,13 @@ export async function PATCH(
   });
 
   const moved =
-    status && current ? await moveToLibrary(current.id, current.mediaUrl) : null;
+    status === "PUBLISHED" && current
+      ? await moveToLibrary(current.id, current.mediaUrl)
+      : null;
+
+  if (status === "DELETED" && current) {
+    await removeFromUploads(current.mediaUrl);
+  }
 
   const updated = await prisma.meme.update({
     where: { id },
