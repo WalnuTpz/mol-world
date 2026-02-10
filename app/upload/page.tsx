@@ -155,10 +155,19 @@ export default function UploadPage() {
                 />
               </svg>
             </div>
-            <div className={styles.dropTitle}>拖拽图片到这里或点击上传</div>
-            <div className={styles.dropHint}>
-              支持 JPG、PNG、GIF 格式，最大 10MB
-            </div>
+            {selectedFile || status === "success" ? (
+              <>
+                <div className={styles.dropTitle}>已上传图片</div>
+                <div className={styles.dropHint}>可以继续更换图片</div>
+              </>
+            ) : (
+              <>
+                <div className={styles.dropTitle}>拖拽图片到这里或点击上传</div>
+                <div className={styles.dropHint}>
+                  支持 JPG、PNG、GIF 格式，最大 10MB
+                </div>
+              </>
+            )}
             <input
               ref={fileRef}
               className={styles.fileInput}
