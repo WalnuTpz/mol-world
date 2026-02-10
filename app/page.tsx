@@ -40,7 +40,7 @@ const select = {
   type: true,
   mediaUrl: true,
   thumbUrl: true,
-  downloads: true,
+  copies: true,
   isFeatured: true,
   createdAt: true,
 };
@@ -90,7 +90,7 @@ export default async function Home({
       const orderBy =
         hotSort === "latest"
           ? { createdAt: "desc" as const }
-          : { downloads: "desc" as const };
+          : { copies: "desc" as const };
       items = await prisma.meme.findMany({
         where: baseWhere,
         orderBy,

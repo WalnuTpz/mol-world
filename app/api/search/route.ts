@@ -37,7 +37,7 @@ export async function GET(request: Request) {
         type: true,
         mediaUrl: true,
         thumbUrl: true,
-        downloads: true,
+        copies: true,
         isFeatured: true,
         createdAt: true,
       },

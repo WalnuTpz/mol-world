@@ -23,7 +23,7 @@ model Meme {
   type       MemeType
   mediaUrl   String
   thumbUrl   String
-  downloads  Int        @default(0)
+  copies     Int        @default(0)
   isFeatured Boolean    @default(false)
   status     MemeStatus @default(PUBLISHED)
   createdAt  DateTime   @default(now())

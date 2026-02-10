@@ -43,7 +43,7 @@ export default async function SearchPage({
     type: true,
     mediaUrl: true,
     thumbUrl: true,
-    downloads: true,
+    copies: true,
     isFeatured: true,
     createdAt: true,
   };

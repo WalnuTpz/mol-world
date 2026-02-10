@@ -41,7 +41,7 @@ export default async function AllPage({
     type: true,
     mediaUrl: true,
     thumbUrl: true,
-    downloads: true,
+    copies: true,
     isFeatured: true,
     createdAt: true,
   };

@@ -57,7 +57,7 @@ export default async function FeaturedPage({
     type: true,
     mediaUrl: true,
     thumbUrl: true,
-    downloads: true,
+    copies: true,
     isFeatured: true,
     createdAt: true,
   };
@@ -72,7 +72,7 @@ export default async function FeaturedPage({
   } else {
     const orderBy =
       mode === "hot"
-        ? { downloads: "desc" as const }
+        ? { copies: "desc" as const }
         : { createdAt: "desc" as const };
     items = await prisma.meme.findMany({
       where: baseWhere,

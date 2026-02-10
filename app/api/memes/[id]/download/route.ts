@@ -17,10 +17,10 @@ export async function POST(
 
   const updated = await prisma.meme.update({
     where: { id },
-    data: { downloads: { increment: 1 } },
+    data: { copies: { increment: 1 } },
     select: {
       id: true,
-      downloads: true,
+      copies: true,
     },
   });
 

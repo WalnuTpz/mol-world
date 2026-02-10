@@ -7,7 +7,7 @@ type Meme = {
   type: "STATIC" | "ANIMATED";
   mediaUrl: string;
   thumbUrl: string;
-  downloads: number;
+  copies: number;
 };
 
 type MemeGridProps = {
@@ -25,7 +25,7 @@ export default function MemeGrid({ items }: MemeGridProps) {
           type={meme.type}
           mediaUrl={meme.mediaUrl}
           thumbUrl={meme.thumbUrl}
-          copyCount={meme.downloads}
+          copyCount={meme.copies}
         />
       ))}
     </div>

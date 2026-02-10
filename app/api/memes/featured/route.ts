@@ -35,7 +35,7 @@ export async function GET(request: Request) {
         type: true,
         mediaUrl: true,
         thumbUrl: true,
-        downloads: true,
+        copies: true,
         isFeatured: true,
         createdAt: true,
       },
@@ -46,7 +46,7 @@ export async function GET(request: Request) {
 
   const orderBy =
     mode === "hot"
-      ? { downloads: "desc" as const }
+      ? { copies: "desc" as const }
       : { createdAt: "desc" as const };
 
   const items = await prisma.meme.findMany({
@@ -59,7 +59,7 @@ export async function GET(request: Request) {
       type: true,
       mediaUrl: true,
       thumbUrl: true,
-      downloads: true,
+      copies: true,
       isFeatured: true,
       createdAt: true,
     },

@@ -150,9 +150,9 @@ export default function MemeCard({
     try {
       const res = await fetch(`/api/memes/${id}/download`, { method: "POST" });
       if (!res.ok) return;
-      const data = (await res.json()) as { item?: { downloads?: number } };
-      if (typeof data.item?.downloads === "number") {
-        setCount(data.item.downloads);
+      const data = (await res.json()) as { item?: { copies?: number } };
+      if (typeof data.item?.copies === "number") {
+        setCount(data.item.copies);
       } else {
         setCount((prev) => prev + 1);
       }
