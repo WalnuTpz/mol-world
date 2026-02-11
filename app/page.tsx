@@ -321,6 +321,14 @@ export default async function Home({
   const hasPrev = page > 1;
   const hasNext = page < totalPages;
   const encodedQ = encodeURIComponent(q);
+  const emptyStateText =
+    view === "search"
+      ? q
+        ? "没有找到匹配的表情包，请尝试更换关键词或减少关键词数量。"
+        : "请输入关键词开始搜索，可用空格分隔多个关键词。"
+      : view === "all"
+        ? "暂无公开表情包，请先在审核页通过内容。"
+        : "暂无热门表情包，请先在管理页设置精选内容。";
   return (
     <div
       className={`${styles.page} ${
@@ -488,10 +496,8 @@ export default async function Home({
           )}
         </div>
 
-        {view === "search" && !q ? (
-          <div className={styles.emptyState}>请输入关键词开始搜索。</div>
-        ) : items.length === 0 ? (
-          <div className={styles.emptyState}>没有找到结果。</div>
+        {items.length === 0 ? (
+          <div className={styles.emptyState}>{emptyStateText}</div>
         ) : (
           <div className={styles.gridWrap}>
             <MemeGrid items={items} />

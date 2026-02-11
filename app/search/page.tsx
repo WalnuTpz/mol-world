@@ -210,12 +210,16 @@ export default async function SearchPage({
 
       {!q ? (
         <>
-          <div style={{ color: "#666" }}>请输入关键词开始搜索。</div>
+          <div style={{ color: "#666" }}>
+            请输入关键词开始搜索，可用空格分隔多个关键词。
+          </div>
           {pager}
         </>
       ) : normalizedItems.length === 0 ? (
         <>
-          <div style={{ color: "#666" }}>没有找到相关结果。</div>
+          <div style={{ color: "#666" }}>
+            没有找到匹配的表情包，请尝试更换关键词或减少关键词数量。
+          </div>
           {pager}
         </>
       ) : (

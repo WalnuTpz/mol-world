@@ -122,8 +122,8 @@ export default function ManagePage() {
   const emptyText = useMemo(() => {
     if (loading) return "加载中...";
     if (error) return error;
-    if (query.trim()) return "未找到匹配结果";
-    return "暂无内容";
+    if (query.trim()) return "未找到匹配结果，请尝试更换关键词。";
+    return "暂无可管理内容，可先在审核页通过表情包。";
   }, [loading, error, query]);
 
   const updateDraft = (id: string, patch: Partial<DraftState>) => {

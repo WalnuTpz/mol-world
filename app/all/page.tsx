@@ -152,7 +152,13 @@ export default async function AllPage({
           最早
         </Link>
       </div>
-      <MemeGrid items={items} />
+      {items.length === 0 ? (
+        <div style={{ color: "#666", marginBottom: 12 }}>
+          暂无公开表情包，请先在审核页通过内容。
+        </div>
+      ) : (
+        <MemeGrid items={items} />
+      )}
       <div className={baseStyles.pagination}>
         <div className={baseStyles.pageInfo}>
           当前第 {page} 页 / 共 {totalPages} 页

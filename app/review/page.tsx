@@ -97,7 +97,7 @@ export default function ReviewPage() {
   const emptyText = useMemo(() => {
     if (loading) return "加载中...";
     if (error) return error;
-    return "暂无待审核内容";
+    return "暂无待审核内容，可先去上传页提交表情包。";
   }, [loading, error]);
 
   const updateDraft = (id: string, patch: Partial<DraftState>) => {

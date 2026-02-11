@@ -123,7 +123,13 @@ export default async function FeaturedPage({
           );
         })}
       </div>
-      <MemeGrid items={items} />
+      {items.length === 0 ? (
+        <div style={{ color: "#666" }}>
+          暂无热门表情包，请先在管理页设置精选内容。
+        </div>
+      ) : (
+        <MemeGrid items={items} />
+      )}
     </main>
   );
 }
