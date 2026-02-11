@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type KeyboardEvent, type MouseEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
 import NextImage from "next/image";
 
 import styles from "./MemeCard.module.css";
@@ -31,6 +31,8 @@ export default function MemeCard({
   tags = [],
 }: MemeCardProps) {
   const [count, setCount] = useState(copyCount);
+  const [selected, setSelected] = useState(false);
+  const highlightTimerRef = useRef<number | null>(null);
   const toast = useToast();
   const visibleTags = tags.slice(0, 4);
   const isGifThumb = thumbUrl.toLowerCase().endsWith(".gif");
@@ -116,7 +118,27 @@ export default function MemeCard({
     }
   };
 
+  const triggerHighlight = () => {
+    setSelected(true);
+    if (highlightTimerRef.current) {
+      window.clearTimeout(highlightTimerRef.current);
+    }
+    highlightTimerRef.current = window.setTimeout(() => {
+      setSelected(false);
+      highlightTimerRef.current = null;
+    }, 800);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (highlightTimerRef.current) {
+        window.clearTimeout(highlightTimerRef.current);
+      }
+    };
+  }, []);
+
   const handleCopy = async () => {
+    triggerHighlight();
     const now = Date.now();
     if (now - lastCopyAt < COPY_COOLDOWN_MS) {
       toast("操作过于频繁", "error", undefined, "请稍后再试");
@@ -209,7 +231,7 @@ export default function MemeCard({
 
   return (
     <div
-      className={styles.card}
+      className={`${styles.card} ${selected ? styles.cardSelected : ""}`}
       onClick={handleCopy}
       onKeyDown={handleKeyDown}
       role="button"

@@ -9,7 +9,11 @@
 
 .card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.7), 0 12px 28px rgba(0, 0, 0, 0.28);
+}
+
+.cardSelected {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85), 0 12px 28px rgba(0, 0, 0, 0.35);
 }
 
 .media {
@@ -21,6 +25,15 @@
 .thumb {
   object-fit: cover;
   display: block;
+  transition: transform 0.15s ease;
+}
+
+.card:hover .thumb {
+  transform: scale(1.04);
+}
+
+.cardSelected .thumb {
+  transform: scale(1.04);
 }
 
 .badge {
@@ -57,6 +70,11 @@
   flex-direction: column;
   gap: 6px;
   padding: 10px 12px 12px;
+}
+
+.card:hover .footer,
+.cardSelected .footer {
+  background: #e6e6e6;
 }
 
 .titleRow {
