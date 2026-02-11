@@ -209,7 +209,7 @@ export default function ManagePage() {
   };
 
   return (
-    <div className={baseStyles.page}>
+    <div className={`${baseStyles.page} ${baseStyles.pageWithPagination}`}>
       <header className={baseStyles.header}>
         <div className={baseStyles.headerInner}>
           <Link className={baseStyles.brand} href="/">
@@ -424,45 +424,43 @@ export default function ManagePage() {
           <div className={baseStyles.pageInfo}>
             当前第 {page} 页 / 共 {totalPages} 页
           </div>
-          {totalPages > 1 && (
-            <div className={baseStyles.pageControls}>
-              <div className={baseStyles.pageNav}>
-                <button
-                  type="button"
-                  className={hasPrev ? baseStyles.pageNavBtn : baseStyles.pageNavBtnDisabled}
-                  onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
-                  disabled={!hasPrev}
-                >
-                  上一页
-                </button>
-                <button
-                  type="button"
-                  className={hasNext ? baseStyles.pageNavBtn : baseStyles.pageNavBtnDisabled}
-                  onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
-                  disabled={!hasNext}
-                >
-                  下一页
-                </button>
-              </div>
-              <form className={baseStyles.pageJump} onSubmit={handleJump}>
-                <label className={baseStyles.pageJumpLabel}>
-                  跳转到
-                  <input
-                    className={baseStyles.pageJumpInput}
-                    type="number"
-                    min={1}
-                    max={totalPages}
-                    value={jumpValue}
-                    onChange={(event) => setJumpValue(event.target.value)}
-                  />
-                  页
-                </label>
-                <button className={baseStyles.pageJumpButton} type="submit">
-                  跳转
-                </button>
-              </form>
+          <div className={baseStyles.pageControls}>
+            <div className={baseStyles.pageNav}>
+              <button
+                type="button"
+                className={hasPrev ? baseStyles.pageNavBtn : baseStyles.pageNavBtnDisabled}
+                onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                disabled={!hasPrev}
+              >
+                上一页
+              </button>
+              <button
+                type="button"
+                className={hasNext ? baseStyles.pageNavBtn : baseStyles.pageNavBtnDisabled}
+                onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
+                disabled={!hasNext}
+              >
+                下一页
+              </button>
             </div>
-          )}
+            <form className={baseStyles.pageJump} onSubmit={handleJump}>
+              <label className={baseStyles.pageJumpLabel}>
+                跳转到
+                <input
+                  className={baseStyles.pageJumpInput}
+                  type="number"
+                  min={1}
+                  max={totalPages}
+                  value={jumpValue}
+                  onChange={(event) => setJumpValue(event.target.value)}
+                />
+                页
+              </label>
+              <button className={baseStyles.pageJumpButton} type="submit">
+                跳转
+              </button>
+            </form>
+          </div>
         </div>
       </main>
 

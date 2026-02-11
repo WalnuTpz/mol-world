@@ -321,7 +321,11 @@ export default async function Home({
   const hasNext = page < totalPages;
   const encodedQ = encodeURIComponent(q);
   return (
-    <div className={styles.page}>
+    <div
+      className={`${styles.page} ${
+        view === "all" || view === "search" ? styles.pageWithPagination : ""
+      }`}
+    >
       <header className={styles.header}>
         <div className={styles.headerInner}>
           <Link className={styles.brand} href="/">
@@ -491,7 +495,7 @@ export default async function Home({
           </div>
         )}
 
-        {view === "search" && totalPages > 1 && (
+        {view === "search" && (
           <div className={styles.pagination}>
             <div className={styles.pageInfo}>
               当前第 {page} 页 / 共 {totalPages} 页
@@ -544,7 +548,7 @@ export default async function Home({
           </div>
         )}
 
-        {view === "all" && totalPages > 1 && (
+        {view === "all" && (
           <div className={styles.pagination}>
             <div className={styles.pageInfo}>
               当前第 {page} 页 / 共 {totalPages} 页

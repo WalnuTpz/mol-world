@@ -3,6 +3,7 @@ import Link from "next/link";
 import MemeGrid from "@/components/MemeGrid";
 import { prisma } from "@/lib/db";
 import { sortTags } from "@/lib/tags";
+import baseStyles from "../page.module.css";
 
 export const dynamic = "force-dynamic";
 
@@ -151,32 +152,55 @@ export default async function AllPage({
           最早
         </Link>
       </div>
-      <div style={{ marginBottom: 16, fontSize: 14 }}>
-        第 {page} 页 / 共 {totalPages} 页
-      </div>
-      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-        {hasPrev ? (
-          <Link
-            href={`/all?sort=${sort}&page=${page - 1}&limit=${limit}`}
-            style={{ textDecoration: "none" }}
-          >
-            上一页
-          </Link>
-        ) : (
-          <span style={{ color: "#999" }}>上一页</span>
-        )}
-        {hasNext ? (
-          <Link
-            href={`/all?sort=${sort}&page=${page + 1}&limit=${limit}`}
-            style={{ textDecoration: "none" }}
-          >
-            下一页
-          </Link>
-        ) : (
-          <span style={{ color: "#999" }}>下一页</span>
-        )}
-      </div>
       <MemeGrid items={items} />
+      <div className={baseStyles.pagination}>
+        <div className={baseStyles.pageInfo}>
+          当前第 {page} 页 / 共 {totalPages} 页
+        </div>
+        <div className={baseStyles.pageControls}>
+          <div className={baseStyles.pageNav}>
+            {hasPrev ? (
+              <Link
+                className={baseStyles.pageNavBtn}
+                href={`/all?sort=${sort}&page=${page - 1}&limit=${limit}`}
+              >
+                上一页
+              </Link>
+            ) : (
+              <span className={baseStyles.pageNavBtnDisabled}>上一页</span>
+            )}
+            {hasNext ? (
+              <Link
+                className={baseStyles.pageNavBtn}
+                href={`/all?sort=${sort}&page=${page + 1}&limit=${limit}`}
+              >
+                下一页
+              </Link>
+            ) : (
+              <span className={baseStyles.pageNavBtnDisabled}>下一页</span>
+            )}
+          </div>
+          <form className={baseStyles.pageJump} action="/all" method="get">
+            <input type="hidden" name="sort" value={sort} />
+            <input type="hidden" name="limit" value={limit} />
+            <label className={baseStyles.pageJumpLabel}>
+              跳转到
+              <input
+                className={baseStyles.pageJumpInput}
+                type="number"
+                name="page"
+                min={1}
+                max={totalPages}
+                defaultValue={page}
+              />
+              页
+            </label>
+            <button className={baseStyles.pageJumpButton} type="submit">
+              跳转
+            </button>
+          </form>
+        </div>
+      </div>
     </main>
   );
 }
