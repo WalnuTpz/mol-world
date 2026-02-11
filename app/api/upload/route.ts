@@ -10,6 +10,7 @@ export const runtime = "nodejs";
 
 const MAX_SIZE = 10 * 1024 * 1024;
 const UPLOAD_COOLDOWN_MS = 60 * 1000;
+const GLOBAL_UPLOAD_COOLDOWN_MS = 10 * 1000;
 const ALLOWED_TYPES: Record<string, string> = {
   "image/png": ".png",
   "image/jpeg": ".jpg",
@@ -18,6 +19,8 @@ const ALLOWED_TYPES: Record<string, string> = {
 };
 
 const uploadCooldown = new Map<string, number>();
+let lastGlobalUploadAt = 0;
+let globalUploading = false;
 
 const getClientId = (request: Request) => {
   const forwarded = request.headers.get("x-forwarded-for");
@@ -26,22 +29,6 @@ const getClientId = (request: Request) => {
 };
 
 export async function POST(request: Request) {
-  const clientId = getClientId(request);
-  const now = Date.now();
-  const lastUploadAt = uploadCooldown.get(clientId);
-  if (lastUploadAt && now - lastUploadAt < UPLOAD_COOLDOWN_MS) {
-    const retryAfter = Math.ceil(
-      (UPLOAD_COOLDOWN_MS - (now - lastUploadAt)) / 1000
-    );
-    return NextResponse.json(
-      { error: "上传过于频繁，请稍后再试" },
-      {
-        status: 429,
-        headers: { "Retry-After": String(retryAfter) },
-      }
-    );
-  }
-
   const formData = await request.formData();
   const file = formData.get("file");
   const rawTitle = formData.get("title");
@@ -60,14 +47,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "不支持的文件类型" }, { status: 400 });
   }
 
-  const uploadDir = path.join(process.cwd(), "public", "uploads");
-  await mkdir(uploadDir, { recursive: true });
-
-  const filename = `${crypto.randomUUID()}${ext}`;
-  const filePath = path.join(uploadDir, filename);
-  const buffer = Buffer.from(await file.arrayBuffer());
-  await writeFile(filePath, buffer);
-
   const title =
     typeof rawTitle === "string" && rawTitle.trim().length > 0
       ? rawTitle.trim()
@@ -82,11 +61,50 @@ export async function POST(request: Request) {
     });
     if (existing) {
       return NextResponse.json(
-        { error: "该表情包已存在" },
+        { error: "上传失败（已存在该表情包）" },
         { status: 409 }
       );
     }
   }
+
+  const clientId = getClientId(request);
+  const now = Date.now();
+  if (globalUploading || now - lastGlobalUploadAt < GLOBAL_UPLOAD_COOLDOWN_MS) {
+    const retryAfter = Math.ceil(
+      (GLOBAL_UPLOAD_COOLDOWN_MS - (now - lastGlobalUploadAt)) / 1000
+    );
+    return NextResponse.json(
+      { error: "操作过于频繁，请稍后再试" },
+      {
+        status: 429,
+        headers: { "Retry-After": String(Math.max(1, retryAfter)) },
+      }
+    );
+  }
+
+  const lastUploadAt = uploadCooldown.get(clientId);
+  if (lastUploadAt && now - lastUploadAt < UPLOAD_COOLDOWN_MS) {
+    const retryAfter = Math.ceil(
+      (UPLOAD_COOLDOWN_MS - (now - lastUploadAt)) / 1000
+    );
+    return NextResponse.json(
+      { error: "上传过于频繁，请稍后再试" },
+      {
+        status: 429,
+        headers: { "Retry-After": String(retryAfter) },
+      }
+    );
+  }
+
+  globalUploading = true;
+  try {
+    const uploadDir = path.join(process.cwd(), "public", "uploads");
+    await mkdir(uploadDir, { recursive: true });
+
+    const filename = `${crypto.randomUUID()}${ext}`;
+    const filePath = path.join(uploadDir, filename);
+    const buffer = Buffer.from(await file.arrayBuffer());
+    await writeFile(filePath, buffer);
 
   const mediaUrl = `/uploads/${filename}`;
   const type = ext === ".gif" ? "ANIMATED" : "STATIC";
@@ -112,6 +130,10 @@ export async function POST(request: Request) {
   });
 
   uploadCooldown.set(clientId, now);
+  lastGlobalUploadAt = now;
 
   return NextResponse.json({ ok: true });
+  } finally {
+    globalUploading = false;
+  }
 }
