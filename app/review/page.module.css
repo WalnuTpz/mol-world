@@ -1,8 +1,44 @@
+.headerRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 22px;
+}
+
 .headerBlock {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-bottom: 22px;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.headerDanger {
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  border: 1px solid rgba(255, 71, 71, 0.6);
+  background: rgba(255, 71, 71, 0.12);
+  color: #ffb1b1;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.headerDanger:hover:enabled {
+  background: rgba(255, 71, 71, 0.22);
+  border-color: rgba(255, 71, 71, 0.8);
+  color: #ffd6d6;
+}
+
+.headerDanger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .title {

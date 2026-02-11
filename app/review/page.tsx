@@ -6,6 +6,7 @@ import Image from "next/image";
 
 import baseStyles from "../page.module.css";
 import styles from "./page.module.css";
+import { useToast } from "@/components/ToastProvider";
 
 type ReviewItem = {
   id: string;
@@ -33,6 +34,7 @@ export default function ReviewPage() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [jumpValue, setJumpValue] = useState("1");
+  const toast = useToast();
 
   const loadPage = useCallback(async (targetPage: number) => {
     let cancelled = false;
@@ -159,6 +161,26 @@ export default function ReviewPage() {
     setPage(clamped);
   };
 
+  const clearAll = async () => {
+    const ok = window.confirm("确认清空审核队列吗？此操作不可撤销。");
+    if (!ok) return;
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/review/clear", { method: "POST" });
+      if (!res.ok) throw new Error("清空失败");
+      const data = (await res.json()) as { count?: number };
+      toast(`已清空审核队列（${data.count ?? 0}）`, "success");
+      await loadPage(1);
+      setPage(1);
+    } catch (err) {
+      toast("清空失败", "error");
+      setError(err instanceof Error ? err.message : "清空失败");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className={`${baseStyles.page} ${baseStyles.pageWithPagination}`}>
       <header className={baseStyles.header}>
@@ -238,9 +260,21 @@ export default function ReviewPage() {
       </header>
 
       <main className={baseStyles.content}>
-        <div className={styles.headerBlock}>
-          <h1 className={styles.title}>审核表情包</h1>
-          <div className={styles.subtitle}>修改名称与标签后再审核发布</div>
+        <div className={styles.headerRow}>
+          <div className={styles.headerBlock}>
+            <h1 className={styles.title}>审核表情包</h1>
+            <div className={styles.subtitle}>修改名称与标签后再审核发布</div>
+          </div>
+          <div className={styles.headerActions}>
+            <button
+              type="button"
+              className={styles.headerDanger}
+              onClick={clearAll}
+              disabled={loading || total === 0}
+            >
+              一键清空审核队列
+            </button>
+          </div>
         </div>
 
         <div className={styles.list}>
