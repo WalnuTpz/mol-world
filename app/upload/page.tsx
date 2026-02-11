@@ -141,11 +141,17 @@ export default function UploadPage() {
               height={36}
             />
           </Link>
-          <form className={baseStyles.searchForm} action="/" method="get">
+          <form
+            className={baseStyles.searchForm}
+            action="/"
+            method="get"
+            autoComplete="off"
+          >
             <input
               name="q"
               className={baseStyles.searchInput}
               placeholder="搜索可爱的表情包"
+              autoComplete="off"
             />
             <input type="hidden" name="view" value="search" />
             <input type="hidden" name="page" value="1" />

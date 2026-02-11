@@ -350,11 +350,17 @@ export default async function Home({
               height={36}
             />
           </Link>
-          <form className={styles.searchForm} action="/" method="get">
+          <form
+            className={styles.searchForm}
+            action="/"
+            method="get"
+            autoComplete="off"
+          >
             <input
               name="q"
               className={styles.searchInput}
               placeholder="搜索可爱的表情包"
+              autoComplete="off"
               defaultValue={q}
             />
             <input type="hidden" name="view" value="search" />

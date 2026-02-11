@@ -29,11 +29,11 @@
 }
 
 .card:hover .thumb {
-  transform: scale(1.04);
+  transform: scale(1.06);
 }
 
 .cardSelected .thumb {
-  transform: scale(1.04);
+  transform: scale(1.06);
 }
 
 .badge {

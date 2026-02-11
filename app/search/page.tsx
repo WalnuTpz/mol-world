@@ -198,12 +198,14 @@ export default async function SearchPage({
       <form
         action="/search"
         method="get"
+        autoComplete="off"
         style={{ display: "flex", gap: 8, marginBottom: 16 }}
       >
         <input
           name="q"
           placeholder="输入关键词后回车"
           defaultValue={q}
+          autoComplete="off"
           style={{
             flex: 1,
             padding: "8px 10px",
