@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 
 import HomeNav from "@/components/HomeNav";
 import MemeGrid from "@/components/MemeGrid";
@@ -332,10 +333,12 @@ export default async function Home({
             <span className={styles.brandText}>
               Mol<span className={styles.brandAccent}>World</span>
             </span>
-            <img
+            <Image
               className={styles.brandIcon}
               src="/brand-icon.png"
               alt="MolWorld"
+              width={36}
+              height={36}
             />
           </Link>
           <form className={styles.searchForm} action="/" method="get">

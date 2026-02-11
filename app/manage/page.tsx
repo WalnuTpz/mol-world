@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 
 import baseStyles from "../page.module.css";
 import styles from "./page.module.css";
@@ -224,10 +225,12 @@ export default function ManagePage() {
             <span className={baseStyles.brandText}>
               Mol<span className={baseStyles.brandAccent}>World</span>
             </span>
-            <img
+            <Image
               className={baseStyles.brandIcon}
               src="/brand-icon.png"
               alt="MolWorld"
+              width={36}
+              height={36}
             />
           </Link>
           <form className={baseStyles.searchForm} action="/" method="get">
@@ -345,7 +348,13 @@ export default function ManagePage() {
               return (
                 <div key={item.id} className={styles.card}>
                   <div className={styles.preview}>
-                    <img src={item.thumbUrl} alt={item.title ?? "meme"} />
+                    <Image
+                      src={item.thumbUrl}
+                      alt={item.title ?? "meme"}
+                      fill
+                      sizes="(max-width: 720px) 100vw, 180px"
+                      unoptimized={item.thumbUrl.toLowerCase().endsWith(".gif")}
+                    />
                   </div>
                   <div className={styles.fields}>
                     <label className={styles.field}>

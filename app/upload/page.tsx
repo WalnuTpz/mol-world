@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 
 import HomeNav from "@/components/HomeNav";
 import baseStyles from "../page.module.css";
@@ -116,10 +117,12 @@ export default function UploadPage() {
             <span className={baseStyles.brandText}>
               Mol<span className={baseStyles.brandAccent}>World</span>
             </span>
-            <img
+            <Image
               className={baseStyles.brandIcon}
               src="/brand-icon.png"
               alt="MolWorld"
+              width={36}
+              height={36}
             />
           </Link>
           <form className={baseStyles.searchForm} action="/" method="get">

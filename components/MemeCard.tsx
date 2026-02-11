@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type MouseEvent } from "react";
+import Image from "next/image";
 
 import styles from "./MemeCard.module.css";
 import { useToast } from "./ToastProvider";
@@ -29,6 +30,7 @@ export default function MemeCard({
   const [count, setCount] = useState(copyCount);
   const toast = useToast();
   const visibleTags = tags.slice(0, 4);
+  const isGifThumb = thumbUrl.toLowerCase().endsWith(".gif");
   const blobToDataUrl = (blob: Blob) =>
     new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
@@ -174,11 +176,13 @@ export default function MemeCard({
   return (
     <div className={styles.card} onClick={handleCopy}>
       <div className={styles.media}>
-        <img
+        <Image
           className={styles.thumb}
           src={thumbUrl}
           alt={title ?? "meme"}
-          loading="lazy"
+          fill
+          sizes="(max-width: 680px) 100vw, (max-width: 960px) 50vw, 25vw"
+          unoptimized={isGifThumb}
         />
         <span className={styles.badge}>
           {type === "STATIC" ? "静态" : "动图"}
