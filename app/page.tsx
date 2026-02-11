@@ -120,7 +120,7 @@ export default async function Home({
       : "latest";
   const hotSortParam = getParam(resolvedParams?.hotSort);
   const hotSort =
-    hotSortParam === "latest" || hotSortParam === "random" || hotSortParam === "hot"
+    hotSortParam === "random" || hotSortParam === "hot"
       ? hotSortParam
       : "hot";
 
@@ -163,10 +163,7 @@ export default async function Home({
         items = [];
       }
     } else {
-      const orderBy =
-        hotSort === "latest"
-          ? { createdAt: "desc" as const }
-          : { copies: "desc" as const };
+      const orderBy = { copies: "desc" as const };
       items = await prisma.meme.findMany({
         where: baseWhere,
         orderBy,
@@ -332,7 +329,7 @@ export default async function Home({
           <div>
             <div className={styles.sectionTitle}>
               {view === "hot" ? (
-                "热门推荐"
+                "热门表情包"
               ) : view === "all" ? (
                 <>
                   全部表情包
@@ -351,14 +348,6 @@ export default async function Home({
 
           {view === "hot" && (
             <div className={styles.filters}>
-              <Link
-                className={`${styles.filterBtn} ${
-                  hotSort === "latest" ? styles.filterActive : ""
-                }`}
-                href="/?view=hot&hotSort=latest"
-              >
-                最新
-              </Link>
               <Link
                 className={`${styles.filterBtn} ${
                   hotSort === "hot" ? styles.filterActive : ""
