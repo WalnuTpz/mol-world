@@ -75,6 +75,19 @@ export async function POST(request: Request) {
   const tags =
     typeof rawTags === "string" ? normalizeTags(rawTags.split(/\s+/)) : [];
 
+  if (title) {
+    const existing = await prisma.meme.findFirst({
+      where: { title },
+      select: { id: true },
+    });
+    if (existing) {
+      return NextResponse.json(
+        { error: "该表情包已存在" },
+        { status: 409 }
+      );
+    }
+  }
+
   const mediaUrl = `/uploads/${filename}`;
   const type = ext === ".gif" ? "ANIMATED" : "STATIC";
 
