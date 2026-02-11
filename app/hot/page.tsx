@@ -107,7 +107,7 @@ export default async function FeaturedPage({
           return (
             <Link
               key={m.key}
-              href={`/featured?mode=${m.key}&limit=${limit}`}
+              href={`/hot?mode=${m.key}&limit=${limit}`}
               style={{
                 padding: "6px 12px",
                 borderRadius: 999,

@@ -368,7 +368,10 @@ export default async function Home({
                   <span className={styles.sectionCount}>（{total}）</span>
                 </>
               ) : (
-                "搜索结果"
+                <>
+                  搜索结果
+                  <span className={styles.sectionCount}>（{total}）</span>
+                </>
               )}
             </div>
             {view === "search" && (
