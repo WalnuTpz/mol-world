@@ -8,6 +8,9 @@ import { useToast } from "./ToastProvider";
 
 type MemeType = "STATIC" | "ANIMATED";
 
+const COPY_COOLDOWN_MS = 5000;
+let lastCopyAt = 0;
+
 export type MemeCardProps = {
   id: string;
   title?: string | null;
@@ -114,6 +117,12 @@ export default function MemeCard({
   };
 
   const handleCopy = async () => {
+    const now = Date.now();
+    if (now - lastCopyAt < COPY_COOLDOWN_MS) {
+      toast("操作过于频繁", "error", undefined, "请稍后再试");
+      return;
+    }
+    lastCopyAt = now;
     try {
       if (type === "STATIC") {
         const result = await copyPngFromUrl(mediaUrl);
