@@ -3,6 +3,7 @@
 import { useState, type MouseEvent } from "react";
 
 import styles from "./MemeCard.module.css";
+import { useToast } from "./ToastProvider";
 
 type MemeType = "STATIC" | "ANIMATED";
 
@@ -26,6 +27,7 @@ export default function MemeCard({
   tags = [],
 }: MemeCardProps) {
   const [count, setCount] = useState(copyCount);
+  const toast = useToast();
   const visibleTags = tags.slice(0, 4);
   const blobToDataUrl = (blob: Blob) =>
     new Promise<string>((resolve, reject) => {
@@ -98,40 +100,40 @@ export default function MemeCard({
         const result = await copyPngFromUrl(mediaUrl);
         if (result === "clipboard") {
           await incrementCopy();
-          alert("已复制图片");
+          toast("已复制图片", "success");
           return;
         }
         if (result === "text") {
           await incrementCopy();
-          alert("已复制图片（文本形式）");
+          toast("已复制图片（文本形式）", "success");
           return;
         }
-        alert("复制失败");
+        toast("复制失败", "error");
         return;
       }
 
       const gifResult = await copyGifFromUrl(mediaUrl);
       if (gifResult === "clipboard") {
         await incrementCopy();
-        alert("已复制动图");
+        toast("已复制动图", "success");
         return;
       }
 
       const thumbResult = await copyPngFromUrl(thumbUrl);
       if (thumbResult === "clipboard") {
         await incrementCopy();
-        alert("已复制封面图");
+        toast("已复制封面图", "success");
         return;
       }
       if (thumbResult === "text") {
         await incrementCopy();
-        alert("已复制封面图（文本形式）");
+        toast("已复制封面图（文本形式）", "success");
         return;
       }
-      alert("复制失败");
+      toast("复制失败", "error");
     } catch (error) {
       console.error(error);
-      alert("复制失败");
+      toast("复制失败", "error");
     }
   };
 

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Noto_Sans_SC, Space_Grotesk } from "next/font/google";
+import ToastProvider from "@/components/ToastProvider";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -26,7 +27,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${spaceGrotesk.variable} ${notoSansSC.variable}`}>
-        {children}
+        <ToastProvider>{children}</ToastProvider>
       </body>
     </html>
   );
