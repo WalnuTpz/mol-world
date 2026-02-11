@@ -167,7 +167,13 @@ export default function ManagePage() {
           status: draft.status,
         }),
       });
-      if (!res.ok) throw new Error("保存失败");
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as {
+          error?: string;
+          message?: string;
+        } | null;
+        throw new Error(data?.error || data?.message || "保存失败，请重试");
+      }
       const data = (await res.json()) as { item: ManageItem };
       setItems((prev) =>
         prev.map((meme) => (meme.id === item.id ? data.item : meme))
@@ -181,7 +187,8 @@ export default function ManagePage() {
       });
     } catch (err) {
       updateDraft(item.id, { saving: false });
-      setError(err instanceof Error ? err.message : "保存失败");
+      const message = err instanceof Error ? err.message : "保存失败，请重试";
+      setError(message);
     }
   };
 
@@ -197,11 +204,18 @@ export default function ManagePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "delete" }),
       });
-      if (!res.ok) throw new Error("删除失败");
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as {
+          error?: string;
+          message?: string;
+        } | null;
+        throw new Error(data?.error || data?.message || "删除失败，请重试");
+      }
       await loadPage(page, query.trim());
     } catch (err) {
       updateDraft(item.id, { saving: false });
-      setError(err instanceof Error ? err.message : "删除失败");
+      const message = err instanceof Error ? err.message : "删除失败，请重试";
+      setError(message);
     }
   };
 

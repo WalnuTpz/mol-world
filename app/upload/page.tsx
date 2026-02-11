@@ -91,8 +91,23 @@ export default function UploadPage() {
         body: formData,
       });
       if (!res.ok) {
-        const data = (await res.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(data?.error || "上传失败");
+        const data = (await res.json().catch(() => null)) as {
+          error?: string;
+          code?: string;
+          message?: string;
+        } | null;
+        const code = data?.code;
+        let errorMessage = data?.error || data?.message || "上传失败，请重试";
+        if (code === "DUPLICATE_MEME") {
+          errorMessage = "已存在该表情包，请修改名称后重试";
+        } else if (code === "QUEUE_FULL") {
+          errorMessage = "审核队列已过载，请稍后重试";
+        } else if (code === "UPLOAD_RATE_LIMIT" || code === "RATE_LIMIT") {
+          errorMessage = "操作过于频繁，请稍后重试";
+        }
+        setStatus("error");
+        toast(errorMessage, "error");
+        return;
       }
       setStatus("success");
       toast("已提交，等待审核", "success");
@@ -104,7 +119,7 @@ export default function UploadPage() {
       }
     } catch (err) {
       setStatus("error");
-      toast(err instanceof Error ? err.message : "上传失败", "error");
+      toast(err instanceof Error ? err.message : "上传失败，请重试", "error");
     }
   };
   return (

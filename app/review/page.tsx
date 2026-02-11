@@ -124,12 +124,20 @@ export default function ReviewPage() {
           status,
         }),
       });
-      if (!res.ok) throw new Error("保存失败");
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as {
+          error?: string;
+          message?: string;
+        } | null;
+        throw new Error(data?.error || data?.message || "保存失败，请重试");
+      }
       await res.json();
       await loadPage(page);
     } catch (err) {
       updateDraft(id, { saving: false });
-      setError(err instanceof Error ? err.message : "保存失败");
+      const message = err instanceof Error ? err.message : "保存失败，请重试";
+      toast(message, "error");
+      setError(message);
     }
   };
 
@@ -145,11 +153,19 @@ export default function ReviewPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "delete" }),
       });
-      if (!res.ok) throw new Error("删除失败");
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as {
+          error?: string;
+          message?: string;
+        } | null;
+        throw new Error(data?.error || data?.message || "删除失败，请重试");
+      }
       await loadPage(page);
     } catch (err) {
       updateDraft(id, { saving: false });
-      setError(err instanceof Error ? err.message : "删除失败");
+      const message = err instanceof Error ? err.message : "删除失败，请重试";
+      toast(message, "error");
+      setError(message);
     }
   };
 
