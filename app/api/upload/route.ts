@@ -11,6 +11,7 @@ export const runtime = "nodejs";
 const MAX_SIZE = 10 * 1024 * 1024;
 const UPLOAD_COOLDOWN_MS = 60 * 1000;
 const GLOBAL_UPLOAD_COOLDOWN_MS = 10 * 1000;
+const REVIEW_QUEUE_LIMIT = 100;
 const ALLOWED_TYPES: Record<string, string> = {
   "image/png": ".png",
   "image/jpeg": ".jpg",
@@ -65,6 +66,19 @@ export async function POST(request: Request) {
         { status: 409 }
       );
     }
+  }
+
+  const pendingCount = await prisma.meme.count({
+    where: {
+      status: "HIDDEN",
+      mediaUrl: { startsWith: "/uploads/" },
+    },
+  });
+  if (pendingCount >= REVIEW_QUEUE_LIMIT) {
+    return NextResponse.json(
+      { error: "上传失败（目前审核队列已过载）" },
+      { status: 409 }
+    );
   }
 
   const clientId = getClientId(request);
