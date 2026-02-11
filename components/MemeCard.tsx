@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type MouseEvent } from "react";
+import { useState, type KeyboardEvent, type MouseEvent } from "react";
 import NextImage from "next/image";
 
 import styles from "./MemeCard.module.css";
@@ -184,6 +184,13 @@ export default function MemeCard({
     }
   };
 
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      void handleCopy();
+    }
+  };
+
   const incrementCopy = async () => {
     try {
       const res = await fetch(`/api/memes/${id}/download`, { method: "POST" });
@@ -200,7 +207,13 @@ export default function MemeCard({
   };
 
   return (
-    <div className={styles.card} onClick={handleCopy}>
+    <div
+      className={styles.card}
+      onClick={handleCopy}
+      onKeyDown={handleKeyDown}
+      role="button"
+      tabIndex={0}
+    >
       <div className={styles.media}>
         <NextImage
           className={styles.thumb}
