@@ -80,7 +80,16 @@ export async function PATCH(
     return NextResponse.json({ error: "Missing meme id" }, { status: 400 });
   }
 
-  const body = (await request.json()) as Payload;
+  const rawBody = await request.text();
+  if (!rawBody.trim()) {
+    return NextResponse.json({ error: "请求体为空" }, { status: 400 });
+  }
+  let body: Payload;
+  try {
+    body = JSON.parse(rawBody) as Payload;
+  } catch {
+    return NextResponse.json({ error: "请求体格式错误" }, { status: 400 });
+  }
   const title = body.title?.trim() ?? null;
   const status = body.status;
   const tags = body.tags ? normalizeTags(body.tags) : [];

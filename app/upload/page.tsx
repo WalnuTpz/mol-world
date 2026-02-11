@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 
 import HomeNav from "@/components/HomeNav";
+import { useToast } from "@/components/ToastProvider";
 import baseStyles from "../page.module.css";
 import styles from "./page.module.css";
 
@@ -14,9 +15,9 @@ export default function UploadPage() {
   const [status, setStatus] = useState<"idle" | "uploading" | "success" | "error">(
     "idle"
   );
-  const [message, setMessage] = useState<string>("");
   const [title, setTitle] = useState("");
   const [tags, setTags] = useState("");
+  const toast = useToast();
 
   const isValidFile = (file: File) => {
     const allowed = ["image/png", "image/jpeg", "image/gif", "image/webp"];
@@ -30,7 +31,7 @@ export default function UploadPage() {
     if (file && !isValidFile(file)) {
       setSelectedFile(null);
       setStatus("error");
-      setMessage("文件格式不支持或超过 10MB");
+      toast("文件格式不支持或超过 10MB", "error");
       if (fileRef.current) {
         fileRef.current.value = "";
       }
@@ -38,7 +39,6 @@ export default function UploadPage() {
     }
     setSelectedFile(file);
     setStatus("idle");
-    setMessage("");
   };
 
   useEffect(() => {
@@ -54,12 +54,11 @@ export default function UploadPage() {
       if (!isValidFile(file)) {
         setSelectedFile(null);
         setStatus("error");
-        setMessage("文件格式不支持或超过 10MB");
+        toast("文件格式不支持或超过 10MB", "error");
         return;
       }
       setSelectedFile(file);
       setStatus("idle");
-      setMessage("");
       if (fileRef.current) {
         fileRef.current.value = "";
       }
@@ -76,12 +75,11 @@ export default function UploadPage() {
     event.preventDefault();
     if (!selectedFile) {
       setStatus("error");
-      setMessage("请先选择图片");
+      toast("请先选择图片", "error");
       return;
     }
 
     setStatus("uploading");
-    setMessage("");
     try {
       const formData = new FormData();
       formData.append("file", selectedFile);
@@ -97,7 +95,7 @@ export default function UploadPage() {
         throw new Error(data?.error || "上传失败");
       }
       setStatus("success");
-      setMessage("已提交，等待审核");
+      toast("已提交，等待审核", "success");
       setSelectedFile(null);
       setTitle("");
       setTags("");
@@ -106,7 +104,7 @@ export default function UploadPage() {
       }
     } catch (err) {
       setStatus("error");
-      setMessage(err instanceof Error ? err.message : "上传失败");
+      toast(err instanceof Error ? err.message : "上传失败", "error");
     }
   };
   return (
@@ -283,18 +281,6 @@ export default function UploadPage() {
               >
                 {status === "uploading" ? "上传中..." : "提交"}
               </button>
-              {message ? (
-                <div
-                  className={`${styles.formMessage} ${status === "error"
-                    ? styles.formMessageError
-                    : status === "success"
-                      ? styles.formMessageSuccess
-                      : ""
-                    }`}
-                >
-                  {message}
-                </div>
-              ) : null}
             </div>
           </div>
         </form>

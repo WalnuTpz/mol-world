@@ -9,6 +9,7 @@ import { normalizeTags } from "@/lib/tags";
 export const runtime = "nodejs";
 
 const MAX_SIZE = 10 * 1024 * 1024;
+const UPLOAD_COOLDOWN_MS = 60 * 1000;
 const ALLOWED_TYPES: Record<string, string> = {
   "image/png": ".png",
   "image/jpeg": ".jpg",
@@ -16,7 +17,31 @@ const ALLOWED_TYPES: Record<string, string> = {
   "image/webp": ".webp",
 };
 
+const uploadCooldown = new Map<string, number>();
+
+const getClientId = (request: Request) => {
+  const forwarded = request.headers.get("x-forwarded-for");
+  const ip = forwarded?.split(",")[0]?.trim() || request.headers.get("x-real-ip");
+  return ip ?? "unknown";
+};
+
 export async function POST(request: Request) {
+  const clientId = getClientId(request);
+  const now = Date.now();
+  const lastUploadAt = uploadCooldown.get(clientId);
+  if (lastUploadAt && now - lastUploadAt < UPLOAD_COOLDOWN_MS) {
+    const retryAfter = Math.ceil(
+      (UPLOAD_COOLDOWN_MS - (now - lastUploadAt)) / 1000
+    );
+    return NextResponse.json(
+      { error: "上传过于频繁，请稍后再试" },
+      {
+        status: 429,
+        headers: { "Retry-After": String(retryAfter) },
+      }
+    );
+  }
+
   const formData = await request.formData();
   const file = formData.get("file");
   const rawTitle = formData.get("title");
@@ -72,6 +97,8 @@ export async function POST(request: Request) {
       },
     },
   });
+
+  uploadCooldown.set(clientId, now);
 
   return NextResponse.json({ ok: true });
 }
