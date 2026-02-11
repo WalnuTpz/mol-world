@@ -13,6 +13,7 @@ export type MemeCardProps = {
   mediaUrl: string;
   thumbUrl: string;
   copyCount: number;
+  tags?: string[];
 };
 
 export default function MemeCard({
@@ -22,8 +23,10 @@ export default function MemeCard({
   mediaUrl,
   thumbUrl,
   copyCount,
+  tags = [],
 }: MemeCardProps) {
   const [count, setCount] = useState(copyCount);
+  const visibleTags = tags.slice(0, 4);
   const blobToDataUrl = (blob: Blob) =>
     new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
@@ -182,25 +185,34 @@ export default function MemeCard({
         </button>
       </div>
       <div className={styles.footer}>
-        <div className={styles.title}>{title ?? "未命名"}</div>
-        <div className={styles.copyCount} aria-label={`点击量 ${count}`}>
-          <svg
-            className={styles.copyIcon}
-            viewBox="0 0 24 24"
-            width="14"
-            height="14"
-            aria-hidden="true"
-            focusable="false"
-          >
-            <circle cx="12" cy="12" r="4.5" fill="none" stroke="currentColor" strokeWidth="2" />
-            <path
-              d="M3 12c2.6-4.5 6.9-7 9-7s6.4 2.5 9 7c-2.6 4.5-6.9 7-9 7s-6.4-2.5-9-7z"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            />
-          </svg>
-          <span>{count}</span>
+        <div className={styles.titleRow}>
+          <div className={styles.title}>{title ?? "未命名"}</div>
+          <div className={styles.copyCount} aria-label={`点击量 ${count}`}>
+            <svg
+              className={styles.copyIcon}
+              viewBox="0 0 24 24"
+              width="14"
+              height="14"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <circle cx="12" cy="12" r="4.5" fill="none" stroke="currentColor" strokeWidth="2" />
+              <path
+                d="M3 12c2.6-4.5 6.9-7 9-7s6.4 2.5 9 7c-2.6 4.5-6.9 7-9 7s-6.4-2.5-9-7z"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              />
+            </svg>
+            <span>{count}</span>
+          </div>
+        </div>
+        <div className={styles.tags}>
+          {visibleTags.map((tag) => (
+            <span key={tag} className={styles.tag}>
+              #{tag}
+            </span>
+          ))}
         </div>
       </div>
     </div>

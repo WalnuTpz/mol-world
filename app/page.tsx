@@ -3,7 +3,7 @@ import Link from "next/link";
 import HomeNav from "@/components/HomeNav";
 import MemeGrid from "@/components/MemeGrid";
 import { prisma } from "@/lib/db";
-import { normalizeSearchTokens } from "@/lib/tags";
+import { normalizeSearchTokens, sortTags } from "@/lib/tags";
 import styles from "./page.module.css";
 
 export const dynamic = "force-dynamic";
@@ -100,7 +100,32 @@ const select = {
   copies: true,
   isFeatured: true,
   createdAt: true,
+  tags: {
+    select: {
+      tag: { select: { name: true } },
+    },
+  },
 };
+
+type MemeRow = {
+  id: string;
+  title: string | null;
+  type: "STATIC" | "ANIMATED";
+  mediaUrl: string;
+  thumbUrl: string;
+  copies: number;
+  isFeatured: boolean;
+  createdAt: Date;
+  tags: { tag: { name: string } }[];
+};
+
+type MemeCardItem = Omit<MemeRow, "tags"> & { tags: string[] };
+
+const normalizeItems = (list: MemeRow[]): MemeCardItem[] =>
+  list.map((item) => ({
+    ...item,
+    tags: sortTags(item.tags.map((t) => t.tag.name)),
+  }));
 
 export default async function Home({
   searchParams,
@@ -131,7 +156,7 @@ export default async function Home({
   }
   if (q) view = "search";
 
-  let items = [];
+  let items: MemeCardItem[] = [];
   let total = 0;
   let totalPages = 1;
 
@@ -156,7 +181,11 @@ export default async function Home({
             select,
           });
           const map = new Map(list.map((item) => [item.id, item]));
-          items = groupIds.map((id) => map.get(id)).filter(Boolean);
+          items = normalizeItems(
+            groupIds
+              .map((id) => map.get(id))
+              .filter(Boolean) as MemeRow[]
+          );
         } else {
           items = [];
         }
@@ -165,12 +194,13 @@ export default async function Home({
       }
     } else {
       const orderBy = { copies: "desc" as const };
-      items = await prisma.meme.findMany({
+      const list = await prisma.meme.findMany({
         where: baseWhere,
         orderBy,
         take: hotLimit,
         select,
       });
+      items = normalizeItems(list);
     }
   }
 
@@ -193,9 +223,10 @@ export default async function Home({
         return b.createdAt.getTime() - a.createdAt.getTime();
       });
 
-      total = list.length;
+      const normalized = normalizeItems(list as MemeRow[]);
+      total = normalized.length;
       totalPages = Math.max(1, Math.ceil(total / limit));
-      items = list.slice(skip, skip + limit);
+      items = normalized.slice(skip, skip + limit);
     } else {
       const orderBy =
         sort === "earliest"
@@ -212,7 +243,7 @@ export default async function Home({
         }),
         prisma.meme.count({ where }),
       ]);
-      items = list;
+      items = normalizeItems(list);
       total = count;
       totalPages = Math.max(1, Math.ceil(total / limit));
     }
@@ -252,7 +283,7 @@ export default async function Home({
           where,
         }),
       ]);
-      items = list;
+      items = normalizeItems(list);
       total = count;
       totalPages = Math.max(1, Math.ceil(total / limit));
     }

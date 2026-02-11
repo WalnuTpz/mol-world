@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/db";
+import { sortTags } from "@/lib/tags";
 
 function parseIntParam(value: string | null, fallback: number) {
   const parsed = Number.parseInt(value ?? "", 10);
@@ -32,10 +33,20 @@ export async function GET(request: Request) {
         copies: true,
         isFeatured: true,
         createdAt: true,
+        tags: {
+          select: {
+            tag: { select: { name: true } },
+          },
+        },
       },
     }),
     prisma.meme.count({ where }),
   ]);
 
-  return NextResponse.json({ items, page, limit, total });
+  const normalized = items.map((item) => ({
+    ...item,
+    tags: sortTags(item.tags.map((t) => t.tag.name)),
+  }));
+
+  return NextResponse.json({ items: normalized, page, limit, total });
 }

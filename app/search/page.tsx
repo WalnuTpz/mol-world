@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import MemeGrid from "@/components/MemeGrid";
 import { prisma } from "@/lib/db";
-import { normalizeSearchTokens } from "@/lib/tags";
+import { normalizeSearchTokens, sortTags } from "@/lib/tags";
 
 export const dynamic = "force-dynamic";
 
@@ -53,7 +53,30 @@ export default async function SearchPage({
     copies: true,
     isFeatured: true,
     createdAt: true,
+    tags: {
+      select: {
+        tag: { select: { name: true } },
+      },
+    },
   };
+
+  type MemeRow = {
+    id: string;
+    title: string | null;
+    type: "STATIC" | "ANIMATED";
+    mediaUrl: string;
+    thumbUrl: string;
+    copies: number;
+    isFeatured: boolean;
+    createdAt: Date;
+    tags: { tag: { name: string } }[];
+  };
+
+  const normalizeItems = (list: MemeRow[]) =>
+    list.map((item) => ({
+      ...item,
+      tags: sortTags(item.tags.map((t) => t.tag.name)),
+    }));
 
   const [items, total] = tokens.length > 0
     ? await Promise.all([
@@ -67,6 +90,8 @@ export default async function SearchPage({
         prisma.meme.count({ where: where ?? undefined }),
       ])
     : [[], 0];
+
+  const normalizedItems = normalizeItems(items as MemeRow[]);
 
   const totalPages = Math.max(1, Math.ceil(total / limit));
   const hasPrev = page > 1;
@@ -97,7 +122,7 @@ export default async function SearchPage({
 
       {!q ? (
         <div style={{ color: "#666" }}>请输入关键词开始搜索。</div>
-      ) : items.length === 0 ? (
+      ) : normalizedItems.length === 0 ? (
         <div style={{ color: "#666" }}>没有找到相关结果。</div>
       ) : (
         <>
@@ -126,7 +151,7 @@ export default async function SearchPage({
               <span style={{ color: "#999" }}>下一页</span>
             )}
           </div>
-          <MemeGrid items={items} />
+          <MemeGrid items={normalizedItems} />
         </>
       )}
     </main>

@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import MemeGrid from "@/components/MemeGrid";
 import { prisma } from "@/lib/db";
+import { sortTags } from "@/lib/tags";
 
 export const dynamic = "force-dynamic";
 
@@ -60,7 +61,21 @@ export default async function FeaturedPage({
     copies: true,
     isFeatured: true,
     createdAt: true,
+    tags: {
+      select: {
+        tag: { select: { name: true } },
+      },
+    },
   };
+
+  type MemeItem = Awaited<
+    ReturnType<typeof prisma.meme.findMany>
+  >[number];
+  const normalizeItems = (list: MemeItem[]) =>
+    list.map((item) => ({
+      ...item,
+      tags: sortTags(item.tags.map((t) => t.tag.name)),
+    }));
 
   let items;
   if (mode === "random") {
@@ -68,18 +83,19 @@ export default async function FeaturedPage({
       where: baseWhere,
       select,
     });
-    items = shuffle(all).slice(0, limit);
+    items = normalizeItems(shuffle(all).slice(0, limit));
   } else {
     const orderBy =
       mode === "hot"
         ? { copies: "desc" as const }
         : { createdAt: "desc" as const };
-    items = await prisma.meme.findMany({
+    const list = await prisma.meme.findMany({
       where: baseWhere,
       orderBy,
       take: limit,
       select,
     });
+    items = normalizeItems(list);
   }
 
   return (

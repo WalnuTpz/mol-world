@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import MemeGrid from "@/components/MemeGrid";
 import { prisma } from "@/lib/db";
+import { sortTags } from "@/lib/tags";
 
 export const dynamic = "force-dynamic";
 
@@ -44,12 +45,23 @@ export default async function AllPage({
     copies: true,
     isFeatured: true,
     createdAt: true,
+    tags: {
+      select: {
+        tag: { select: { name: true } },
+      },
+    },
   };
 
   type MemeItem = Awaited<
     ReturnType<typeof prisma.meme.findMany>
   >[number];
-  let items: MemeItem[] = [];
+  type MemeCardItem = Omit<MemeItem, "tags"> & { tags: string[] };
+  const normalizeItems = (list: MemeItem[]): MemeCardItem[] =>
+    list.map((item) => ({
+      ...item,
+      tags: sortTags(item.tags.map((t) => t.tag.name)),
+    }));
+  let items: MemeCardItem[] = [];
   let total = 0;
   if (sort === "name") {
     const list = await prisma.meme.findMany({ where, select });
@@ -65,8 +77,9 @@ export default async function AllPage({
       if (diff !== 0) return diff;
       return b.createdAt.getTime() - a.createdAt.getTime();
     });
-    total = list.length;
-    items = list.slice(skip, skip + limit);
+    const normalized = normalizeItems(list);
+    total = normalized.length;
+    items = normalized.slice(skip, skip + limit);
   } else {
     const orderBy =
       sort === "earliest"
@@ -83,7 +96,7 @@ export default async function AllPage({
       }),
       prisma.meme.count({ where }),
     ]);
-    items = list;
+    items = normalizeItems(list);
     total = count;
   }
 
