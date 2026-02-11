@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/db";
 import { errorResponse, successResponse } from "@/lib/api";
+import { logAudit } from "@/lib/audit";
 import { generateThumb } from "@/lib/thumbs";
 import { normalizeTags, sortTags } from "@/lib/tags";
 
@@ -112,17 +113,39 @@ export async function PATCH(
 ) {
   const { id } = await Promise.resolve(context.params);
   if (!id) {
+    void logAudit({
+      action: "review:update",
+      status: "error",
+      message: "请求参数不完整",
+      request,
+    });
     return errorResponse("请求参数不完整", 400, "MISSING_ID");
   }
 
   const rawBody = await request.text();
   if (!rawBody.trim()) {
+    void logAudit({
+      action: "review:update",
+      status: "error",
+      message: "请求参数不完整",
+      targetType: "meme",
+      targetId: id,
+      request,
+    });
     return errorResponse("请求参数不完整", 400, "EMPTY_BODY");
   }
   let body: Payload;
   try {
     body = JSON.parse(rawBody) as Payload;
   } catch {
+    void logAudit({
+      action: "review:update",
+      status: "error",
+      message: "请求参数格式错误",
+      targetType: "meme",
+      targetId: id,
+      request,
+    });
     return errorResponse("请求参数格式错误", 400, "INVALID_BODY");
   }
   const title = body.title?.trim() ?? null;
@@ -144,6 +167,14 @@ export async function PATCH(
     });
 
     if (!current) {
+      void logAudit({
+        action: "review:delete",
+        status: "error",
+        message: "资源不存在",
+        targetType: "meme",
+        targetId: id,
+        request,
+      });
       return errorResponse("资源不存在", 404, "NOT_FOUND");
     }
 
@@ -175,6 +206,14 @@ export async function PATCH(
         prisma.memeTag.deleteMany({ where: { memeId: id } }),
         prisma.meme.delete({ where: { id } }),
       ]);
+      void logAudit({
+        action: "review:delete",
+        status: "success",
+        targetType: "meme",
+        targetId: id,
+        message: "删除成功",
+        request,
+      });
     } catch (error) {
       if (backup?.media) {
         try {
@@ -196,6 +235,14 @@ export async function PATCH(
           // ignore
         }
       }
+      void logAudit({
+        action: "review:delete",
+        status: "error",
+        targetType: "meme",
+        targetId: id,
+        message: "删除失败，请重试",
+        request,
+      });
       return errorResponse("删除失败，请重试", 500, "DELETE_FAILED");
     }
 
@@ -220,6 +267,14 @@ export async function PATCH(
         current.type === "ANIMATED"
       );
     } catch {
+      void logAudit({
+        action: "review:update",
+        status: "error",
+        targetType: "meme",
+        targetId: id,
+        message: "文件处理失败，请重试",
+        request,
+      });
       return errorResponse("文件处理失败，请重试", 500, "FILE_MOVE_FAILED");
     }
   }
@@ -271,8 +326,26 @@ export async function PATCH(
         // ignore rollback failures
       }
     }
+    void logAudit({
+      action: "review:update",
+      status: "error",
+      targetType: "meme",
+      targetId: id,
+      message: "保存失败，请重试",
+      request,
+    });
     return errorResponse("保存失败，请重试", 500, "DB_UPDATE_FAILED");
   }
+
+  void logAudit({
+    action: "review:update",
+    status: "success",
+    targetType: "meme",
+    targetId: id,
+    message: "保存成功",
+    data: { status: updated.status },
+    request,
+  });
 
   return successResponse(
     {

@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/db";
 import { errorResponse, successResponse } from "@/lib/api";
+import { logAudit } from "@/lib/audit";
 import { normalizeTags, sortTags } from "@/lib/tags";
 
 type Payload = {
@@ -69,6 +70,12 @@ export async function PATCH(
 ) {
   const { id } = await Promise.resolve(context.params);
   if (!id) {
+    void logAudit({
+      action: "manage:update",
+      status: "error",
+      message: "请求参数不完整",
+      request,
+    });
     return errorResponse("请求参数不完整", 400, "MISSING_ID");
   }
 
@@ -88,6 +95,14 @@ export async function PATCH(
     });
 
     if (!current) {
+      void logAudit({
+        action: "manage:delete",
+        status: "error",
+        message: "资源不存在",
+        targetType: "meme",
+        targetId: id,
+        request,
+      });
       return errorResponse("资源不存在", 404, "NOT_FOUND");
     }
 
@@ -111,6 +126,14 @@ export async function PATCH(
         prisma.memeTag.deleteMany({ where: { memeId: id } }),
         prisma.meme.delete({ where: { id } }),
       ]);
+      void logAudit({
+        action: "manage:delete",
+        status: "success",
+        targetType: "meme",
+        targetId: id,
+        message: "删除成功",
+        request,
+      });
     } catch {
       for (const entry of moved) {
         try {
@@ -119,6 +142,14 @@ export async function PATCH(
           // ignore
         }
       }
+      void logAudit({
+        action: "manage:delete",
+        status: "error",
+        targetType: "meme",
+        targetId: id,
+        message: "删除失败，请重试",
+        request,
+      });
       return errorResponse("删除失败，请重试", 500, "DELETE_FAILED");
     }
 
@@ -160,6 +191,16 @@ export async function PATCH(
         },
       },
     },
+  });
+
+  void logAudit({
+    action: "manage:update",
+    status: "success",
+    targetType: "meme",
+    targetId: id,
+    message: "保存成功",
+    data: { status: updated.status },
+    request,
   });
 
   return successResponse(

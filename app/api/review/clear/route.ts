@@ -3,6 +3,7 @@ import { unlink } from "node:fs/promises";
 
 import { prisma } from "@/lib/db";
 import { successResponse } from "@/lib/api";
+import { logAudit } from "@/lib/audit";
 
 export const runtime = "nodejs";
 
@@ -27,7 +28,7 @@ const removeFromUploads = async (mediaUrl: string) => {
   }
 };
 
-export async function POST() {
+export async function POST(request: Request) {
   const pending = await prisma.meme.findMany({
     where: {
       status: "HIDDEN",
@@ -41,6 +42,13 @@ export async function POST() {
   });
 
   if (pending.length === 0) {
+    void logAudit({
+      action: "review:clear",
+      status: "success",
+      message: "已清空审核队列",
+      data: { count: 0 },
+      request,
+    });
     return successResponse({ count: 0 }, "已清空审核队列");
   }
 
@@ -55,5 +63,12 @@ export async function POST() {
     prisma.meme.deleteMany({ where: { id: { in: ids } } }),
   ]);
 
+  void logAudit({
+    action: "review:clear",
+    status: "success",
+    message: "已清空审核队列",
+    data: { count: pending.length },
+    request,
+  });
   return successResponse({ count: pending.length }, "已清空审核队列");
 }

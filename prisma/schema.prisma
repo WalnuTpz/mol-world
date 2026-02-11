@@ -65,3 +65,20 @@ model DailyPoolItem {
 
   @@unique([poolId, memeId])
 }
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  action     String
+  status     String
+  targetType String?
+  targetId   String?
+  message    String?
+  data       Json?
+  actorIp    String?
+  actorUa    String?
+  createdAt  DateTime @default(now())
+
+  @@index([action])
+  @@index([status])
+  @@index([createdAt])
+}

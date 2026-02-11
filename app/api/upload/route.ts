@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/db";
 import { errorResponse, successResponse } from "@/lib/api";
+import { logAudit } from "@/lib/audit";
 import { normalizeTags } from "@/lib/tags";
 
 export const runtime = "nodejs";
@@ -37,15 +38,35 @@ export async function POST(request: Request) {
   const rawTags = formData.get("tags");
 
   if (!(file instanceof File)) {
+    void logAudit({
+      action: "upload",
+      status: "error",
+      message: "缺少文件",
+      request,
+    });
     return errorResponse("缺少文件", 400, "MISSING_FILE");
   }
 
   if (file.size > MAX_SIZE) {
+    void logAudit({
+      action: "upload",
+      status: "error",
+      message: "文件超过大小限制",
+      data: { size: file.size },
+      request,
+    });
     return errorResponse("文件超过大小限制", 400, "FILE_TOO_LARGE");
   }
 
   const ext = ALLOWED_TYPES[file.type];
   if (!ext) {
+    void logAudit({
+      action: "upload",
+      status: "error",
+      message: "文件格式不支持",
+      data: { type: file.type },
+      request,
+    });
     return errorResponse("文件格式不支持", 400, "UNSUPPORTED_FILE_TYPE");
   }
 
@@ -62,6 +83,13 @@ export async function POST(request: Request) {
       select: { id: true },
     });
     if (existing) {
+      void logAudit({
+        action: "upload",
+        status: "error",
+        message: "上传失败（已存在该表情包）",
+        data: { title },
+        request,
+      });
       return errorResponse("上传失败（已存在该表情包）", 409, "DUPLICATE_MEME");
     }
   }
@@ -73,6 +101,13 @@ export async function POST(request: Request) {
     },
   });
   if (pendingCount >= REVIEW_QUEUE_LIMIT) {
+    void logAudit({
+      action: "upload",
+      status: "error",
+      message: "上传失败（目前审核队列已过载）",
+      data: { pendingCount },
+      request,
+    });
     return errorResponse("上传失败（目前审核队列已过载）", 409, "QUEUE_FULL");
   }
 
@@ -82,6 +117,13 @@ export async function POST(request: Request) {
     const retryAfter = Math.ceil(
       (GLOBAL_UPLOAD_COOLDOWN_MS - (now - lastGlobalUploadAt)) / 1000
     );
+    void logAudit({
+      action: "upload",
+      status: "error",
+      message: "操作过于频繁，请稍后再试",
+      data: { scope: "global" },
+      request,
+    });
     return errorResponse(
       "操作过于频繁，请稍后再试",
       429,
@@ -95,6 +137,13 @@ export async function POST(request: Request) {
     const retryAfter = Math.ceil(
       (UPLOAD_COOLDOWN_MS - (now - lastUploadAt)) / 1000
     );
+    void logAudit({
+      action: "upload",
+      status: "error",
+      message: "上传过于频繁，请稍后再试",
+      data: { scope: "ip" },
+      request,
+    });
     return errorResponse(
       "上传过于频繁，请稍后再试",
       429,
@@ -116,7 +165,7 @@ export async function POST(request: Request) {
   const mediaUrl = `/uploads/${filename}`;
   const type = ext === ".gif" ? "ANIMATED" : "STATIC";
 
-  await prisma.meme.create({
+  const created = await prisma.meme.create({
     data: {
       title,
       type,
@@ -134,10 +183,21 @@ export async function POST(request: Request) {
         })),
       },
     },
+    select: { id: true, title: true },
   });
 
   uploadCooldown.set(clientId, now);
   lastGlobalUploadAt = now;
+
+  void logAudit({
+    action: "upload",
+    status: "success",
+    targetType: "meme",
+    targetId: created.id,
+    message: "已提交，等待审核",
+    data: { title: created.title ?? null },
+    request,
+  });
 
   return successResponse({}, "已提交，等待审核");
   } finally {
