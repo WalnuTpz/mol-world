@@ -4,6 +4,7 @@ import { copyFile, mkdir, rename, unlink } from "node:fs/promises";
 import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/db";
+import { errorResponse, successResponse } from "@/lib/api";
 import { generateThumb } from "@/lib/thumbs";
 import { normalizeTags, sortTags } from "@/lib/tags";
 
@@ -77,18 +78,18 @@ export async function PATCH(
 ) {
   const { id } = await Promise.resolve(context.params);
   if (!id) {
-    return NextResponse.json({ error: "Missing meme id" }, { status: 400 });
+    return errorResponse("请求参数不完整", 400, "MISSING_ID");
   }
 
   const rawBody = await request.text();
   if (!rawBody.trim()) {
-    return NextResponse.json({ error: "请求体为空" }, { status: 400 });
+    return errorResponse("请求参数不完整", 400, "EMPTY_BODY");
   }
   let body: Payload;
   try {
     body = JSON.parse(rawBody) as Payload;
   } catch {
-    return NextResponse.json({ error: "请求体格式错误" }, { status: 400 });
+    return errorResponse("请求参数格式错误", 400, "INVALID_BODY");
   }
   const title = body.title?.trim() ?? null;
   const status = body.status;
@@ -114,7 +115,7 @@ export async function PATCH(
       prisma.meme.delete({ where: { id } }),
     ]);
 
-    return NextResponse.json({ ok: true });
+    return successResponse({}, "删除成功");
   }
 
   const current = await prisma.meme.findUnique({
@@ -173,10 +174,13 @@ export async function PATCH(
     },
   });
 
-  return NextResponse.json({
-    item: {
-      ...updated,
-      tags: sortTags(updated.tags.map((t) => t.tag.name)),
+  return successResponse(
+    {
+      item: {
+        ...updated,
+        tags: sortTags(updated.tags.map((t) => t.tag.name)),
+      },
     },
-  });
+    "保存成功"
+  );
 }

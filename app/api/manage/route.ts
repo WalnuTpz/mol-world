@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/db";
+import { successResponse } from "@/lib/api";
 import { normalizeSearchTokens, sortTags } from "@/lib/tags";
 
 function parseIntParam(value: string | null, fallback: number) {
@@ -59,5 +60,8 @@ export async function GET(request: Request) {
     tags: sortTags(item.tags.map((t) => t.tag.name)),
   }));
 
-  return NextResponse.json({ items: normalized, page, limit, total, q });
+  return successResponse(
+    { items: normalized, page, limit, total, q },
+    "查询成功"
+  );
 }

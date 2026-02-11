@@ -4,6 +4,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/db";
+import { errorResponse, successResponse } from "@/lib/api";
 import { normalizeTags } from "@/lib/tags";
 
 export const runtime = "nodejs";
@@ -36,16 +37,16 @@ export async function POST(request: Request) {
   const rawTags = formData.get("tags");
 
   if (!(file instanceof File)) {
-    return NextResponse.json({ error: "缺少文件" }, { status: 400 });
+    return errorResponse("缺少文件", 400, "MISSING_FILE");
   }
 
   if (file.size > MAX_SIZE) {
-    return NextResponse.json({ error: "文件超过 10MB" }, { status: 400 });
+    return errorResponse("文件超过大小限制", 400, "FILE_TOO_LARGE");
   }
 
   const ext = ALLOWED_TYPES[file.type];
   if (!ext) {
-    return NextResponse.json({ error: "不支持的文件类型" }, { status: 400 });
+    return errorResponse("文件格式不支持", 400, "UNSUPPORTED_FILE_TYPE");
   }
 
   const title =
@@ -61,10 +62,7 @@ export async function POST(request: Request) {
       select: { id: true },
     });
     if (existing) {
-      return NextResponse.json(
-        { error: "上传失败（已存在该表情包）" },
-        { status: 409 }
-      );
+      return errorResponse("上传失败（已存在该表情包）", 409, "DUPLICATE_MEME");
     }
   }
 
@@ -75,10 +73,7 @@ export async function POST(request: Request) {
     },
   });
   if (pendingCount >= REVIEW_QUEUE_LIMIT) {
-    return NextResponse.json(
-      { error: "上传失败（目前审核队列已过载）" },
-      { status: 409 }
-    );
+    return errorResponse("上传失败（目前审核队列已过载）", 409, "QUEUE_FULL");
   }
 
   const clientId = getClientId(request);
@@ -87,12 +82,11 @@ export async function POST(request: Request) {
     const retryAfter = Math.ceil(
       (GLOBAL_UPLOAD_COOLDOWN_MS - (now - lastGlobalUploadAt)) / 1000
     );
-    return NextResponse.json(
-      { error: "操作过于频繁，请稍后再试" },
-      {
-        status: 429,
-        headers: { "Retry-After": String(Math.max(1, retryAfter)) },
-      }
+    return errorResponse(
+      "操作过于频繁，请稍后再试",
+      429,
+      "RATE_LIMIT",
+      { "Retry-After": String(Math.max(1, retryAfter)) }
     );
   }
 
@@ -101,12 +95,11 @@ export async function POST(request: Request) {
     const retryAfter = Math.ceil(
       (UPLOAD_COOLDOWN_MS - (now - lastUploadAt)) / 1000
     );
-    return NextResponse.json(
-      { error: "上传过于频繁，请稍后再试" },
-      {
-        status: 429,
-        headers: { "Retry-After": String(retryAfter) },
-      }
+    return errorResponse(
+      "上传过于频繁，请稍后再试",
+      429,
+      "UPLOAD_RATE_LIMIT",
+      { "Retry-After": String(retryAfter) }
     );
   }
 
@@ -146,7 +139,7 @@ export async function POST(request: Request) {
   uploadCooldown.set(clientId, now);
   lastGlobalUploadAt = now;
 
-  return NextResponse.json({ ok: true });
+  return successResponse({}, "已提交，等待审核");
   } finally {
     globalUploading = false;
   }

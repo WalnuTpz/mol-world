@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/db";
+import { successResponse } from "@/lib/api";
 import { sortTags } from "@/lib/tags";
 
 export const revalidate = 30;
@@ -54,9 +55,11 @@ export async function GET(request: Request) {
         ...item,
         tags: sortTags(item.tags.map((t) => t.tag.name)),
       }));
-    return NextResponse.json(
+    return successResponse(
       { items, mode, limit },
-      { headers: { "Cache-Control": "no-store" } }
+      "查询成功",
+      200,
+      { "Cache-Control": "no-store" }
     );
   }
 
@@ -91,5 +94,5 @@ export async function GET(request: Request) {
     tags: sortTags(item.tags.map((t) => t.tag.name)),
   }));
 
-  return NextResponse.json({ items: normalized, mode, limit });
+  return successResponse({ items: normalized, mode, limit }, "查询成功");
 }

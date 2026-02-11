@@ -1,9 +1,8 @@
 import path from "node:path";
 import { unlink } from "node:fs/promises";
 
-import { NextResponse } from "next/server";
-
 import { prisma } from "@/lib/db";
+import { successResponse } from "@/lib/api";
 
 export const runtime = "nodejs";
 
@@ -42,7 +41,7 @@ export async function POST() {
   });
 
   if (pending.length === 0) {
-    return NextResponse.json({ ok: true, count: 0 });
+    return successResponse({ count: 0 }, "已清空审核队列");
   }
 
   for (const item of pending) {
@@ -56,5 +55,5 @@ export async function POST() {
     prisma.meme.deleteMany({ where: { id: { in: ids } } }),
   ]);
 
-  return NextResponse.json({ ok: true, count: pending.length });
+  return successResponse({ count: pending.length }, "已清空审核队列");
 }

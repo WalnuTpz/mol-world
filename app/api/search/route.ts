@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/db";
+import { successResponse } from "@/lib/api";
 import { normalizeSearchTokens, sortTags } from "@/lib/tags";
 
 export const revalidate = 30;
@@ -18,7 +19,10 @@ export async function GET(request: Request) {
   const skip = (page - 1) * limit;
 
   if (!q) {
-    return NextResponse.json({ items: [], page, limit, total: 0, q });
+    return successResponse(
+      { items: [], page, limit, total: 0, q },
+      "查询成功"
+    );
   }
 
   const tokens = normalizeSearchTokens(q);
@@ -66,5 +70,8 @@ export async function GET(request: Request) {
     tags: sortTags(item.tags.map((t) => t.tag.name)),
   }));
 
-  return NextResponse.json({ items: normalized, page, limit, total, q });
+  return successResponse(
+    { items: normalized, page, limit, total, q },
+    "查询成功"
+  );
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/db";
+import { errorResponse, successResponse } from "@/lib/api";
 
 export async function POST(
   _request: Request,
@@ -9,10 +10,7 @@ export async function POST(
   const { id } = await Promise.resolve(context.params);
 
   if (!id) {
-    return NextResponse.json(
-      { error: "Missing meme id" },
-      { status: 400 }
-    );
+    return errorResponse("请求参数不完整", 400, "MISSING_ID");
   }
 
   const updated = await prisma.meme.update({
@@ -24,5 +22,5 @@ export async function POST(
     },
   });
 
-  return NextResponse.json({ item: updated });
+  return successResponse({ item: updated }, "已记录复制");
 }

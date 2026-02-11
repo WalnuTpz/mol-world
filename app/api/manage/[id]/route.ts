@@ -4,6 +4,7 @@ import { unlink } from "node:fs/promises";
 import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/db";
+import { errorResponse, successResponse } from "@/lib/api";
 import { normalizeTags, sortTags } from "@/lib/tags";
 
 type Payload = {
@@ -56,7 +57,7 @@ export async function PATCH(
 ) {
   const { id } = await Promise.resolve(context.params);
   if (!id) {
-    return NextResponse.json({ error: "Missing meme id" }, { status: 400 });
+    return errorResponse("请求参数不完整", 400, "MISSING_ID");
   }
 
   const body = (await request.json()) as Payload;
@@ -82,7 +83,7 @@ export async function PATCH(
       prisma.meme.delete({ where: { id } }),
     ]);
 
-    return NextResponse.json({ ok: true });
+    return successResponse({}, "删除成功");
   }
 
   const updated = await prisma.meme.update({
@@ -122,10 +123,13 @@ export async function PATCH(
     },
   });
 
-  return NextResponse.json({
-    item: {
-      ...updated,
-      tags: sortTags(updated.tags.map((t) => t.tag.name)),
+  return successResponse(
+    {
+      item: {
+        ...updated,
+        tags: sortTags(updated.tags.map((t) => t.tag.name)),
+      },
     },
-  });
+    "保存成功"
+  );
 }
