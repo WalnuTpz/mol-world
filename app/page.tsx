@@ -271,21 +271,49 @@ export default async function Home({
           : {
               status: "PUBLISHED",
             };
-      const [list, count] = await Promise.all([
-        prisma.meme.findMany({
+
+      if (sort === "name") {
+        const list = await prisma.meme.findMany({
           where,
-          orderBy: { createdAt: "desc" },
-          skip,
-          take: limit,
           select,
-        }),
-        prisma.meme.count({
-          where,
-        }),
-      ]);
-      items = normalizeItems(list);
-      total = count;
-      totalPages = Math.max(1, Math.ceil(total / limit));
+        });
+        const collator = new Intl.Collator("zh-Hans-CN", {
+          sensitivity: "base",
+          numeric: true,
+        });
+        list.sort((a, b) => {
+          if (!a.title && !b.title) return 0;
+          if (!a.title) return 1;
+          if (!b.title) return -1;
+          const diff = collator.compare(a.title, b.title);
+          if (diff !== 0) return diff;
+          return b.createdAt.getTime() - a.createdAt.getTime();
+        });
+        const normalized = normalizeItems(list as MemeRow[]);
+        total = normalized.length;
+        totalPages = Math.max(1, Math.ceil(total / limit));
+        items = normalized.slice(skip, skip + limit);
+      } else {
+        const orderBy =
+          sort === "earliest"
+            ? { createdAt: "asc" as const }
+            : { createdAt: "desc" as const };
+        const [list, count] = await Promise.all([
+          prisma.meme.findMany({
+            where,
+            orderBy,
+            skip,
+            take: limit,
+            select,
+          }),
+          prisma.meme.count({
+            where,
+          }),
+        ]);
+        items = normalizeItems(list);
+        total = count;
+        totalPages = Math.max(1, Math.ceil(total / limit));
+      }
     }
   }
 
@@ -401,6 +429,31 @@ export default async function Home({
               </Link>
             </div>
           )}
+          {view === "search" && (
+            <div className={styles.filters}>
+              <Link
+                className={`${styles.filterBtn} ${sort === "name" ? styles.filterActive : ""
+                  }`}
+                href={`/?view=search&q=${encodedQ}&sort=name&page=1&limit=${limit}`}
+              >
+                按名称
+              </Link>
+              <Link
+                className={`${styles.filterBtn} ${sort === "latest" ? styles.filterActive : ""
+                  }`}
+                href={`/?view=search&q=${encodedQ}&sort=latest&page=1&limit=${limit}`}
+              >
+                最新
+              </Link>
+              <Link
+                className={`${styles.filterBtn} ${sort === "earliest" ? styles.filterActive : ""
+                  }`}
+                href={`/?view=search&q=${encodedQ}&sort=earliest&page=1&limit=${limit}`}
+              >
+                最早
+              </Link>
+            </div>
+          )}
           {view === "all" && (
             <div className={styles.filters}>
               <Link
@@ -448,7 +501,7 @@ export default async function Home({
                 {hasPrev ? (
                   <Link
                     className={styles.pageNavBtn}
-                    href={`/?view=search&q=${encodedQ}&page=${page - 1}&limit=${limit}`}
+                    href={`/?view=search&q=${encodedQ}&sort=${sort}&page=${page - 1}&limit=${limit}`}
                   >
                     上一页
                   </Link>
@@ -458,7 +511,7 @@ export default async function Home({
                 {hasNext ? (
                   <Link
                     className={styles.pageNavBtn}
-                    href={`/?view=search&q=${encodedQ}&page=${page + 1}&limit=${limit}`}
+                    href={`/?view=search&q=${encodedQ}&sort=${sort}&page=${page + 1}&limit=${limit}`}
                   >
                     下一页
                   </Link>
@@ -469,6 +522,7 @@ export default async function Home({
               <form className={styles.pageJump} action="/" method="get">
                 <input type="hidden" name="view" value="search" />
                 <input type="hidden" name="q" value={q} />
+                <input type="hidden" name="sort" value={sort} />
                 <input type="hidden" name="limit" value={limit} />
                 <label className={styles.pageJumpLabel}>
                   跳转到
