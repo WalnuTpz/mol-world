@@ -390,7 +390,7 @@ export default async function Home({
 
       <main className={styles.content}>
         <div className={styles.sectionHeader}>
-          <div>
+          <div className={styles.sectionInfo}>
             <div className={styles.sectionTitle}>
               {view === "hot" ? (
                 "热门表情包"

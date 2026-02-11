@@ -179,6 +179,12 @@
   margin-bottom: 18px;
 }
 
+.sectionInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .sectionTitle {
   display: inline-flex;
   align-items: baseline;
@@ -195,7 +201,7 @@
 }
 
 .sectionMeta {
-  font-size: 13px;
+  font-size: 14px;
   color: rgba(255, 255, 255, 0.6);
 }
 
