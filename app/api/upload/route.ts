@@ -4,6 +4,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/db";
+import { normalizeTags } from "@/lib/tags";
 
 export const runtime = "nodejs";
 
@@ -14,16 +15,6 @@ const ALLOWED_TYPES: Record<string, string> = {
   "image/gif": ".gif",
   "image/webp": ".webp",
 };
-
-const normalizeTags = (tags: string[]) =>
-  Array.from(
-    new Set(
-      tags
-        .map((tag) => tag.trim())
-        .filter((tag) => tag.length > 0)
-        .map((tag) => tag.slice(0, 50))
-    )
-  );
 
 export async function POST(request: Request) {
   const formData = await request.formData();
@@ -56,9 +47,8 @@ export async function POST(request: Request) {
     typeof rawTitle === "string" && rawTitle.trim().length > 0
       ? rawTitle.trim()
       : null;
-  const tags = typeof rawTags === "string"
-    ? normalizeTags(rawTags.split(/\s+/))
-    : [];
+  const tags =
+    typeof rawTags === "string" ? normalizeTags(rawTags.split(/\s+/)) : [];
 
   const mediaUrl = `/uploads/${filename}`;
   const type = ext === ".gif" ? "ANIMATED" : "STATIC";

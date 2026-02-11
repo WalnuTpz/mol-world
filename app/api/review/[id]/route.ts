@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/db";
 import { generateThumb } from "@/lib/thumbs";
+import { normalizeTags, sortTags } from "@/lib/tags";
 
 type Payload = {
   title?: string;
@@ -14,16 +15,6 @@ type Payload = {
 };
 
 export const runtime = "nodejs";
-
-const normalizeTags = (tags: string[]) =>
-  Array.from(
-    new Set(
-      tags
-        .map((tag) => tag.trim())
-        .filter((tag) => tag.length > 0)
-        .map((tag) => tag.slice(0, 50))
-    )
-  );
 
 const ensureDir = async (dir: string) => {
   await mkdir(dir, { recursive: true });
@@ -176,7 +167,7 @@ export async function PATCH(
   return NextResponse.json({
     item: {
       ...updated,
-      tags: updated.tags.map((t) => t.tag.name),
+      tags: sortTags(updated.tags.map((t) => t.tag.name)),
     },
   });
 }

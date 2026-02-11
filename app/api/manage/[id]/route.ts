@@ -4,6 +4,7 @@ import { unlink } from "node:fs/promises";
 import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/db";
+import { normalizeTags, sortTags } from "@/lib/tags";
 
 type Payload = {
   title?: string;
@@ -11,16 +12,6 @@ type Payload = {
   status?: "PUBLISHED" | "HIDDEN";
   action?: "delete";
 };
-
-const normalizeTags = (tags: string[]) =>
-  Array.from(
-    new Set(
-      tags
-        .map((tag) => tag.trim())
-        .filter((tag) => tag.length > 0)
-        .map((tag) => tag.slice(0, 50))
-    )
-  );
 
 const resolveDeletePath = (url: string) => {
   const normalized = url.trim();
@@ -134,7 +125,7 @@ export async function PATCH(
   return NextResponse.json({
     item: {
       ...updated,
-      tags: updated.tags.map((t) => t.tag.name),
+      tags: sortTags(updated.tags.map((t) => t.tag.name)),
     },
   });
 }
