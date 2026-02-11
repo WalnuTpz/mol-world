@@ -6,6 +6,7 @@ import Image from "next/image";
 
 import baseStyles from "../page.module.css";
 import styles from "./page.module.css";
+import { useClickGuard } from "@/components/useClickGuard";
 
 type ManageItem = {
   id: string;
@@ -48,6 +49,8 @@ export default function ManagePage() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [jumpValue, setJumpValue] = useState("1");
+  const allowSave = useClickGuard();
+  const allowRemove = useClickGuard();
 
   const loadPage = useCallback(
     async (targetPage: number, keyword: string) => {
@@ -154,6 +157,7 @@ export default function ManagePage() {
   };
 
   const save = async (item: ManageItem) => {
+    if (!allowSave()) return;
     const draft = drafts[item.id];
     if (!draft || draft.saving || !draft.editing) return;
     updateDraft(item.id, { saving: true });
@@ -193,6 +197,7 @@ export default function ManagePage() {
   };
 
   const remove = async (item: ManageItem) => {
+    if (!allowRemove()) return;
     const draft = drafts[item.id];
     if (!draft || draft.saving) return;
     const ok = window.confirm("确认删除这条表情包吗？此操作不可撤销。");

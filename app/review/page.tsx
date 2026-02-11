@@ -7,6 +7,7 @@ import Image from "next/image";
 import baseStyles from "../page.module.css";
 import styles from "./page.module.css";
 import { useToast } from "@/components/ToastProvider";
+import { useClickGuard } from "@/components/useClickGuard";
 
 type ReviewItem = {
   id: string;
@@ -35,6 +36,9 @@ export default function ReviewPage() {
   const [total, setTotal] = useState(0);
   const [jumpValue, setJumpValue] = useState("1");
   const toast = useToast();
+  const allowSubmit = useClickGuard();
+  const allowRemove = useClickGuard();
+  const allowClear = useClickGuard();
 
   const loadPage = useCallback(async (targetPage: number) => {
     let cancelled = false;
@@ -112,6 +116,7 @@ export default function ReviewPage() {
     id: string,
     status?: "PUBLISHED" | "HIDDEN"
   ) => {
+    if (!allowSubmit()) return;
     const draft = drafts[id];
     if (!draft || draft.saving) return;
     updateDraft(id, { saving: true });
@@ -143,6 +148,7 @@ export default function ReviewPage() {
   };
 
   const remove = async (id: string) => {
+    if (!allowRemove()) return;
     const draft = drafts[id];
     if (!draft || draft.saving) return;
     const ok = window.confirm("确认删除这条表情包吗？此操作不可撤销。");
@@ -179,6 +185,7 @@ export default function ReviewPage() {
   };
 
   const clearAll = async () => {
+    if (!allowClear()) return;
     const ok = window.confirm("确认清空审核队列吗？此操作不可撤销。");
     if (!ok) return;
     setLoading(true);

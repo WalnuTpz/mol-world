@@ -6,6 +6,7 @@ import Image from "next/image";
 
 import HomeNav from "@/components/HomeNav";
 import { useToast } from "@/components/ToastProvider";
+import { useClickGuard } from "@/components/useClickGuard";
 import baseStyles from "../page.module.css";
 import styles from "./page.module.css";
 
@@ -18,6 +19,7 @@ export default function UploadPage() {
   const [title, setTitle] = useState("");
   const [tags, setTags] = useState("");
   const toast = useToast();
+  const allowSubmit = useClickGuard();
 
   const isValidFile = (file: File) => {
     const allowed = ["image/png", "image/jpeg", "image/gif", "image/webp"];
@@ -73,6 +75,7 @@ export default function UploadPage() {
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!allowSubmit()) return;
     if (!selectedFile) {
       setStatus("error");
       toast("请先选择图片", "error");
