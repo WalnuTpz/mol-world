@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import RandomLink from "@/components/RandomLink";
+
 import MemeGrid from "@/components/MemeGrid";
 import { prisma } from "@/lib/db";
 import { sortTags } from "@/lib/tags";
@@ -104,20 +106,29 @@ export default async function FeaturedPage({
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         {modes.map((m) => {
           const active = m.key === mode;
+          const style = {
+            padding: "6px 12px",
+            borderRadius: 999,
+            border: "1px solid #ddd",
+            background: active ? "#111" : "#fff",
+            color: active ? "#fff" : "#111",
+            textDecoration: "none",
+            fontSize: 14,
+          } as const;
+          if (m.key === "random") {
+            return (
+              <RandomLink
+                key={m.key}
+                href={`/hot?mode=${m.key}&limit=${limit}`}
+                style={style}
+                disabledStyle={{ opacity: 0.5, cursor: "not-allowed" }}
+              >
+                {m.label}
+              </RandomLink>
+            );
+          }
           return (
-            <Link
-              key={m.key}
-              href={`/hot?mode=${m.key}&limit=${limit}`}
-              style={{
-                padding: "6px 12px",
-                borderRadius: 999,
-                border: "1px solid #ddd",
-                background: active ? "#111" : "#fff",
-                color: active ? "#fff" : "#111",
-                textDecoration: "none",
-                fontSize: 14,
-              }}
-            >
+            <Link key={m.key} href={`/hot?mode=${m.key}&limit=${limit}`} style={style}>
               {m.label}
             </Link>
           );

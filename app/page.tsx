@@ -4,6 +4,7 @@ import Image from "next/image";
 import HomeNav from "@/components/HomeNav";
 import MemeGrid from "@/components/MemeGrid";
 import WelcomeModal from "@/components/WelcomeModal";
+import RandomLink from "@/components/RandomLink";
 import { prisma } from "@/lib/db";
 import { normalizeSearchTokens, sortTags } from "@/lib/tags";
 import styles from "./page.module.css";
@@ -183,11 +184,30 @@ export default async function Home({
             select,
           });
           const map = new Map(list.map((item) => [item.id, item]));
-          items = normalizeItems(
-            groupIds
-              .map((id) => map.get(id))
-              .filter(Boolean) as MemeRow[]
-          );
+          const ordered = groupIds
+            .map((id) => map.get(id))
+            .filter(Boolean) as MemeRow[];
+          let filled = ordered;
+          const missingCount = Math.max(0, hotLimit - ordered.length);
+          if (missingCount > 0) {
+            const candidateIds = memeIds.filter((id) => !groupIds.includes(id));
+            if (candidateIds.length > 0) {
+              const fillIds = pickRandomSubset(candidateIds, missingCount);
+              const fillList = await prisma.meme.findMany({
+                where: {
+                  status: "PUBLISHED" as const,
+                  id: { in: fillIds },
+                },
+                select,
+              });
+              const fillMap = new Map(fillList.map((item) => [item.id, item]));
+              const fillers = fillIds
+                .map((id) => fillMap.get(id))
+                .filter(Boolean) as MemeRow[];
+              filled = ordered.concat(fillers);
+            }
+          }
+          items = normalizeItems(filled);
         } else {
           items = [];
         }
@@ -443,14 +463,15 @@ export default async function Home({
               >
                 最热
               </Link>
-              <Link
+              <RandomLink
                 className={`${styles.filterBtn} ${
                   hotSort === "random" ? styles.filterActive : ""
                 }`}
+                disabledClassName={styles.filterDisabled}
                 href="/?view=hot&hotSort=random"
               >
                 随机
-              </Link>
+              </RandomLink>
             </div>
           )}
           {view === "search" && (

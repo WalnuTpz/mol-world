@@ -224,6 +224,11 @@
   font-size: 13px;
 }
 
+.filterDisabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .filterBtn:hover {
   border-color: rgba(255, 255, 255, 0.4);
   background: rgba(255, 255, 255, 0.08);
