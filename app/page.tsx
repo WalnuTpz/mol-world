@@ -3,6 +3,7 @@ import Image from "next/image";
 
 import HomeNav from "@/components/HomeNav";
 import MemeGrid from "@/components/MemeGrid";
+import WelcomeModal from "@/components/WelcomeModal";
 import { prisma } from "@/lib/db";
 import { normalizeSearchTokens, sortTags } from "@/lib/tags";
 import styles from "./page.module.css";
@@ -336,6 +337,7 @@ export default async function Home({
         view === "all" || view === "search" ? styles.pageWithPagination : ""
       }`}
     >
+      <WelcomeModal />
       <header className={styles.header}>
         <div className={styles.headerInner}>
           <Link className={styles.brand} href="/">
