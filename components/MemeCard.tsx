@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type MouseEvent } from "react";
-import Image from "next/image";
+import NextImage from "next/image";
 
 import styles from "./MemeCard.module.css";
 import { useToast } from "./ToastProvider";
@@ -39,6 +39,23 @@ export default function MemeCard({
       reader.readAsDataURL(blob);
     });
 
+  const resolveOriginalUrl = (url: string) => {
+    try {
+      const parsed = new URL(url, window.location.origin);
+      if (parsed.pathname === "/_next/image") {
+        const original = parsed.searchParams.get("url");
+        if (original) {
+          return original.startsWith("/")
+            ? original
+            : new URL(original, window.location.origin).toString();
+        }
+      }
+      return parsed.toString();
+    } catch {
+      return url;
+    }
+  };
+
   const copyText = async (text: string) => {
     if (!navigator.clipboard?.writeText) return "fail" as const;
     await navigator.clipboard.writeText(text);
@@ -57,11 +74,11 @@ export default function MemeCard({
 
   const loadImage = (url: string) =>
     new Promise<HTMLImageElement>((resolve, reject) => {
-      const img = new Image();
+      const img = new window.Image();
       img.crossOrigin = "anonymous";
       img.onload = () => resolve(img);
       img.onerror = () => reject(new Error("image load failed"));
-      img.src = url;
+      img.src = resolveOriginalUrl(url);
     });
 
   const copyPngFromUrl = async (url: string) => {
@@ -86,7 +103,7 @@ export default function MemeCard({
   };
 
   const copyGifFromUrl = async (url: string) => {
-    const res = await fetch(url);
+    const res = await fetch(resolveOriginalUrl(url));
     const blob = await res.blob();
     if (blob.type !== "image/gif") return "fail" as const;
     try {
@@ -176,7 +193,7 @@ export default function MemeCard({
   return (
     <div className={styles.card} onClick={handleCopy}>
       <div className={styles.media}>
-        <Image
+        <NextImage
           className={styles.thumb}
           src={thumbUrl}
           alt={title ?? "meme"}
