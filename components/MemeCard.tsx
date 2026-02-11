@@ -207,9 +207,16 @@ export default function MemeCard({
             <span>{count}</span>
           </div>
         </div>
-        <div className={styles.tags}>
+        <div
+          className={styles.tags}
+          onClick={(event) => event.stopPropagation()}
+        >
           {visibleTags.map((tag) => (
-            <span key={tag} className={styles.tag}>
+            <span
+              key={tag}
+              className={styles.tag}
+              onClick={(event) => event.stopPropagation()}
+            >
               #{tag}
             </span>
           ))}
