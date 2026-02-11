@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/db";
-import { sortTags } from "@/lib/tags";
+import { normalizeSearchTokens, sortTags } from "@/lib/tags";
 
 function parseIntParam(value: string | null, fallback: number) {
   const parsed = Number.parseInt(value ?? "", 10);
@@ -15,10 +15,7 @@ export async function GET(request: Request) {
   const q = (searchParams.get("q") ?? "").trim();
   const skip = (page - 1) * limit;
 
-  const tokens = q
-    .split(/\s+/)
-    .map((token) => token.trim())
-    .filter(Boolean);
+  const tokens = q ? normalizeSearchTokens(q) : [];
 
   const where = {
     status: { in: ["PUBLISHED", "HIDDEN"] as const },
@@ -47,7 +44,6 @@ export async function GET(request: Request) {
         mediaUrl: true,
         thumbUrl: true,
         status: true,
-        createdAt: true,
         tags: {
           select: {
             tag: { select: { name: true } },

@@ -42,6 +42,7 @@ export default function ManagePage() {
   const [drafts, setDrafts] = useState<Record<string, DraftState>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [queryInput, setQueryInput] = useState("");
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -102,7 +103,14 @@ export default function ManagePage() {
   );
 
   useEffect(() => {
-    loadPage(page, query.trim());
+    const timer = window.setTimeout(() => {
+      setQuery(queryInput.trim());
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [queryInput]);
+
+  useEffect(() => {
+    loadPage(page, query);
   }, [loadPage, page, query]);
 
   useEffect(() => {
@@ -295,9 +303,9 @@ export default function ManagePage() {
           <div className={styles.searchBox}>
             <input
               className={styles.searchInput}
-              value={query}
+              value={queryInput}
               onChange={(event) => {
-                setQuery(event.target.value);
+                setQueryInput(event.target.value);
                 setPage(1);
               }}
               placeholder="搜索名称或标签"

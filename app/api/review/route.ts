@@ -34,7 +34,6 @@ export async function GET(request: Request) {
         mediaUrl: true,
         thumbUrl: true,
         status: true,
-        createdAt: true,
         tags: {
           select: {
             tag: {
