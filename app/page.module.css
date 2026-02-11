@@ -61,7 +61,7 @@
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.3);
   background: rgba(30, 30, 30, 0.9);
-  max-width: 420px;
+  width: clamp(200px, 32vw, 380px);
 }
 
 .searchInput {
@@ -388,24 +388,36 @@
     opacity: 0;
     transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
   }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 760px) {
   .page {
-    --header-height: 138px;
+    --header-height: 146px;
   }
 
   .headerInner {
     grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: center;
   }
 
   .headerActions {
-    justify-content: flex-start;
+    justify-content: center;
     flex-wrap: wrap;
+  }
+
+  .searchForm {
+    width: min(280px, 100%);
+    margin: 0 auto;
+  }
+
+  .nav {
+    justify-content: center;
   }
 }
 
