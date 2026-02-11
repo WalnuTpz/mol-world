@@ -16,9 +16,15 @@ type ToastItem = {
   id: string;
   message: string;
   tone: ToastTone;
+  detail?: string;
 };
 
-type ToastFn = (message: string, tone?: ToastTone, durationMs?: number) => void;
+type ToastFn = (
+  message: string,
+  tone?: ToastTone,
+  durationMs?: number,
+  detail?: string
+) => void;
 
 const ToastContext = createContext<ToastFn | null>(null);
 
@@ -42,9 +48,10 @@ export default function ToastProvider({
 }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
 
-  const show = useCallback<ToastFn>((message, tone = "info", durationMs = 2200) => {
+  const show = useCallback<ToastFn>(
+    (message, tone = "info", durationMs = 2200, detail) => {
     const id = createId();
-    setToasts((prev) => [...prev, { id, message, tone }].slice(-3));
+    setToasts((prev) => [...prev, { id, message, tone, detail }].slice(-3));
     window.setTimeout(() => {
       setToasts((prev) => prev.filter((toast) => toast.id !== id));
     }, durationMs);
@@ -65,7 +72,10 @@ export default function ToastProvider({
                 : styles.toastInfo;
           return (
             <div key={toast.id} className={`${styles.toast} ${toneClass}`}>
-              {toast.message}
+              <div className={styles.toastMessage}>{toast.message}</div>
+              {toast.detail && (
+                <div className={styles.toastDetail}>{toast.detail}</div>
+              )}
             </div>
           );
         })}

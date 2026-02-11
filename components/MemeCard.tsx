@@ -115,19 +115,24 @@ export default function MemeCard({
       const gifResult = await copyGifFromUrl(mediaUrl);
       if (gifResult === "clipboard") {
         await incrementCopy();
-        toast("已复制动图", "success");
+        toast("已复制动图", "success", undefined, "（可通过下载获取完整动图）");
         return;
       }
 
       const thumbResult = await copyPngFromUrl(thumbUrl);
       if (thumbResult === "clipboard") {
         await incrementCopy();
-        toast("已复制封面图", "success");
+        toast("已复制封面图", "success", undefined, "（可通过下载获取完整动图）");
         return;
       }
       if (thumbResult === "text") {
         await incrementCopy();
-        toast("已复制封面图（文本形式）", "success");
+        toast(
+          "已复制封面图（文本形式）",
+          "success",
+          undefined,
+          "（可通过下载获取完整动图）"
+        );
         return;
       }
       toast("复制失败", "error");

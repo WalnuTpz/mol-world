@@ -25,6 +25,16 @@
   animation: toastIn 0.18s ease-out;
 }
 
+.toastMessage {
+  font-weight: 600;
+}
+
+.toastDetail {
+  margin-top: 6px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.75);
+}
+
 .toastInfo {
   border-color: rgba(255, 255, 255, 0.4);
 }
