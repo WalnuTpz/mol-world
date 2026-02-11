@@ -8,13 +8,16 @@ import styles from "@/app/page.module.css";
 export default function HomeNav() {
   const params = useSearchParams();
   const view = params.get("view");
+  const q = (params.get("q") ?? "").trim();
+  const isSearch = view === "search" || q.length > 0;
   const isAll = view === "all";
+  const isHot = !isSearch && (view === null || view === "hot");
 
   return (
     <nav className={styles.nav}>
       <Link
         className={`${styles.navItem} ${
-          isAll ? styles.navItemInactive : styles.navItemActive
+          isHot ? styles.navItemActive : styles.navItemInactive
         }`}
         href="/?view=hot"
       >
