@@ -376,7 +376,7 @@ export default async function Home({
             </div>
             {view === "search" && (
               <div className={styles.sectionMeta}>
-                {q ? `关键词：${q}` : "输入关键词开始"}
+                {q ? `关键词（用空格分隔）：${q}` : "输入关键词开始"}
               </div>
             )}
           </div>
