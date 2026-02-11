@@ -353,9 +353,12 @@ export default function ManagePage() {
         </div>
 
         {!hasItems ? (
-          <div className={styles.emptyState}>{emptyText}</div>
+          <div className={baseStyles.emptyState}>{emptyText}</div>
         ) : (
           <div className={styles.list}>
+            {loading ? (
+              <div className={baseStyles.emptyState}>加载中...</div>
+            ) : null}
             {items.map((item) => {
               const draft = drafts[item.id];
               const editing = draft?.editing ?? false;

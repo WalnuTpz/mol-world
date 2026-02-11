@@ -294,8 +294,11 @@ export default function ReviewPage() {
         </div>
 
         <div className={styles.list}>
+          {loading && hasItems ? (
+            <div className={baseStyles.emptyState}>加载中...</div>
+          ) : null}
           {!hasItems ? (
-            <div className={styles.emptyState}>{emptyText}</div>
+            <div className={baseStyles.emptyState}>{emptyText}</div>
           ) : (
             items.map((item) => {
               const draft = drafts[item.id];
