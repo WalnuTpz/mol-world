@@ -42,21 +42,55 @@ const moveToLibrary = async (
 
   const ext = path.extname(source.filename) || ".png";
   const originalDir = path.join(process.cwd(), "public", "memes", "original");
+  const thumbDir = path.join(process.cwd(), "public", "memes", "thumb");
   await ensureDir(originalDir);
+  await ensureDir(thumbDir);
 
   const targetName = `${id}${ext}`;
   const targetPath = path.join(originalDir, targetName);
 
-  await rename(source.sourcePath, targetPath);
-
-  const thumbDir = path.join(process.cwd(), "public", "memes", "thumb");
   const thumbName = `${id}.${animated ? "gif" : "jpg"}`;
   const thumbPath = path.join(thumbDir, thumbName);
-  await generateThumb(targetPath, thumbPath, animated);
+  try {
+    await rename(source.sourcePath, targetPath);
+    await generateThumb(targetPath, thumbPath, animated);
+  } catch (error) {
+    try {
+      await rename(targetPath, source.sourcePath);
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
+        throw err;
+      }
+    }
+    try {
+      await unlink(thumbPath);
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
+        throw err;
+      }
+    }
+    throw error;
+  }
 
   return {
     mediaUrl: `/memes/original/${targetName}`,
     thumbUrl: `/memes/thumb/${thumbName}`,
+    rollback: async () => {
+      try {
+        await rename(targetPath, source.sourcePath);
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
+          throw err;
+        }
+      }
+      try {
+        await unlink(thumbPath);
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
+          throw err;
+        }
+      }
+    },
   };
 };
 
@@ -102,18 +136,68 @@ export async function PATCH(
         id: true,
         mediaUrl: true,
         thumbUrl: true,
+        title: true,
+        type: true,
+        status: true,
+        createdAt: true,
       },
     });
 
-    if (current) {
-      await removeFromUploads(current.mediaUrl);
-      await removeFromUploads(current.thumbUrl);
+    if (!current) {
+      return errorResponse("资源不存在", 404, "NOT_FOUND");
     }
 
-    await prisma.$transaction([
-      prisma.memeTag.deleteMany({ where: { memeId: id } }),
-      prisma.meme.delete({ where: { id } }),
-    ]);
+    let backup: { media?: string; thumb?: string } | null = null;
+    const backupDir = path.join(process.cwd(), "public", "uploads", "trash");
+    try {
+      await ensureDir(backupDir);
+      const mediaSource = getUploadSource(current.mediaUrl);
+      const thumbSource = getUploadSource(current.thumbUrl);
+      const timestamp = Date.now();
+      if (mediaSource) {
+        const mediaBackup = path.join(
+          backupDir,
+          `${id}-${timestamp}-${mediaSource.filename}`
+        );
+        await rename(mediaSource.sourcePath, mediaBackup);
+        backup = { ...(backup ?? {}), media: mediaBackup };
+      }
+      if (thumbSource) {
+        const thumbBackup = path.join(
+          backupDir,
+          `${id}-${timestamp}-${thumbSource.filename}`
+        );
+        await rename(thumbSource.sourcePath, thumbBackup);
+        backup = { ...(backup ?? {}), thumb: thumbBackup };
+      }
+
+      await prisma.$transaction([
+        prisma.memeTag.deleteMany({ where: { memeId: id } }),
+        prisma.meme.delete({ where: { id } }),
+      ]);
+    } catch (error) {
+      if (backup?.media) {
+        try {
+          const restorePath = getUploadSource(current.mediaUrl)?.sourcePath;
+          if (restorePath) {
+            await rename(backup.media, restorePath);
+          }
+        } catch {
+          // ignore
+        }
+      }
+      if (backup?.thumb) {
+        try {
+          const restorePath = getUploadSource(current.thumbUrl)?.sourcePath;
+          if (restorePath) {
+            await rename(backup.thumb, restorePath);
+          }
+        } catch {
+          // ignore
+        }
+      }
+      return errorResponse("删除失败，请重试", 500, "DELETE_FAILED");
+    }
 
     return successResponse({}, "删除成功");
   }
@@ -127,52 +211,68 @@ export async function PATCH(
     },
   });
 
-  const moved =
-    status && current
-      ? await moveToLibrary(
-          current.id,
-          current.mediaUrl,
-          current.type === "ANIMATED"
-        )
-      : null;
+  let moved: Awaited<ReturnType<typeof moveToLibrary>> = null;
+  if (status && current) {
+    try {
+      moved = await moveToLibrary(
+        current.id,
+        current.mediaUrl,
+        current.type === "ANIMATED"
+      );
+    } catch {
+      return errorResponse("文件处理失败，请重试", 500, "FILE_MOVE_FAILED");
+    }
+  }
 
-  const updated = await prisma.meme.update({
-    where: { id },
-    data: {
-      title,
-      ...(moved ? moved : {}),
-      ...(status ? { status } : {}),
-      ...(body.tags
-        ? {
-            tags: {
-              deleteMany: {},
-              create: tags.map((name) => ({
-                tag: {
-                  connectOrCreate: {
-                    where: { name },
-                    create: { name },
+  let updated;
+  try {
+    updated = await prisma.meme.update({
+      where: { id },
+      data: {
+        title,
+        ...(moved ? { mediaUrl: moved.mediaUrl, thumbUrl: moved.thumbUrl } : {}),
+        ...(status ? { status } : {}),
+        ...(body.tags
+          ? {
+              tags: {
+                deleteMany: {},
+                create: tags.map((name) => ({
+                  tag: {
+                    connectOrCreate: {
+                      where: { name },
+                      create: { name },
+                    },
                   },
-                },
-              })),
-            },
-          }
-        : {}),
-    },
-    select: {
-      id: true,
-      title: true,
-      type: true,
-      mediaUrl: true,
-      thumbUrl: true,
-      status: true,
-      createdAt: true,
-      tags: {
-        select: {
-          tag: { select: { name: true } },
+                })),
+              },
+            }
+          : {}),
+      },
+      select: {
+        id: true,
+        title: true,
+        type: true,
+        mediaUrl: true,
+        thumbUrl: true,
+        status: true,
+        createdAt: true,
+        tags: {
+          select: {
+            tag: { select: { name: true } },
+          },
         },
       },
-    },
-  });
+    });
+  } catch {
+    if (moved?.rollback) {
+      try {
+        await moved.rollback();
+      } catch {
+        // ignore rollback failures
+      }
+    }
+    return errorResponse("保存失败，请重试", 500, "DB_UPDATE_FAILED");
+  }
 
   return successResponse(
     {

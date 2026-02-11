@@ -1,5 +1,5 @@
 import path from "node:path";
-import { unlink } from "node:fs/promises";
+import { mkdir, rename, unlink } from "node:fs/promises";
 
 import { NextResponse } from "next/server";
 
@@ -34,19 +34,31 @@ const resolveDeletePath = (url: string) => {
   return null;
 };
 
-const removeFiles = async (urls: string[]) => {
-  const paths = new Set<string>();
-  urls.forEach((url) => {
-    const resolved = resolveDeletePath(url);
-    if (resolved) paths.add(resolved);
-  });
-  for (const filePath of paths) {
-    try {
-      await unlink(filePath);
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
-        throw error;
-      }
+const moveToTrash = async (url: string, id: string, timestamp: number) => {
+  const sourcePath = resolveDeletePath(url);
+  if (!sourcePath) return null;
+  const filename = path.basename(sourcePath);
+  if (!filename) return null;
+  const trashDir = path.join(process.cwd(), "public", "trash");
+  await mkdir(trashDir, { recursive: true });
+  const trashPath = path.join(trashDir, `${id}-${timestamp}-${filename}`);
+  try {
+    await rename(sourcePath, trashPath);
+    return { trashPath, sourcePath };
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return null;
+    }
+    throw error;
+  }
+};
+
+const restoreFromTrash = async (entry: { trashPath: string; sourcePath: string }) => {
+  try {
+    await rename(entry.trashPath, entry.sourcePath);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+      throw error;
     }
   }
 };
@@ -69,19 +81,46 @@ export async function PATCH(
     const current = await prisma.meme.findUnique({
       where: { id },
       select: {
+        id: true,
         mediaUrl: true,
         thumbUrl: true,
       },
     });
 
-    if (current) {
-      await removeFiles([current.mediaUrl, current.thumbUrl]);
+    if (!current) {
+      return errorResponse("资源不存在", 404, "NOT_FOUND");
     }
 
-    await prisma.$transaction([
-      prisma.memeTag.deleteMany({ where: { memeId: id } }),
-      prisma.meme.delete({ where: { id } }),
-    ]);
+    const timestamp = Date.now();
+    const moved: { trashPath: string; sourcePath: string }[] = [];
+    try {
+      const mediaMoved = await moveToTrash(
+        current.mediaUrl,
+        current.id,
+        timestamp
+      );
+      if (mediaMoved) moved.push(mediaMoved);
+      const thumbMoved = await moveToTrash(
+        current.thumbUrl,
+        current.id,
+        timestamp
+      );
+      if (thumbMoved) moved.push(thumbMoved);
+
+      await prisma.$transaction([
+        prisma.memeTag.deleteMany({ where: { memeId: id } }),
+        prisma.meme.delete({ where: { id } }),
+      ]);
+    } catch {
+      for (const entry of moved) {
+        try {
+          await restoreFromTrash(entry);
+        } catch {
+          // ignore
+        }
+      }
+      return errorResponse("删除失败，请重试", 500, "DELETE_FAILED");
+    }
 
     return successResponse({}, "删除成功");
   }
