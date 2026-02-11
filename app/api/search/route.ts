@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/db";
+import { normalizeSearchTokens } from "@/lib/tags";
 
 function parseIntParam(value: string | null, fallback: number) {
   const parsed = Number.parseInt(value ?? "", 10);
@@ -18,17 +19,15 @@ export async function GET(request: Request) {
     return NextResponse.json({ items: [], page, limit, total: 0, q });
   }
 
-  const tokens = q
-    .split(/\s+/)
-    .map((token) => token.trim())
-    .filter(Boolean);
+  const tokens = normalizeSearchTokens(q);
   const where = tokens.length
     ? {
         status: "PUBLISHED" as const,
         AND: tokens.map((token) => ({
-          title: {
-            contains: token,
-          },
+          OR: [
+            { title: { contains: token } },
+            { tags: { some: { tag: { name: { contains: token } } } } },
+          ],
         })),
       }
     : {

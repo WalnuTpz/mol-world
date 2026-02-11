@@ -37,3 +37,9 @@ export const normalizeTags = (tags: string[], limit = MAX_TAGS) => {
 
 export const sortTags = (tags: string[]) =>
   [...tags].sort((a, b) => tagCollator.compare(a, b));
+
+export const normalizeSearchTokens = (query: string) =>
+  query
+    .split(/\s+/)
+    .map((token) => normalizeTag(token))
+    .filter(Boolean);

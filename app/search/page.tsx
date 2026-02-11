@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import MemeGrid from "@/components/MemeGrid";
 import { prisma } from "@/lib/db";
+import { normalizeSearchTokens } from "@/lib/tags";
 
 export const dynamic = "force-dynamic";
 
@@ -30,17 +31,15 @@ export default async function SearchPage({
   const limit = parseIntParam(getParam(searchParams?.limit), 40);
   const skip = (page - 1) * limit;
 
-  const tokens = q
-    ? q
-        .split(/\s+/)
-        .map((token) => token.trim())
-        .filter(Boolean)
-    : [];
+  const tokens = q ? normalizeSearchTokens(q) : [];
   const where = tokens.length
     ? {
         status: "PUBLISHED" as const,
         AND: tokens.map((token) => ({
-          title: { contains: token },
+          OR: [
+            { title: { contains: token } },
+            { tags: { some: { tag: { name: { contains: token } } } } },
+          ],
         })),
       }
     : null;

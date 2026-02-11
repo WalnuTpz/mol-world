@@ -3,6 +3,7 @@ import Link from "next/link";
 import HomeNav from "@/components/HomeNav";
 import MemeGrid from "@/components/MemeGrid";
 import { prisma } from "@/lib/db";
+import { normalizeSearchTokens } from "@/lib/tags";
 import styles from "./page.module.css";
 
 export const dynamic = "force-dynamic";
@@ -224,16 +225,16 @@ export default async function Home({
       totalPages = 1;
     } else {
       const skip = (page - 1) * limit;
-      const tokens = q
-        .split(/\s+/)
-        .map((token) => token.trim())
-        .filter(Boolean);
+      const tokens = normalizeSearchTokens(q);
       const where =
         tokens.length > 0
           ? {
               status: "PUBLISHED",
               AND: tokens.map((token) => ({
-                title: { contains: token },
+                OR: [
+                  { title: { contains: token } },
+                  { tags: { some: { tag: { name: { contains: token } } } } },
+                ],
               })),
             }
           : {
