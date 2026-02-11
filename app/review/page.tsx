@@ -93,6 +93,7 @@ export default function ReviewPage() {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_LIMIT));
   const hasPrev = page > 1;
   const hasNext = page < totalPages;
+  const disableJump = loading || totalPages <= 1;
   const hasItems = items.length > 0;
   const emptyText = useMemo(() => {
     if (loading) return "加载中...";
@@ -410,10 +411,15 @@ export default function ReviewPage() {
                   max={totalPages}
                   value={jumpValue}
                   onChange={(event) => setJumpValue(event.target.value)}
+                  disabled={disableJump}
                 />
                 页
               </label>
-              <button className={baseStyles.pageJumpButton} type="submit">
+              <button
+                className={baseStyles.pageJumpButton}
+                type="submit"
+                disabled={disableJump}
+              >
                 跳转
               </button>
             </form>

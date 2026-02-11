@@ -104,6 +104,7 @@ export default async function AllPage({
   const totalPages = Math.max(1, Math.ceil(total / limit));
   const hasPrev = page > 1;
   const hasNext = page < totalPages;
+  const disableJump = totalPages <= 1;
 
   return (
     <main style={{ padding: 24 }}>
@@ -198,10 +199,15 @@ export default async function AllPage({
                 min={1}
                 max={totalPages}
                 defaultValue={page}
+                disabled={disableJump}
               />
               页
             </label>
-            <button className={baseStyles.pageJumpButton} type="submit">
+            <button
+              className={baseStyles.pageJumpButton}
+              type="submit"
+              disabled={disableJump}
+            >
               跳转
             </button>
           </form>

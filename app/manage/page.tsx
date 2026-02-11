@@ -222,6 +222,7 @@ export default function ManagePage() {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_LIMIT));
   const hasPrev = page > 1;
   const hasNext = page < totalPages;
+  const disableJump = loading || totalPages <= 1;
 
   const handleJump = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -487,10 +488,15 @@ export default function ManagePage() {
                   max={totalPages}
                   value={jumpValue}
                   onChange={(event) => setJumpValue(event.target.value)}
+                  disabled={disableJump}
                 />
                 页
               </label>
-              <button className={baseStyles.pageJumpButton} type="submit">
+              <button
+                className={baseStyles.pageJumpButton}
+                type="submit"
+                disabled={disableJump}
+              >
                 跳转
               </button>
             </form>

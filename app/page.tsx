@@ -320,6 +320,7 @@ export default async function Home({
 
   const hasPrev = page > 1;
   const hasNext = page < totalPages;
+  const disableJump = totalPages <= 1;
   const encodedQ = encodeURIComponent(q);
   const emptyStateText =
     view === "search"
@@ -546,10 +547,15 @@ export default async function Home({
                     min={1}
                     max={totalPages}
                     defaultValue={page}
+                    disabled={disableJump}
                   />
                   页
                 </label>
-                <button className={styles.pageJumpButton} type="submit">
+                <button
+                  className={styles.pageJumpButton}
+                  type="submit"
+                  disabled={disableJump}
+                >
                   跳转
                 </button>
               </form>
@@ -598,10 +604,15 @@ export default async function Home({
                     min={1}
                     max={totalPages}
                     defaultValue={page}
+                    disabled={disableJump}
                   />
                   页
                 </label>
-                <button className={styles.pageJumpButton} type="submit">
+                <button
+                  className={styles.pageJumpButton}
+                  type="submit"
+                  disabled={disableJump}
+                >
                   跳转
                 </button>
               </form>

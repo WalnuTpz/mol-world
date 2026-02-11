@@ -96,6 +96,11 @@
   place-items: center;
 }
 
+.searchButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .headerActions {
   display: flex;
   align-items: center;
@@ -333,6 +338,11 @@
   font-size: 13px;
 }
 
+.pageJumpInput:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .pageJumpButton {
   padding: 6px 12px;
   border-radius: 999px;
@@ -347,6 +357,12 @@
 .pageJumpButton:hover {
   background: #1a1a1a;
   border-color: rgba(255, 255, 255, 0.6);
+}
+
+.pageJumpButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  border-color: rgba(255, 255, 255, 0.18);
 }
 
 @media (max-width: 720px) {
