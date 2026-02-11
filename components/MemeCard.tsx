@@ -179,8 +179,9 @@ export default function MemeCard({
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-    } catch {
-      // ignore
+    } catch (error) {
+      console.error(error);
+      toast("下载失败", "error");
     }
   };
 
