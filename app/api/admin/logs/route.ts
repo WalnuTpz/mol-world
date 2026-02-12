@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { successResponse } from "@/lib/api";
+import { errorResponse, successResponse } from "@/lib/api";
 import { normalizeSearchTokens } from "@/lib/tags";
 
 const DEFAULT_LIMIT = 20;
@@ -64,5 +64,33 @@ export async function GET(request: Request) {
       q,
     },
     "查询成功"
+  );
+}
+
+export async function POST(request: Request) {
+  const body = (await request.json().catch(() => null)) as
+    | { range?: string }
+    | null;
+  const range = body?.range ?? "";
+  const now = Date.now();
+  const since =
+    range === "1d"
+      ? new Date(now - 24 * 60 * 60 * 1000)
+      : range === "7d"
+        ? new Date(now - 7 * 24 * 60 * 60 * 1000)
+        : range === "30d"
+          ? new Date(now - 30 * 24 * 60 * 60 * 1000)
+          : null;
+
+  if (!["1d", "7d", "30d", "all"].includes(range)) {
+    return errorResponse("无效的删除范围", 400, "INVALID_RANGE");
+  }
+
+  const where = since ? { createdAt: { gte: since } } : {};
+  const result = await prisma.auditLog.deleteMany({ where });
+
+  return successResponse(
+    { count: result.count },
+    "删除成功"
   );
 }

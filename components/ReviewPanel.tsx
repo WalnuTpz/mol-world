@@ -216,7 +216,7 @@ export default function ReviewPanel() {
             onClick={clearAll}
             disabled={loading || total === 0}
           >
-            一键清空审核队列
+            清空审核队列
           </button>
         </div>
       </div>

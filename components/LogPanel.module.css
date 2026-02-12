@@ -1,6 +1,6 @@
 .headerRow {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
@@ -23,6 +23,17 @@
 .subtitle {
   font-size: 14px;
   color: rgba(255, 255, 255, 0.6);
+}
+
+.headerTools {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  flex: 0 1 520px;
+  margin-left: auto;
+  margin-top: 12px;
 }
 
 .searchBox {
@@ -59,6 +70,54 @@
   display: grid;
   place-items: center;
   flex-shrink: 0;
+}
+
+.toolbarInline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.toolbarActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.toolbarSelect {
+  min-width: 140px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: #0f0f0f;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 12px;
+  outline: none;
+}
+
+.toolbarSelect:disabled {
+  opacity: 0.6;
+}
+
+.toolbarButton {
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.toolbarButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.toolbarButtonDanger {
+  border-color: rgba(255, 120, 120, 0.8);
+  color: #ffd7d7;
 }
 
 .list {
