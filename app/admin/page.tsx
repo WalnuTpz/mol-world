@@ -5,6 +5,7 @@ import baseStyles from "../page.module.css";
 import styles from "./page.module.css";
 import ReviewPanel from "@/components/ReviewPanel";
 import ManagePanel from "@/components/ManagePanel";
+import LogPanel from "@/components/LogPanel";
 
 type SearchParams = {
   view?: string | string[];
@@ -168,6 +169,8 @@ export default async function AdminPage({
           <ReviewPanel />
         ) : view === "manage" ? (
           <ManagePanel />
+        ) : view === "logs" ? (
+          <LogPanel />
         ) : (
           <section className={styles.panel}>
             <div className={styles.panelTitle}>{viewLabels[view]}</div>

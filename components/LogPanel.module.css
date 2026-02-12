@@ -1,0 +1,156 @@
+.headerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 22px;
+}
+
+.headerBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.title {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: #ffffff;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.searchBox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(30, 30, 30, 0.9);
+  min-width: 220px;
+  max-width: 320px;
+}
+
+.searchInput {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #f0f0f0;
+  font-size: 13px;
+}
+
+.searchInput::placeholder {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.searchIcon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #111111;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 240px;
+}
+
+.card {
+  display: grid;
+  grid-template-columns: 160px 140px 90px 1fr;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: #121212;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  align-items: center;
+}
+
+.time {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  letter-spacing: 0.2px;
+}
+
+.action {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.status {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.85);
+  text-align: center;
+  width: fit-content;
+}
+
+.statusSuccess {
+  border-color: rgba(255, 255, 255, 0.6);
+  color: #ffffff;
+}
+
+.statusError {
+  border-color: rgba(255, 99, 99, 0.65);
+  color: #ffb7b7;
+}
+
+.message {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.messageText {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.85);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meta {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.55);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  .card {
+    grid-template-columns: 1fr;
+    align-items: flex-start;
+  }
+
+  .messageText,
+  .meta {
+    white-space: normal;
+  }
+
+  .title {
+    font-size: 22px;
+  }
+
+  .searchBox {
+    width: 100%;
+    max-width: 100%;
+  }
+}
