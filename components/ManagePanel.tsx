@@ -15,6 +15,7 @@ type ManageItem = {
   mediaUrl: string;
   thumbUrl: string;
   status: "PUBLISHED" | "HIDDEN";
+  copies: number;
   createdAt: string;
   updatedAt: string;
   tags: string[];
@@ -528,6 +529,15 @@ export default function ManagePanel() {
                       data-no-toggle="true"
                     >
                       {item.type === "ANIMATED" ? "动图" : "静态"}
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.statusHeat}
+                      disabled
+                      aria-disabled="true"
+                      data-no-toggle="true"
+                    >
+                      {item.copies}
                     </button>
                   </div>
                   <div className={styles.actions}>

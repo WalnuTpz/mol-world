@@ -102,6 +102,7 @@ export async function GET(request: Request) {
         mediaUrl: true,
         thumbUrl: true,
         status: true,
+        copies: true,
         createdAt: true,
         updatedAt: true,
         tags: {
