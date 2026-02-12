@@ -1,5 +1,5 @@
 import Link from "next/link";
-import Image from "next/image";
+import { cookies } from "next/headers";
 
 import baseStyles from "../page.module.css";
 import styles from "./page.module.css";
@@ -7,6 +7,8 @@ import ReviewPanel from "@/components/ReviewPanel";
 import ManagePanel from "@/components/ManagePanel";
 import LogPanel from "@/components/LogPanel";
 import AdminOtherPanel from "@/components/AdminOtherPanel";
+import AdminLoginTrigger from "@/components/AdminLoginTrigger";
+import { getAdminSessionCookieName, isAdminSessionValid } from "@/lib/adminSession";
 
 type SearchParams = {
   view?: string | string[];
@@ -44,6 +46,10 @@ export default async function AdminPage({
     viewParam === "review"
       ? viewParam
       : "manage";
+  const cookieStore = await cookies();
+  const authed = isAdminSessionValid(
+    cookieStore.get(getAdminSessionCookieName())?.value
+  );
 
   return (
     <div className={`${baseStyles.page} ${baseStyles.pageWithPagination}`}>
@@ -55,19 +61,11 @@ export default async function AdminPage({
                 Mol<span className={baseStyles.brandAccent}>World</span>
               </span>
             </Link>
-            <Link
+            <AdminLoginTrigger
+              authed={authed}
               className={baseStyles.brandIconLink}
-              href="/admin"
-              aria-label="管理控制台"
-            >
-              <Image
-                className={baseStyles.brandIcon}
-                src="/brand-icon.png"
-                alt="MolWorld"
-                width={36}
-                height={36}
-              />
-            </Link>
+              iconClassName={baseStyles.brandIcon}
+            />
           </div>
           <form
             className={baseStyles.searchForm}

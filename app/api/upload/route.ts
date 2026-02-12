@@ -31,22 +31,20 @@ const getClientId = (request: Request) => {
   return ip ?? "unknown";
 };
 
+const getCookieValue = (request: Request, name: string) => {
+  const cookie = request.headers.get("cookie") ?? "";
+  const match = cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : null;
+};
+
 const isAdminAuthed = (request: Request) => {
   const user = process.env.REVIEW_USER;
   const pass = process.env.REVIEW_PASS;
   if (!user || !pass) return false;
-  const auth = request.headers.get("authorization");
-  if (!auth || !auth.startsWith("Basic ")) return false;
-  try {
-    const decoded = Buffer.from(auth.slice(6), "base64").toString("utf8");
-    const index = decoded.indexOf(":");
-    if (index === -1) return false;
-    const parsedUser = decoded.slice(0, index);
-    const parsedPass = decoded.slice(index + 1);
-    return parsedUser === user && parsedPass === pass;
-  } catch {
-    return false;
-  }
+  const token = getCookieValue(request, "admin_session");
+  if (!token) return false;
+  const expected = Buffer.from(`${user}:${pass}`, "utf8").toString("base64");
+  return token === expected;
 };
 
 export async function POST(request: Request) {

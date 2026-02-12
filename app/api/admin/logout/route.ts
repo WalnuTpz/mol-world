@@ -1,15 +1,17 @@
-import { NextResponse } from "next/server";
+import { successResponse } from "@/lib/api";
+import { getAdminSessionCookieName } from "@/lib/adminSession";
 
-const logoutResponse = () =>
-  new NextResponse("Logged out", {
-    status: 401,
-    headers: { "WWW-Authenticate": 'Basic realm="Admin"' },
-  });
+const clearCookieHeader = () =>
+  `${getAdminSessionCookieName()}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`;
 
 export async function GET() {
-  return logoutResponse();
+  return successResponse({}, "已退出", 200, {
+    "Set-Cookie": clearCookieHeader(),
+  });
 }
 
 export async function POST() {
-  return logoutResponse();
+  return successResponse({}, "已退出", 200, {
+    "Set-Cookie": clearCookieHeader(),
+  });
 }

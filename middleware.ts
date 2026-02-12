@@ -1,24 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-const unauthorized = () =>
-  new NextResponse("Unauthorized", {
-    status: 401,
-    headers: { "WWW-Authenticate": 'Basic realm="Review"' },
-  });
-
-const decodeBasicAuth = (value: string) => {
-  try {
-    const decoded = atob(value);
-    const index = decoded.indexOf(":");
-    if (index === -1) return null;
-    return {
-      user: decoded.slice(0, index),
-      pass: decoded.slice(index + 1),
-    };
-  } catch {
-    return null;
-  }
-};
+const unauthorizedJson = () =>
+  NextResponse.json({ ok: false, error: "未登录", code: "UNAUTHORIZED" }, { status: 401 });
 
 const API_RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const API_RATE_LIMIT_MAX = 120;
@@ -34,33 +17,30 @@ const isAdminAuthed = (request: NextRequest) => {
   const user = process.env.REVIEW_USER;
   const pass = process.env.REVIEW_PASS;
   if (!user || !pass) return false;
-  const auth = request.headers.get("authorization");
-  if (!auth || !auth.startsWith("Basic ")) return false;
-  const parsed = decodeBasicAuth(auth.slice(6));
-  return Boolean(parsed && parsed.user === user && parsed.pass === pass);
+  const token = request.cookies.get("admin_session")?.value;
+  if (!token) return false;
+  try {
+    const expected = btoa(`${user}:${pass}`);
+    return token === expected;
+  } catch {
+    return false;
+  }
 };
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const isProtected =
-    pathname.startsWith("/review") ||
-    pathname.startsWith("/manage") ||
-    pathname.startsWith("/admin") ||
-    pathname.startsWith("/api/admin") ||
-    pathname.startsWith("/api/review") ||
-    pathname.startsWith("/api/manage");
-  const user = process.env.REVIEW_USER;
-  const pass = process.env.REVIEW_PASS;
   const authed = isAdminAuthed(request);
+  const isAdminApi =
+    pathname.startsWith("/api/review") ||
+    pathname.startsWith("/api/manage") ||
+    pathname.startsWith("/api/admin");
+  const isAuthFreeApi =
+    pathname.startsWith("/api/admin/login") ||
+    pathname.startsWith("/api/admin/logout") ||
+    pathname.startsWith("/api/admin/session");
 
-  if (isProtected) {
-    if (!user || !pass) {
-      return unauthorized();
-    }
-
-    if (!authed) {
-      return unauthorized();
-    }
+  if (isAdminApi && !isAuthFreeApi && !authed) {
+    return unauthorizedJson();
   }
 
   if (pathname.startsWith("/api/") && !authed) {
@@ -95,11 +75,9 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/review/:path*",
     "/api/review/:path*",
-    "/manage/:path*",
     "/api/manage/:path*",
-    "/admin/:path*",
+    "/api/admin/:path*",
     "/api/:path*",
   ],
 };

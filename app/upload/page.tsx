@@ -2,11 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 
 import HomeNav from "@/components/HomeNav";
 import { useToast } from "@/components/ToastProvider";
 import { useClickGuard } from "@/components/useClickGuard";
+import AdminLoginTrigger from "@/components/AdminLoginTrigger";
 import baseStyles from "../page.module.css";
 import styles from "./page.module.css";
 
@@ -135,19 +135,10 @@ export default function UploadPage() {
                 Mol<span className={baseStyles.brandAccent}>World</span>
               </span>
             </Link>
-            <Link
+            <AdminLoginTrigger
               className={baseStyles.brandIconLink}
-              href="/admin"
-              aria-label="管理控制台"
-            >
-              <Image
-                className={baseStyles.brandIcon}
-                src="/brand-icon.png"
-                alt="MolWorld"
-                width={36}
-                height={36}
-              />
-            </Link>
+              iconClassName={baseStyles.brandIcon}
+            />
           </div>
           <form
             className={baseStyles.searchForm}

@@ -1,11 +1,13 @@
 import Link from "next/link";
-import Image from "next/image";
+import { cookies } from "next/headers";
 
 import HomeNav from "@/components/HomeNav";
 import MemeGrid from "@/components/MemeGrid";
 import WelcomeModal from "@/components/WelcomeModal";
 import RandomLink from "@/components/RandomLink";
+import AdminLoginTrigger from "@/components/AdminLoginTrigger";
 import { prisma } from "@/lib/db";
+import { getAdminSessionCookieName, isAdminSessionValid } from "@/lib/adminSession";
 import { normalizeSearchTokens, sortTags } from "@/lib/tags";
 import styles from "./page.module.css";
 
@@ -135,6 +137,10 @@ export default async function Home({
 }: {
   searchParams: SearchParams | Promise<SearchParams>;
 }) {
+  const cookieStore = await cookies();
+  const authed = isAdminSessionValid(
+    cookieStore.get(getAdminSessionCookieName())?.value
+  );
   const resolvedParams =
     (await Promise.resolve(searchParams)) ?? ({} as SearchParams);
   const viewParam = getParam(resolvedParams?.view);
@@ -366,19 +372,11 @@ export default async function Home({
                 Mol<span className={styles.brandAccent}>World</span>
               </span>
             </Link>
-            <Link
+            <AdminLoginTrigger
+              authed={authed}
               className={styles.brandIconLink}
-              href="/admin"
-              aria-label="管理控制台"
-            >
-              <Image
-                className={styles.brandIcon}
-                src="/brand-icon.png"
-                alt="MolWorld"
-                width={36}
-                height={36}
-              />
-            </Link>
+              iconClassName={styles.brandIcon}
+            />
           </div>
           <form
             className={styles.searchForm}
