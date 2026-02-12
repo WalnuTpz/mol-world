@@ -325,9 +325,12 @@ export default function ManagePanel() {
       const data = (await res.json().catch(() => null)) as
         | { count?: number; failed?: string[] }
         | null;
-      toast(`${label}完成（${data?.count ?? 0}）`, "success");
-      if (data?.failed && data.failed.length > 0) {
-        toast(`部分失败（${data.failed.length}）`, "error");
+      const successCount = data?.count ?? 0;
+      const failedCount = data?.failed?.length ?? 0;
+      if (failedCount > 0) {
+        toast(`成功 ${successCount} / 失败 ${failedCount}`, "error");
+      } else {
+        toast(`成功 ${successCount} / 失败 ${failedCount}`, "success");
       }
       setSelected(new Set());
       await loadPage(page, query);
