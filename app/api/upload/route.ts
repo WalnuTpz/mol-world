@@ -137,13 +137,6 @@ export async function POST(request: Request) {
       const retryAfter = Math.ceil(
         (GLOBAL_UPLOAD_COOLDOWN_MS - (now - lastGlobalUploadAt)) / 1000
       );
-      void logAudit({
-        action: "upload",
-        status: "error",
-        message: "操作过于频繁，请稍后再试",
-        data: { scope: "global" },
-        request,
-      });
       return errorResponse(
         "操作过于频繁，请稍后再试",
         429,
@@ -157,13 +150,6 @@ export async function POST(request: Request) {
       const retryAfter = Math.ceil(
         (UPLOAD_COOLDOWN_MS - (now - lastUploadAt)) / 1000
       );
-      void logAudit({
-        action: "upload",
-        status: "error",
-        message: "上传过于频繁，请稍后再试",
-        data: { scope: "ip" },
-        request,
-      });
       return errorResponse(
         "上传过于频繁，请稍后再试",
         429,
