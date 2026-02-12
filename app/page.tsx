@@ -360,18 +360,26 @@ export default async function Home({
       <WelcomeModal />
       <header className={styles.header}>
         <div className={styles.headerInner}>
-          <Link className={styles.brand} href="/">
-            <span className={styles.brandText}>
-              Mol<span className={styles.brandAccent}>World</span>
-            </span>
-            <Image
-              className={styles.brandIcon}
-              src="/brand-icon.png"
-              alt="MolWorld"
-              width={36}
-              height={36}
-            />
-          </Link>
+          <div className={styles.brandGroup}>
+            <Link className={styles.brand} href="/">
+              <span className={styles.brandText}>
+                Mol<span className={styles.brandAccent}>World</span>
+              </span>
+            </Link>
+            <Link
+              className={styles.brandIconLink}
+              href="/admin"
+              aria-label="管理控制台"
+            >
+              <Image
+                className={styles.brandIcon}
+                src="/brand-icon.png"
+                alt="MolWorld"
+                width={36}
+                height={36}
+              />
+            </Link>
+          </div>
           <form
             className={styles.searchForm}
             action="/"

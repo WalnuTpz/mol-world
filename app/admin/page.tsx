@@ -48,18 +48,26 @@ export default async function AdminPage({
     <div className={`${baseStyles.page} ${baseStyles.pageWithPagination}`}>
       <header className={baseStyles.header}>
         <div className={baseStyles.headerInner}>
-          <Link className={baseStyles.brand} href="/">
-            <span className={baseStyles.brandText}>
-              Mol<span className={baseStyles.brandAccent}>World</span>
-            </span>
-            <Image
-              className={baseStyles.brandIcon}
-              src="/brand-icon.png"
-              alt="MolWorld"
-              width={36}
-              height={36}
-            />
-          </Link>
+          <div className={baseStyles.brandGroup}>
+            <Link className={baseStyles.brand} href="/">
+              <span className={baseStyles.brandText}>
+                Mol<span className={baseStyles.brandAccent}>World</span>
+              </span>
+            </Link>
+            <Link
+              className={baseStyles.brandIconLink}
+              href="/admin"
+              aria-label="管理控制台"
+            >
+              <Image
+                className={baseStyles.brandIcon}
+                src="/brand-icon.png"
+                alt="MolWorld"
+                width={36}
+                height={36}
+              />
+            </Link>
+          </div>
           <form
             className={baseStyles.searchForm}
             action="/"
