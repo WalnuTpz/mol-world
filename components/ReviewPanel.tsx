@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 
 import baseStyles from "@/app/page.module.css";
-import styles from "@/app/review/page.module.css";
+import styles from "@/components/ReviewPanel.module.css";
 import { useToast } from "@/components/ToastProvider";
 import { useClickGuard } from "@/components/useClickGuard";
 

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 
 import baseStyles from "@/app/page.module.css";
-import styles from "@/app/manage/page.module.css";
+import styles from "@/components/ManagePanel.module.css";
 import { useClickGuard } from "@/components/useClickGuard";
 
 type ManageItem = {
