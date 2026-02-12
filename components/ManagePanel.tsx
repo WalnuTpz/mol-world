@@ -254,7 +254,7 @@ export default function ManagePanel() {
               setQueryInput(event.target.value);
               setPage(1);
             }}
-            placeholder="搜索名称或标签"
+            placeholder="搜索名称/标签/状态/类型"
             aria-label="搜索表情包"
           />
           <span className={styles.searchIcon} aria-hidden="true">
