@@ -72,6 +72,7 @@ export async function POST(request: Request) {
   }
 
   attempts.delete(clientId);
-  const cookie = `${getAdminSessionCookieName()}=${expected}; Path=/; HttpOnly; SameSite=Lax`;
+  const maxAge = 60 * 60 * 24 * 7;
+  const cookie = `${getAdminSessionCookieName()}=${expected}; Path=/; Max-Age=${maxAge}; HttpOnly; SameSite=Lax`;
   return successResponse({}, "登录成功", 200, { "Set-Cookie": cookie });
 }
