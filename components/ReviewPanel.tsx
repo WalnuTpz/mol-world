@@ -5,7 +5,7 @@ import Image from "next/image";
 
 import baseStyles from "@/app/page.module.css";
 import styles from "@/components/ReviewPanel.module.css";
-import { useToast } from "@/components/ToastProvider";
+import { useToast, useToastConfirm } from "@/components/ToastProvider";
 import { useClickGuard } from "@/components/useClickGuard";
 
 type ReviewItem = {
@@ -35,6 +35,7 @@ export default function ReviewPanel() {
   const [total, setTotal] = useState(0);
   const [jumpValue, setJumpValue] = useState("1");
   const toast = useToast();
+  const confirm = useToastConfirm();
   const allowSubmit = useClickGuard();
   const allowRemove = useClickGuard();
   const allowClear = useClickGuard();
@@ -147,7 +148,7 @@ export default function ReviewPanel() {
     if (!allowRemove()) return;
     const draft = drafts[id];
     if (!draft || draft.saving) return;
-    const ok = window.confirm("确认删除这条表情包吗？此操作不可撤销。");
+    const ok = await confirm("确认删除这条表情包吗？", "此操作不可撤销。");
     if (!ok) return;
     updateDraft(id, { saving: true });
     try {
@@ -182,7 +183,7 @@ export default function ReviewPanel() {
 
   const clearAll = async () => {
     if (!allowClear()) return;
-    const ok = window.confirm("确认清空审核队列吗？此操作不可撤销。");
+    const ok = await confirm("确认清空审核队列吗？", "此操作不可撤销。");
     if (!ok) return;
     setLoading(true);
     setError("");

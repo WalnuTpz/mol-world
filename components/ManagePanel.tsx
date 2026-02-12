@@ -5,6 +5,7 @@ import Image from "next/image";
 
 import baseStyles from "@/app/page.module.css";
 import styles from "@/components/ManagePanel.module.css";
+import { useToastConfirm } from "@/components/ToastProvider";
 import { useClickGuard } from "@/components/useClickGuard";
 
 type ManageItem = {
@@ -48,6 +49,7 @@ export default function ManagePanel() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [jumpValue, setJumpValue] = useState("1");
+  const confirm = useToastConfirm();
   const allowSave = useClickGuard();
   const allowRemove = useClickGuard();
 
@@ -205,7 +207,7 @@ export default function ManagePanel() {
     if (!allowRemove()) return;
     const draft = drafts[item.id];
     if (!draft || draft.saving) return;
-    const ok = window.confirm("确认删除这条表情包吗？此操作不可撤销。");
+    const ok = await confirm("确认删除这条表情包吗？", "此操作不可撤销。");
     if (!ok) return;
     updateDraft(item.id, { saving: true });
     try {

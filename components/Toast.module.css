@@ -23,6 +23,7 @@
   box-shadow: 0 14px 32px rgba(0, 0, 0, 0.45);
   text-align: center;
   animation: toastIn 0.18s ease-out;
+  pointer-events: auto;
 }
 
 .toastMessage {
@@ -33,6 +34,39 @@
   margin-top: 6px;
   font-size: 13px;
   color: rgba(255, 255, 255, 0.75);
+}
+
+.toastActions {
+  margin-top: 12px;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.toastAction {
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #ffffff;
+}
+
+.toastActionGhost {
+  border-color: rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.toastActionPrimary {
+  border-color: rgba(255, 255, 255, 0.9);
+  background: #ffffff;
+  color: #111111;
+}
+
+.toastActionDanger {
+  border-color: rgba(255, 120, 120, 0.8);
+  color: #ffe2e2;
 }
 
 .toastInfo {

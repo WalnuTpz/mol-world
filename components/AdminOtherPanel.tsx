@@ -1,16 +1,20 @@
 "use client";
 
 import styles from "@/app/admin/page.module.css";
+import { useToastConfirm } from "@/components/ToastProvider";
 
 export default function AdminOtherPanel() {
+  const confirm = useToastConfirm();
+
   const handleLogout = () => {
-    const ok = window.confirm("确认退出管理员登录吗？");
-    if (!ok) return;
-    fetch("/api/admin/logout", { method: "POST" })
-      .catch(() => null)
-      .finally(() => {
-        window.location.href = "/";
-      });
+    confirm("确认退出管理员登录吗？").then((ok) => {
+      if (!ok) return;
+      fetch("/api/admin/logout", { method: "POST" })
+        .catch(() => null)
+        .finally(() => {
+          window.location.href = "/";
+        });
+    });
   };
 
   return (
@@ -23,7 +27,6 @@ export default function AdminOtherPanel() {
         <button type="button" className={styles.logoutButton} onClick={handleLogout}>
           退出登录
         </button>
-        <span className={styles.logoutHint}>退出后再次进入需要重新验证</span>
       </div>
     </section>
   );
