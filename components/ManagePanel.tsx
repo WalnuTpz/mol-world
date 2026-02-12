@@ -440,8 +440,13 @@ export default function ManagePanel() {
               <div
                 key={item.id}
                 className={`${styles.card} ${isSelected ? styles.cardSelected : ""}`}
+                onClick={(event) => {
+                  const target = event.target as HTMLElement;
+                  if (target.closest('[data-no-toggle="true"]')) return;
+                  toggleSelect(item.id);
+                }}
               >
-                <label className={styles.cardSelect}>
+                <label className={styles.cardSelect} data-no-toggle="true">
                   <input
                     type="checkbox"
                     checked={isSelected}
@@ -449,7 +454,7 @@ export default function ManagePanel() {
                     aria-label="选择表情包"
                   />
                 </label>
-                <div className={styles.previewWrap}>
+                <div className={styles.previewWrap} data-no-toggle="true">
                   <div className={styles.preview}>
                     <Image
                       src={item.thumbUrl}
@@ -477,6 +482,7 @@ export default function ManagePanel() {
                       onChange={(e) => updateDraft(item.id, { title: e.target.value })}
                       placeholder="输入名称"
                       disabled={!editing}
+                      data-no-toggle="true"
                     />
                   </label>
                   <label className={styles.field}>
@@ -487,6 +493,7 @@ export default function ManagePanel() {
                       onChange={(e) => updateDraft(item.id, { tags: e.target.value })}
                       placeholder="多个标签用空格分隔"
                       disabled={!editing}
+                      data-no-toggle="true"
                     />
                   </label>
                   <div className={styles.statusRow}>
@@ -500,6 +507,7 @@ export default function ManagePanel() {
                             status: e.target.value as DraftState["status"],
                           })
                         }
+                        data-no-toggle="true"
                       >
                         <option value="PUBLISHED">已发布</option>
                         <option value="HIDDEN">已隐藏</option>
@@ -514,6 +522,7 @@ export default function ManagePanel() {
                       className={styles.statusType}
                       disabled
                       aria-disabled="true"
+                      data-no-toggle="true"
                     >
                       {item.type === "ANIMATED" ? "动图" : "静态"}
                     </button>
@@ -524,6 +533,7 @@ export default function ManagePanel() {
                       className={styles.actionGhost}
                       onClick={() => toggleEdit(item)}
                       disabled={draft?.saving}
+                      data-no-toggle="true"
                     >
                       {editing ? "取消" : "修改"}
                     </button>
@@ -532,6 +542,7 @@ export default function ManagePanel() {
                       className={styles.actionPrimary}
                       onClick={() => save(item)}
                       disabled={!editing || draft?.saving}
+                      data-no-toggle="true"
                     >
                       保存
                     </button>
@@ -540,6 +551,7 @@ export default function ManagePanel() {
                       className={styles.actionDanger}
                       onClick={() => remove(item)}
                       disabled={draft?.saving}
+                      data-no-toggle="true"
                     >
                       删除
                     </button>
