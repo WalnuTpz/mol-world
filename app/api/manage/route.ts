@@ -20,6 +20,7 @@ export async function GET(request: Request) {
 
   const where = {
     status: { in: ["PUBLISHED", "HIDDEN"] as const },
+    mediaUrl: { not: { startsWith: "/uploads/" } },
     ...(tokens.length
       ? {
           AND: tokens.map((token) => ({

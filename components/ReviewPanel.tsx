@@ -14,7 +14,7 @@ type ReviewItem = {
   type: "STATIC" | "ANIMATED";
   mediaUrl: string;
   thumbUrl: string;
-  status: "PUBLISHED" | "HIDDEN";
+  status: "PENDING" | "PUBLISHED" | "HIDDEN";
   tags: string[];
 };
 

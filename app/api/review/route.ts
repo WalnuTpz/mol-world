@@ -16,7 +16,7 @@ export async function GET(request: Request) {
   const skip = (page - 1) * limit;
 
   const where = {
-    status: "HIDDEN" as const,
+    status: "PENDING" as const,
     mediaUrl: {
       startsWith: "/uploads/",
     },

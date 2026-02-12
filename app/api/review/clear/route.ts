@@ -31,7 +31,7 @@ const removeFromUploads = async (mediaUrl: string) => {
 export async function POST(request: Request) {
   const pending = await prisma.meme.findMany({
     where: {
-      status: "HIDDEN",
+      status: "PENDING" as const,
       mediaUrl: { startsWith: "/uploads/" },
     },
     select: {

@@ -114,7 +114,7 @@ export async function POST(request: Request) {
 
   const pendingCount = await prisma.meme.count({
     where: {
-      status: "HIDDEN",
+      status: { in: ["PENDING", "HIDDEN"] as const },
       mediaUrl: { startsWith: "/uploads/" },
     },
   });
@@ -178,7 +178,7 @@ export async function POST(request: Request) {
       type,
       mediaUrl,
       thumbUrl: mediaUrl,
-      status: "HIDDEN",
+      status: "PENDING",
       tags: {
         create: tags.map((name) => ({
           tag: {

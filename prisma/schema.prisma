@@ -12,6 +12,7 @@ enum MemeType {
 }
 
 enum MemeStatus {
+  PENDING
   PUBLISHED
   HIDDEN
 }
