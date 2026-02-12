@@ -34,11 +34,12 @@ export default function ReviewPanel() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [jumpValue, setJumpValue] = useState("1");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [batching, setBatching] = useState(false);
   const toast = useToast();
   const confirm = useToastConfirm();
   const allowSubmit = useClickGuard();
   const allowRemove = useClickGuard();
-  const allowClear = useClickGuard();
 
   const loadPage = useCallback(async (targetPage: number) => {
     let cancelled = false;
@@ -91,6 +92,18 @@ export default function ReviewPanel() {
   }, [loadPage, page]);
 
   useEffect(() => {
+    setSelected((prev) => {
+      if (prev.size === 0) return prev;
+      const visible = new Set(items.map((item) => item.id));
+      const next = new Set<string>();
+      prev.forEach((id) => {
+        if (visible.has(id)) next.add(id);
+      });
+      return next;
+    });
+  }, [items]);
+
+  useEffect(() => {
     setJumpValue(String(page));
   }, [page]);
 
@@ -99,6 +112,8 @@ export default function ReviewPanel() {
   const hasNext = page < totalPages;
   const disableJump = loading || totalPages <= 1;
   const hasItems = items.length > 0;
+  const selectedCount = selected.size;
+  const allSelected = hasItems && items.every((item) => selected.has(item.id));
   const emptyText = useMemo(() => {
     if (loading) return "加载中...";
     if (error) return error;
@@ -181,26 +196,73 @@ export default function ReviewPanel() {
     setPage(clamped);
   };
 
-  const clearAll = async () => {
-    if (!allowClear()) return;
-    const ok = await confirm("确认清空审核队列吗？", "此操作不可撤销。");
-    if (!ok) return;
-    setLoading(true);
-    setError("");
-    try {
-      const res = await fetch("/api/review/clear", { method: "POST" });
-      if (!res.ok) throw new Error("清空失败");
-      const data = (await res.json()) as { count?: number };
-      toast(`已清空审核队列（${data.count ?? 0}）`, "success");
-      await loadPage(1);
-      setPage(1);
-    } catch (err) {
-      toast("清空失败", "error");
-      setError(err instanceof Error ? err.message : "清空失败");
-    } finally {
-      setLoading(false);
-    }
+  const toggleSelect = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
   };
+
+  const toggleSelectAll = () => {
+    setSelected(() => {
+      if (allSelected) return new Set();
+      return new Set(items.map((item) => item.id));
+    });
+  };
+
+  const batchAction = async (action: "save" | "publish" | "delete") => {
+    if (batching || selectedCount === 0) return;
+    const label =
+      action === "save"
+        ? "批量保存"
+        : action === "publish"
+          ? "批量通过"
+          : "批量删除";
+    const ok = await confirm(
+      `确认${label}选中的 ${selectedCount} 条吗？`,
+      action === "delete" ? "此操作不可撤销。" : undefined
+    );
+    if (!ok) return;
+    setBatching(true);
+    const itemMap = new Map(items.map((item) => [item.id, item]));
+    let success = 0;
+    let failed = 0;
+    for (const id of selected) {
+      const draft = drafts[id];
+      const item = itemMap.get(id);
+      try {
+        const body =
+          action === "delete"
+            ? { action: "delete" }
+            : {
+                title: draft?.title ?? item?.title ?? "",
+                tags: (draft?.tags ?? item?.tags?.join(" ") ?? "")
+                  .split(/\\s+/)
+                  .filter(Boolean),
+                ...(action === "publish" ? { status: "PUBLISHED" } : {}),
+              };
+        const res = await fetch(`/api/review/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) throw new Error("操作失败");
+        success += 1;
+      } catch {
+        failed += 1;
+      }
+    }
+    toast(`成功 ${success} / 失败 ${failed}`, failed > 0 ? "error" : "success");
+    setSelected(new Set());
+    await loadPage(page);
+    setBatching(false);
+  };
+
 
   return (
     <>
@@ -209,14 +271,42 @@ export default function ReviewPanel() {
           <h1 className={styles.title}>审核表情包</h1>
           <div className={styles.subtitle}>修改名称与标签后再审核发布</div>
         </div>
-        <div className={styles.headerActions}>
+      </div>
+
+      <div className={styles.toolbar}>
+        <div className={styles.toolbarInfo}>已选 {selectedCount} 条</div>
+        <div className={styles.toolbarActions}>
           <button
             type="button"
-            className={styles.headerDanger}
-            onClick={clearAll}
-            disabled={loading || total === 0}
+            className={styles.toolbarButton}
+            onClick={toggleSelectAll}
+            disabled={!hasItems}
           >
-            清空审核队列
+            {allSelected ? "取消全选" : "全选本页"}
+          </button>
+          <button
+            type="button"
+            className={styles.toolbarButton}
+            onClick={() => batchAction("save")}
+            disabled={selectedCount === 0 || batching}
+          >
+            批量保存
+          </button>
+          <button
+            type="button"
+            className={styles.toolbarButton}
+            onClick={() => batchAction("publish")}
+            disabled={selectedCount === 0 || batching}
+          >
+            批量通过
+          </button>
+          <button
+            type="button"
+            className={`${styles.toolbarButton} ${styles.toolbarButtonDanger}`}
+            onClick={() => batchAction("delete")}
+            disabled={selectedCount === 0 || batching}
+          >
+            批量删除
           </button>
         </div>
       </div>
@@ -228,8 +318,20 @@ export default function ReviewPanel() {
           {loading ? <div className={baseStyles.emptyState}>加载中...</div> : null}
           {items.map((item) => {
             const draft = drafts[item.id];
+            const isSelected = selected.has(item.id);
             return (
-              <div key={item.id} className={styles.card}>
+              <div
+                key={item.id}
+                className={`${styles.card} ${isSelected ? styles.cardSelected : ""}`}
+              >
+                <label className={styles.cardSelect}>
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => toggleSelect(item.id)}
+                    aria-label="选择表情包"
+                  />
+                </label>
                 <div className={styles.preview}>
                   <Image
                     src={item.thumbUrl}
