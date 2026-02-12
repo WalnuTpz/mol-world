@@ -1,5 +1,6 @@
 const TAG_ALLOWED_RE = /[a-z0-9_\u4e00-\u9fff]/gi;
 const HAS_CHINESE_RE = /[\u4e00-\u9fff]/;
+const TAG_SPLIT_RE = /[\s,，、;；]+/;
 
 const MAX_TAGS = 8;
 const MAX_CN = 10;
@@ -37,6 +38,12 @@ export const normalizeTags = (tags: string[], limit = MAX_TAGS) => {
 
 export const sortTags = (tags: string[]) =>
   [...tags].sort((a, b) => tagCollator.compare(a, b));
+
+export const splitTagInput = (input: string) =>
+  input.split(TAG_SPLIT_RE).map((tag) => tag.trim()).filter(Boolean);
+
+export const normalizeTagInput = (input: string | string[], limit = MAX_TAGS) =>
+  normalizeTags(Array.isArray(input) ? input : splitTagInput(input), limit);
 
 export const normalizeSearchTokens = (query: string) =>
   query

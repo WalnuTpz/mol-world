@@ -6,7 +6,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { errorResponse, successResponse } from "@/lib/api";
 import { logAudit } from "@/lib/audit";
-import { normalizeTags } from "@/lib/tags";
+import { normalizeTagInput } from "@/lib/tags";
 
 export const runtime = "nodejs";
 
@@ -90,8 +90,7 @@ export async function POST(request: Request) {
     typeof rawTitle === "string" && rawTitle.trim().length > 0
       ? rawTitle.trim()
       : null;
-  const tags =
-    typeof rawTags === "string" ? normalizeTags(rawTags.split(/\s+/)) : [];
+  const tags = typeof rawTags === "string" ? normalizeTagInput(rawTags) : [];
 
   if (title) {
     const existing = await prisma.meme.findFirst({

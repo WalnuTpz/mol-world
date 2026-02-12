@@ -7,6 +7,7 @@ import baseStyles from "@/app/page.module.css";
 import styles from "@/components/ReviewPanel.module.css";
 import { useToast, useToastConfirm } from "@/components/ToastProvider";
 import { useClickGuard } from "@/components/useClickGuard";
+import { splitTagInput } from "@/lib/tags";
 
 type ReviewItem = {
   id: string;
@@ -138,7 +139,7 @@ export default function ReviewPanel() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: draft.title,
-          tags: draft.tags.split(/\s+/).filter(Boolean),
+          tags: splitTagInput(draft.tags),
           status,
         }),
       });
@@ -241,9 +242,7 @@ export default function ReviewPanel() {
             ? { action: "delete" }
             : {
                 title: draft?.title ?? item?.title ?? "",
-                tags: (draft?.tags ?? item?.tags?.join(" ") ?? "")
-                  .split(/\\s+/)
-                  .filter(Boolean),
+                tags: splitTagInput(draft?.tags ?? item?.tags?.join(" ") ?? ""),
                 ...(action === "publish" ? { status: "PUBLISHED" } : {}),
               };
         const res = await fetch(`/api/review/${id}`, {

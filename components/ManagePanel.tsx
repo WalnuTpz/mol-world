@@ -8,6 +8,7 @@ import styles from "@/components/ManagePanel.module.css";
 import { useToast, useToastConfirm } from "@/components/ToastProvider";
 import { useClickGuard } from "@/components/useClickGuard";
 import { formatCount } from "@/lib/format";
+import { splitTagInput } from "@/lib/tags";
 
 type ManageItem = {
   id: string;
@@ -209,7 +210,7 @@ export default function ManagePanel() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: draft.title,
-          tags: draft.tags.split(/\s+/).filter(Boolean),
+          tags: splitTagInput(draft.tags),
           status: draft.status,
         }),
       });

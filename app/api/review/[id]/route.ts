@@ -7,11 +7,11 @@ import { prisma } from "@/lib/db";
 import { errorResponse, successResponse } from "@/lib/api";
 import { logAudit } from "@/lib/audit";
 import { generateThumb } from "@/lib/thumbs";
-import { normalizeTags, sortTags } from "@/lib/tags";
+import { normalizeTagInput, sortTags } from "@/lib/tags";
 
 type Payload = {
   title?: string;
-  tags?: string[];
+  tags?: string[] | string;
   status?: "PUBLISHED" | "HIDDEN";
   action?: "delete";
 };
@@ -150,7 +150,7 @@ export async function PATCH(
   }
   const title = body.title?.trim() ?? null;
   const status = body.status;
-  const tags = body.tags ? normalizeTags(body.tags) : [];
+  const tags = body.tags ? normalizeTagInput(body.tags) : [];
 
   if (body.action === "delete") {
     const current = await prisma.meme.findUnique({
