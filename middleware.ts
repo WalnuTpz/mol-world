@@ -35,6 +35,7 @@ export function middleware(request: NextRequest) {
   const isProtected =
     pathname.startsWith("/review") ||
     pathname.startsWith("/manage") ||
+    pathname.startsWith("/admin") ||
     pathname.startsWith("/api/review") ||
     pathname.startsWith("/api/manage");
   const user = process.env.REVIEW_USER;
@@ -92,6 +93,7 @@ export const config = {
     "/api/review/:path*",
     "/manage/:path*",
     "/api/manage/:path*",
+    "/admin/:path*",
     "/api/:path*",
   ],
 };

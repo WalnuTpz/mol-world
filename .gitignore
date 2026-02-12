@@ -40,7 +40,8 @@ dist/
 
 # Prisma generated stuff (optional)
 # If you generate clients in node_modules (default), no need to ignore
-# prisma/generated/
+app/generated/prisma/
+
 
 
 # TypeScript build info
