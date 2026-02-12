@@ -7,7 +7,7 @@ import { logAudit } from "@/lib/audit";
 
 type Payload = {
   ids?: string[];
-  action?: "publish" | "hide" | "delete";
+  action?: "publish" | "hide" | "delete" | "reset";
 };
 
 const resolveDeletePath = (url: string) => {
@@ -82,6 +82,21 @@ export async function POST(request: Request) {
       request,
     });
     return successResponse({ count: result.count }, "批量更新成功");
+  }
+
+  if (action === "reset") {
+    const result = await prisma.meme.updateMany({
+      where: { id: { in: ids } },
+      data: { copies: 0 },
+    });
+    void logAudit({
+      action: "manage:batch",
+      status: "success",
+      message: "批量清零完成",
+      data: { action, count: result.count },
+      request,
+    });
+    return successResponse({ count: result.count }, "批量清零成功");
   }
 
   let deleted = 0;

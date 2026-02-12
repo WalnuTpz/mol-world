@@ -291,10 +291,16 @@ export default function ManagePanel() {
     });
   };
 
-  const batchAction = async (action: "publish" | "hide" | "delete") => {
+  const batchAction = async (action: "publish" | "hide" | "delete" | "reset") => {
     if (batching || selectedCount === 0) return;
     const label =
-      action === "publish" ? "批量发布" : action === "hide" ? "批量隐藏" : "批量删除";
+      action === "publish"
+        ? "批量发布"
+        : action === "hide"
+          ? "批量隐藏"
+          : action === "reset"
+            ? "批量清零"
+            : "批量删除";
     const ok = await confirm(
       `确认${label}选中的 ${selectedCount} 条吗？`,
       action === "delete" ? "此操作不可撤销。" : undefined
@@ -401,6 +407,14 @@ export default function ManagePanel() {
             disabled={selectedCount === 0 || batching}
           >
             批量隐藏
+          </button>
+          <button
+            type="button"
+            className={styles.toolbarButton}
+            onClick={() => batchAction("reset")}
+            disabled={selectedCount === 0 || batching}
+          >
+            批量清零
           </button>
           <button
             type="button"
