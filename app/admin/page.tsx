@@ -3,6 +3,8 @@ import Image from "next/image";
 
 import baseStyles from "../page.module.css";
 import styles from "./page.module.css";
+import ReviewPanel from "@/components/ReviewPanel";
+import ManagePanel from "@/components/ManagePanel";
 
 type SearchParams = {
   view?: string | string[];
@@ -26,19 +28,20 @@ const viewDescriptions = {
   other: "管理公告、标签池或全局配置等扩展内容。",
 } as const;
 
-export default function AdminPage({
+export default async function AdminPage({
   searchParams,
 }: {
-  searchParams?: SearchParams;
+  searchParams?: SearchParams | Promise<SearchParams>;
 }) {
-  const viewParam = getParam(searchParams?.view);
+  const resolvedParams = (await Promise.resolve(searchParams)) ?? {};
+  const viewParam = getParam(resolvedParams.view);
   const view =
     viewParam === "manage" ||
     viewParam === "logs" ||
     viewParam === "other" ||
     viewParam === "review"
       ? viewParam
-      : "review";
+      : "manage";
 
   return (
     <div className={`${baseStyles.page} ${baseStyles.pageWithPagination}`}>
@@ -136,16 +139,16 @@ export default function AdminPage({
 
         <div className={styles.tabs}>
           <Link
-            className={`${styles.tab} ${view === "review" ? styles.tabActive : ""}`}
-            href="/admin?view=review"
-          >
-            审核
-          </Link>
-          <Link
             className={`${styles.tab} ${view === "manage" ? styles.tabActive : ""}`}
             href="/admin?view=manage"
           >
             管理
+          </Link>
+          <Link
+            className={`${styles.tab} ${view === "review" ? styles.tabActive : ""}`}
+            href="/admin?view=review"
+          >
+            审核
           </Link>
           <Link
             className={`${styles.tab} ${view === "logs" ? styles.tabActive : ""}`}
@@ -161,10 +164,16 @@ export default function AdminPage({
           </Link>
         </div>
 
-        <section className={styles.panel}>
-          <div className={styles.panelTitle}>{viewLabels[view]}</div>
-          <div className={styles.panelText}>{viewDescriptions[view]}</div>
-        </section>
+        {view === "review" ? (
+          <ReviewPanel />
+        ) : view === "manage" ? (
+          <ManagePanel />
+        ) : (
+          <section className={styles.panel}>
+            <div className={styles.panelTitle}>{viewLabels[view]}</div>
+            <div className={styles.panelText}>{viewDescriptions[view]}</div>
+          </section>
+        )}
       </main>
 
       <footer className={baseStyles.footer}>
