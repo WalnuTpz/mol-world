@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 
 import baseStyles from "../page.module.css";
 import styles from "./page.module.css";
@@ -50,6 +51,9 @@ export default async function AdminPage({
   const authed = isAdminSessionValid(
     cookieStore.get(getAdminSessionCookieName())?.value
   );
+  if (!authed) {
+    redirect("/");
+  }
 
   return (
     <div className={`${baseStyles.page} ${baseStyles.pageWithPagination}`}>
