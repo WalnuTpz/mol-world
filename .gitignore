@@ -55,7 +55,7 @@ test-results/
 
 
 # Logs
-logs/
+/logs/
 *.log
 
 
