@@ -102,6 +102,8 @@ export async function GET(request: Request) {
         mediaUrl: true,
         thumbUrl: true,
         status: true,
+        createdAt: true,
+        updatedAt: true,
         tags: {
           select: {
             tag: { select: { name: true } },

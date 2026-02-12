@@ -5,7 +5,7 @@ import Image from "next/image";
 
 import baseStyles from "@/app/page.module.css";
 import styles from "@/components/ManagePanel.module.css";
-import { useToastConfirm } from "@/components/ToastProvider";
+import { useToast, useToastConfirm } from "@/components/ToastProvider";
 import { useClickGuard } from "@/components/useClickGuard";
 
 type ManageItem = {
@@ -15,6 +15,8 @@ type ManageItem = {
   mediaUrl: string;
   thumbUrl: string;
   status: "PUBLISHED" | "HIDDEN";
+  createdAt: string;
+  updatedAt: string;
   tags: string[];
 };
 
@@ -27,6 +29,20 @@ type DraftState = {
 };
 
 const PAGE_LIMIT = 12;
+
+const formatTime = (value: string) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  const formatter = new Intl.DateTimeFormat("zh-CN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  return formatter.format(date);
+};
 
 const statusLabel = (status: ManageItem["status"]) => {
   switch (status) {
@@ -49,6 +65,9 @@ export default function ManagePanel() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [jumpValue, setJumpValue] = useState("1");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [batching, setBatching] = useState(false);
+  const toast = useToast();
   const confirm = useToastConfirm();
   const allowSave = useClickGuard();
   const allowRemove = useClickGuard();
@@ -120,6 +139,18 @@ export default function ManagePanel() {
   }, [loadPage, page, query]);
 
   useEffect(() => {
+    setSelected((prev) => {
+      if (prev.size === 0) return prev;
+      const visible = new Set(items.map((item) => item.id));
+      const next = new Set<string>();
+      prev.forEach((id) => {
+        if (visible.has(id)) next.add(id);
+      });
+      return next;
+    });
+  }, [items]);
+
+  useEffect(() => {
     setJumpValue(String(page));
   }, [page]);
 
@@ -129,6 +160,8 @@ export default function ManagePanel() {
   const disableJump = loading || totalPages <= 1;
 
   const hasItems = items.length > 0;
+  const selectedCount = selected.size;
+  const allSelected = hasItems && items.every((item) => selected.has(item.id));
   const emptyText = useMemo(() => {
     if (loading) return "加载中...";
     if (error) return error;
@@ -239,6 +272,67 @@ export default function ManagePanel() {
     setPage(clamped);
   };
 
+  const toggleSelect = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    setSelected(() => {
+      if (allSelected) return new Set();
+      return new Set(items.map((item) => item.id));
+    });
+  };
+
+  const batchAction = async (action: "publish" | "hide" | "delete") => {
+    if (batching || selectedCount === 0) return;
+    const label =
+      action === "publish" ? "批量发布" : action === "hide" ? "批量隐藏" : "批量删除";
+    const ok = await confirm(
+      `确认${label}选中的 ${selectedCount} 条吗？`,
+      action === "delete" ? "此操作不可撤销。" : undefined
+    );
+    if (!ok) return;
+    setBatching(true);
+    try {
+      const res = await fetch("/api/manage/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action,
+          ids: Array.from(selected),
+        }),
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as
+          | { error?: string; message?: string }
+          | null;
+        throw new Error(data?.error || data?.message || "批量操作失败");
+      }
+      const data = (await res.json().catch(() => null)) as
+        | { count?: number; failed?: string[] }
+        | null;
+      toast(`${label}完成（${data?.count ?? 0}）`, "success");
+      if (data?.failed && data.failed.length > 0) {
+        toast(`部分失败（${data.failed.length}）`, "error");
+      }
+      setSelected(new Set());
+      await loadPage(page, query);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "批量操作失败";
+      toast(message, "error");
+    } finally {
+      setBatching(false);
+    }
+  };
+
   return (
     <>
       <div className={styles.headerRow}>
@@ -281,6 +375,44 @@ export default function ManagePanel() {
         </div>
       </div>
 
+      <div className={styles.toolbar}>
+        <div className={styles.toolbarInfo}>已选 {selectedCount} 条</div>
+        <div className={styles.toolbarActions}>
+          <button
+            type="button"
+            className={styles.toolbarButton}
+            onClick={toggleSelectAll}
+            disabled={!hasItems}
+          >
+            {allSelected ? "取消全选" : "全选本页"}
+          </button>
+          <button
+            type="button"
+            className={styles.toolbarButton}
+            onClick={() => batchAction("publish")}
+            disabled={selectedCount === 0 || batching}
+          >
+            批量发布
+          </button>
+          <button
+            type="button"
+            className={styles.toolbarButton}
+            onClick={() => batchAction("hide")}
+            disabled={selectedCount === 0 || batching}
+          >
+            批量隐藏
+          </button>
+          <button
+            type="button"
+            className={`${styles.toolbarButton} ${styles.toolbarButtonDanger}`}
+            onClick={() => batchAction("delete")}
+            disabled={selectedCount === 0 || batching}
+          >
+            批量删除
+          </button>
+        </div>
+      </div>
+
       {!hasItems ? (
         <div className={baseStyles.emptyState}>{emptyText}</div>
       ) : (
@@ -289,16 +421,38 @@ export default function ManagePanel() {
           {items.map((item) => {
             const draft = drafts[item.id];
             const editing = draft?.editing ?? false;
+            const isSelected = selected.has(item.id);
             return (
-              <div key={item.id} className={styles.card}>
-                <div className={styles.preview}>
-                  <Image
-                    src={item.thumbUrl}
-                    alt={item.title ?? "meme"}
-                    fill
-                    sizes="(max-width: 720px) 100vw, 180px"
-                    unoptimized={item.thumbUrl.toLowerCase().endsWith(".gif")}
+              <div
+                key={item.id}
+                className={`${styles.card} ${isSelected ? styles.cardSelected : ""}`}
+              >
+                <label className={styles.cardSelect}>
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => toggleSelect(item.id)}
+                    aria-label="选择表情包"
                   />
+                </label>
+                <div className={styles.previewWrap}>
+                  <div className={styles.preview}>
+                    <Image
+                      src={item.thumbUrl}
+                      alt={item.title ?? "meme"}
+                      fill
+                      sizes="(max-width: 720px) 100vw, 180px"
+                      unoptimized={item.thumbUrl.toLowerCase().endsWith(".gif")}
+                    />
+                  </div>
+                  <div className={styles.metaRow}>
+                    <div className={styles.metaLine}>
+                      创建时间：{formatTime(item.createdAt)}
+                    </div>
+                    <div className={styles.metaLine}>
+                      修改时间：{formatTime(item.updatedAt)}
+                    </div>
+                  </div>
                 </div>
                 <div className={styles.fields}>
                   <label className={styles.field}>
