@@ -6,6 +6,7 @@ import styles from "./page.module.css";
 import ReviewPanel from "@/components/ReviewPanel";
 import ManagePanel from "@/components/ManagePanel";
 import LogPanel from "@/components/LogPanel";
+import AdminOtherPanel from "@/components/AdminOtherPanel";
 
 type SearchParams = {
   view?: string | string[];
@@ -180,10 +181,7 @@ export default async function AdminPage({
         ) : view === "logs" ? (
           <LogPanel />
         ) : (
-          <section className={styles.panel}>
-            <div className={styles.panelTitle}>{viewLabels[view]}</div>
-            <div className={styles.panelText}>{viewDescriptions[view]}</div>
-          </section>
+          <AdminOtherPanel />
         )}
       </main>
 

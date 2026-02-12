@@ -66,3 +66,33 @@
   color: rgba(255, 255, 255, 0.7);
   line-height: 1.6;
 }
+
+.panelActions {
+  margin-top: 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.logoutButton {
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  border: 1px solid rgba(255, 71, 71, 0.6);
+  background: rgba(255, 71, 71, 0.12);
+  color: #ffb1b1;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.logoutButton:hover {
+  background: rgba(255, 71, 71, 0.22);
+  border-color: rgba(255, 71, 71, 0.8);
+  color: #ffd6d6;
+}
+
+.logoutHint {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.55);
+}
