@@ -7,6 +7,7 @@ import baseStyles from "@/app/page.module.css";
 import styles from "@/components/ManagePanel.module.css";
 import { useToast, useToastConfirm } from "@/components/ToastProvider";
 import { useClickGuard } from "@/components/useClickGuard";
+import { formatCount } from "@/lib/format";
 
 type ManageItem = {
   id: string;
@@ -537,7 +538,7 @@ export default function ManagePanel() {
                       aria-disabled="true"
                       data-no-toggle="true"
                     >
-                      {item.copies}
+                      {formatCount(item.copies)}
                     </button>
                   </div>
                   <div className={styles.actions}>

@@ -5,6 +5,7 @@ import NextImage from "next/image";
 
 import styles from "./MemeCard.module.css";
 import { useToast } from "./ToastProvider";
+import { formatCount } from "@/lib/format";
 
 type MemeType = "STATIC" | "ANIMATED";
 
@@ -277,7 +278,7 @@ export default function MemeCard({
                 strokeWidth="2"
               />
             </svg>
-            <span>{count}</span>
+            <span>{formatCount(count)}</span>
           </div>
         </div>
         <div className={styles.tags}>
