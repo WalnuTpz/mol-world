@@ -31,6 +31,24 @@ const getClientId = (request: Request) => {
   return ip ?? "unknown";
 };
 
+const isAdminAuthed = (request: Request) => {
+  const user = process.env.REVIEW_USER;
+  const pass = process.env.REVIEW_PASS;
+  if (!user || !pass) return false;
+  const auth = request.headers.get("authorization");
+  if (!auth || !auth.startsWith("Basic ")) return false;
+  try {
+    const decoded = Buffer.from(auth.slice(6), "base64").toString("utf8");
+    const index = decoded.indexOf(":");
+    if (index === -1) return false;
+    const parsedUser = decoded.slice(0, index);
+    const parsedPass = decoded.slice(index + 1);
+    return parsedUser === user && parsedPass === pass;
+  } catch {
+    return false;
+  }
+};
+
 export async function POST(request: Request) {
   const formData = await request.formData();
   const file = formData.get("file");
@@ -113,43 +131,46 @@ export async function POST(request: Request) {
 
   const clientId = getClientId(request);
   const now = Date.now();
-  if (globalUploading || now - lastGlobalUploadAt < GLOBAL_UPLOAD_COOLDOWN_MS) {
-    const retryAfter = Math.ceil(
-      (GLOBAL_UPLOAD_COOLDOWN_MS - (now - lastGlobalUploadAt)) / 1000
-    );
-    void logAudit({
-      action: "upload",
-      status: "error",
-      message: "操作过于频繁，请稍后再试",
-      data: { scope: "global" },
-      request,
-    });
-    return errorResponse(
-      "操作过于频繁，请稍后再试",
-      429,
-      "RATE_LIMIT",
-      { "Retry-After": String(Math.max(1, retryAfter)) }
-    );
-  }
+  const isAdmin = isAdminAuthed(request);
+  if (!isAdmin) {
+    if (globalUploading || now - lastGlobalUploadAt < GLOBAL_UPLOAD_COOLDOWN_MS) {
+      const retryAfter = Math.ceil(
+        (GLOBAL_UPLOAD_COOLDOWN_MS - (now - lastGlobalUploadAt)) / 1000
+      );
+      void logAudit({
+        action: "upload",
+        status: "error",
+        message: "操作过于频繁，请稍后再试",
+        data: { scope: "global" },
+        request,
+      });
+      return errorResponse(
+        "操作过于频繁，请稍后再试",
+        429,
+        "RATE_LIMIT",
+        { "Retry-After": String(Math.max(1, retryAfter)) }
+      );
+    }
 
-  const lastUploadAt = uploadCooldown.get(clientId);
-  if (lastUploadAt && now - lastUploadAt < UPLOAD_COOLDOWN_MS) {
-    const retryAfter = Math.ceil(
-      (UPLOAD_COOLDOWN_MS - (now - lastUploadAt)) / 1000
-    );
-    void logAudit({
-      action: "upload",
-      status: "error",
-      message: "上传过于频繁，请稍后再试",
-      data: { scope: "ip" },
-      request,
-    });
-    return errorResponse(
-      "上传过于频繁，请稍后再试",
-      429,
-      "UPLOAD_RATE_LIMIT",
-      { "Retry-After": String(retryAfter) }
-    );
+    const lastUploadAt = uploadCooldown.get(clientId);
+    if (lastUploadAt && now - lastUploadAt < UPLOAD_COOLDOWN_MS) {
+      const retryAfter = Math.ceil(
+        (UPLOAD_COOLDOWN_MS - (now - lastUploadAt)) / 1000
+      );
+      void logAudit({
+        action: "upload",
+        status: "error",
+        message: "上传过于频繁，请稍后再试",
+        data: { scope: "ip" },
+        request,
+      });
+      return errorResponse(
+        "上传过于频繁，请稍后再试",
+        429,
+        "UPLOAD_RATE_LIMIT",
+        { "Retry-After": String(retryAfter) }
+      );
+    }
   }
 
   globalUploading = true;

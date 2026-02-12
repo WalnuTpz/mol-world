@@ -30,6 +30,16 @@ const getClientId = (request: NextRequest) => {
   return ip ?? "unknown";
 };
 
+const isAdminAuthed = (request: NextRequest) => {
+  const user = process.env.REVIEW_USER;
+  const pass = process.env.REVIEW_PASS;
+  if (!user || !pass) return false;
+  const auth = request.headers.get("authorization");
+  if (!auth || !auth.startsWith("Basic ")) return false;
+  const parsed = decodeBasicAuth(auth.slice(6));
+  return Boolean(parsed && parsed.user === user && parsed.pass === pass);
+};
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isProtected =
@@ -41,24 +51,19 @@ export function middleware(request: NextRequest) {
     pathname.startsWith("/api/manage");
   const user = process.env.REVIEW_USER;
   const pass = process.env.REVIEW_PASS;
+  const authed = isAdminAuthed(request);
 
   if (isProtected) {
     if (!user || !pass) {
       return unauthorized();
     }
 
-    const auth = request.headers.get("authorization");
-    if (!auth || !auth.startsWith("Basic ")) {
-      return unauthorized();
-    }
-
-    const parsed = decodeBasicAuth(auth.slice(6));
-    if (!parsed || parsed.user !== user || parsed.pass !== pass) {
+    if (!authed) {
       return unauthorized();
     }
   }
 
-  if (pathname.startsWith("/api/")) {
+  if (pathname.startsWith("/api/") && !authed) {
     const clientId = getClientId(request);
     const now = Date.now();
     const current = apiRateLimit.get(clientId);
