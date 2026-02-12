@@ -26,7 +26,7 @@ type DraftState = {
   saving: boolean;
 };
 
-const PAGE_LIMIT = 10;
+const PAGE_LIMIT = 12;
 
 const statusLabel = (status: ManageItem["status"]) => {
   switch (status) {
@@ -341,6 +341,14 @@ export default function ManagePanel() {
                         {statusLabel(item.status)}
                       </span>
                     )}
+                    <button
+                      type="button"
+                      className={styles.statusType}
+                      disabled
+                      aria-disabled="true"
+                    >
+                      {item.type === "ANIMATED" ? "动图" : "静态"}
+                    </button>
                   </div>
                   <div className={styles.actions}>
                     <button
