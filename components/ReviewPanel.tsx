@@ -24,7 +24,7 @@ type DraftState = {
   saving: boolean;
 };
 
-const PAGE_LIMIT = 10;
+const PAGE_LIMIT = 12;
 
 export default function ReviewPanel() {
   const [items, setItems] = useState<ReviewItem[]>([]);
@@ -265,11 +265,11 @@ export default function ReviewPanel() {
                   <div className={styles.actions}>
                     <button
                       type="button"
-                      className={styles.actionBtn}
-                      onClick={() => submit(item.id, "HIDDEN")}
+                      className={styles.actionGhost}
+                      onClick={() => submit(item.id)}
                       disabled={draft?.saving}
                     >
-                      隐藏
+                      保存
                     </button>
                     <button
                       type="button"
@@ -278,14 +278,6 @@ export default function ReviewPanel() {
                       disabled={draft?.saving}
                     >
                       通过
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.actionGhost}
-                      onClick={() => submit(item.id)}
-                      disabled={draft?.saving}
-                    >
-                      仅保存
                     </button>
                     <button
                       type="button"
