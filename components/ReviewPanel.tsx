@@ -221,14 +221,12 @@ export default function ReviewPanel() {
         </div>
       </div>
 
-      <div className={styles.list}>
-        {loading && hasItems ? (
-          <div className={baseStyles.emptyState}>加载中...</div>
-        ) : null}
-        {!hasItems ? (
-          <div className={baseStyles.emptyState}>{emptyText}</div>
-        ) : (
-          items.map((item) => {
+      {!hasItems ? (
+        <div className={baseStyles.emptyState}>{emptyText}</div>
+      ) : (
+        <div className={styles.list}>
+          {loading ? <div className={baseStyles.emptyState}>加载中...</div> : null}
+          {items.map((item) => {
             const draft = drafts[item.id];
             return (
               <div key={item.id} className={styles.card}>
@@ -301,9 +299,9 @@ export default function ReviewPanel() {
                 </div>
               </div>
             );
-          })
-        )}
-      </div>
+          })}
+        </div>
+      )}
 
       <div className={baseStyles.pagination}>
         <div className={baseStyles.pageInfo}>
