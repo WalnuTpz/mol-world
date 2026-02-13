@@ -16,6 +16,9 @@ export default function AdminOtherPanel() {
   const toast = useToast();
   const [query, setQuery] = useState("");
   const [items, setItems] = useState<TagItem[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState("");
+  const [savingId, setSavingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [page, setPage] = useState(1);
@@ -83,6 +86,53 @@ export default function AdminOtherPanel() {
     return "暂无标签数据";
   }, [loading, error]);
 
+  const startEdit = (item: TagItem) => {
+    setEditingId(item.id);
+    setEditingName(item.name);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditingName("");
+  };
+
+  const saveEdit = async (item: TagItem) => {
+    if (savingId) return;
+    const next = editingName.trim();
+    if (!next) {
+      toast("标签不能为空", "error");
+      return;
+    }
+    setSavingId(item.id);
+    try {
+      const res = await fetch(`/api/admin/tags/${item.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: next }),
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as {
+          error?: string;
+          message?: string;
+        } | null;
+        throw new Error(data?.error || data?.message || "保存失败");
+      }
+      const data = (await res.json()) as { item?: TagItem };
+      if (data.item) {
+        setItems((prev) =>
+          prev.map((tag) => (tag.id === item.id ? data.item! : tag))
+        );
+      }
+      cancelEdit();
+      toast("已更新", "success");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "保存失败";
+      toast(message, "error");
+    } finally {
+      setSavingId(null);
+    }
+  };
+
   return (
     <section className={styles.panel}>
       <div className={styles.panelTitle}>其他内容</div>
@@ -114,9 +164,48 @@ export default function AdminOtherPanel() {
           {hasItems ? (
             items.map((item) => (
               <div className={styles.tagRow} key={item.id}>
-                <div className={styles.tagCell}>{item.name}</div>
+                <div className={styles.tagCell}>
+                  {editingId === item.id ? (
+                    <input
+                      className={styles.tagInput}
+                      value={editingName}
+                      onChange={(event) => setEditingName(event.target.value)}
+                    />
+                  ) : (
+                    item.name
+                  )}
+                </div>
                 <div className={styles.tagCell}>{item.count}</div>
-                <div className={styles.tagCell}>—</div>
+                <div className={styles.tagCell}>
+                  {editingId === item.id ? (
+                    <div className={styles.tagActions}>
+                      <button
+                        type="button"
+                        className={styles.tagActionPrimary}
+                        onClick={() => saveEdit(item)}
+                        disabled={savingId === item.id}
+                      >
+                        保存
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.tagActionGhost}
+                        onClick={cancelEdit}
+                        disabled={savingId === item.id}
+                      >
+                        取消
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className={styles.tagActionGhost}
+                      onClick={() => startEdit(item)}
+                    >
+                      重命名
+                    </button>
+                  )}
+                </div>
               </div>
             ))
           ) : (

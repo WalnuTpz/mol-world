@@ -140,6 +140,52 @@
   text-overflow: ellipsis;
 }
 
+.tagInput {
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.35);
+  color: #ffffff;
+  font-size: 13px;
+}
+
+.tagActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tagActionPrimary {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: #ffffff;
+  color: #111111;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.tagActionPrimary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.tagActionGhost {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.04);
+  color: #f2f2f2;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.tagActionGhost:hover {
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
 .tagEmpty {
   padding: 18px 14px;
   font-size: 13px;
