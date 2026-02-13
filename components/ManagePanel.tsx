@@ -18,6 +18,7 @@ type ManageItem = {
   thumbUrl: string;
   status: "PUBLISHED" | "HIDDEN";
   copies: number;
+  downloads: number;
   createdAt: string;
   updatedAt: string;
   tags: string[];
@@ -550,7 +551,7 @@ export default function ManagePanel({ pageLimit = 12 }: ManagePanelProps) {
                       aria-disabled="true"
                       data-no-toggle="true"
                     >
-                      {formatCount(item.copies)}
+                      {formatCount(item.copies + item.downloads)}
                     </button>
                   </div>
                   <div className={styles.actions}>

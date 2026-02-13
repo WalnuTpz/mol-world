@@ -182,6 +182,8 @@ export async function PATCH(
       mediaUrl: true,
       thumbUrl: true,
       status: true,
+      copies: true,
+      downloads: true,
       createdAt: true,
       tags: {
         select: {

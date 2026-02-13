@@ -106,6 +106,7 @@ const select = {
   mediaUrl: true,
   thumbUrl: true,
   copies: true,
+  downloads: true,
   isFeatured: true,
   createdAt: true,
   tags: {
@@ -122,6 +123,7 @@ type MemeRow = {
   mediaUrl: string;
   thumbUrl: string;
   copies: number;
+  downloads: number;
   isFeatured: boolean;
   createdAt: Date;
   tags: { tag: { name: string } }[];
@@ -231,14 +233,20 @@ export default async function Home({
         items = [];
       }
     } else {
-      const orderBy = { copies: "desc" as const };
       const list = await prisma.meme.findMany({
         where: baseWhere,
-        orderBy,
-        take: hotLimit,
         select,
       });
-      items = normalizeItems(list);
+      const sorted = list
+        .slice()
+        .sort((a, b) => {
+          const heatDiff =
+            b.copies + b.downloads - (a.copies + a.downloads);
+          if (heatDiff !== 0) return heatDiff;
+          return b.createdAt.getTime() - a.createdAt.getTime();
+        })
+        .slice(0, hotLimit);
+      items = normalizeItems(sorted);
     }
   }
 

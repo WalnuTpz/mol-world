@@ -8,6 +8,7 @@ type Meme = {
   mediaUrl: string;
   thumbUrl: string;
   copies: number;
+  downloads?: number;
   tags?: string[];
 };
 
@@ -32,7 +33,7 @@ export default function MemeGrid({
           type={meme.type}
           mediaUrl={meme.mediaUrl}
           thumbUrl={meme.thumbUrl}
-          copyCount={meme.copies}
+          copyCount={meme.copies + (meme.downloads ?? 0)}
           tags={meme.tags ?? []}
           copyCooldownMs={copyCooldownMs}
           downloadCooldownMs={downloadCooldownMs}

@@ -104,6 +104,7 @@ export async function GET(request: Request) {
         thumbUrl: true,
         status: true,
         copies: true,
+        downloads: true,
         createdAt: true,
         updatedAt: true,
         tags: {

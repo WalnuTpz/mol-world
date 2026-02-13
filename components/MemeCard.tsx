@@ -230,6 +230,7 @@ export default function MemeCard({
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      void incrementDownload();
     } catch (error) {
       console.error(error);
       toast("下载失败", "error");
@@ -245,11 +246,36 @@ export default function MemeCard({
 
   const incrementCopy = async () => {
     try {
+      const res = await fetch(`/api/memes/${id}/copy`, { method: "POST" });
+      if (!res.ok) return;
+      const data = (await res.json()) as {
+        item?: { copies?: number; downloads?: number };
+      };
+      if (
+        typeof data.item?.copies === "number" &&
+        typeof data.item?.downloads === "number"
+      ) {
+        setCount(data.item.copies + data.item.downloads);
+      } else {
+        setCount((prev) => prev + 1);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const incrementDownload = async () => {
+    try {
       const res = await fetch(`/api/memes/${id}/download`, { method: "POST" });
       if (!res.ok) return;
-      const data = (await res.json()) as { item?: { copies?: number } };
-      if (typeof data.item?.copies === "number") {
-        setCount(data.item.copies);
+      const data = (await res.json()) as {
+        item?: { copies?: number; downloads?: number };
+      };
+      if (
+        typeof data.item?.copies === "number" &&
+        typeof data.item?.downloads === "number"
+      ) {
+        setCount(data.item.copies + data.item.downloads);
       } else {
         setCount((prev) => prev + 1);
       }
@@ -289,23 +315,10 @@ export default function MemeCard({
       <div className={styles.footer}>
         <div className={styles.titleRow}>
           <div className={styles.title}>{title ?? "未命名"}</div>
-          <div className={styles.copyCount} aria-label={`点击量 ${count}`}>
-            <svg
-              className={styles.copyIcon}
-              viewBox="0 0 24 24"
-              width="14"
-              height="14"
-              aria-hidden="true"
-              focusable="false"
-            >
-              <circle cx="12" cy="12" r="4.5" fill="none" stroke="currentColor" strokeWidth="2" />
-              <path
-                d="M3 12c2.6-4.5 6.9-7 9-7s6.4 2.5 9 7c-2.6 4.5-6.9 7-9 7s-6.4-2.5-9-7z"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              />
-            </svg>
+          <div className={styles.copyCount} aria-label={`热度 ${count}`}>
+            <span className={styles.copyIcon} aria-hidden="true">
+              🔥
+            </span>
             <span>{formatCount(count)}</span>
           </div>
         </div>

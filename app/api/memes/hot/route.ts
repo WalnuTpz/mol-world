@@ -38,6 +38,7 @@ export async function GET(request: Request) {
         mediaUrl: true,
         thumbUrl: true,
         copies: true,
+        downloads: true,
         isFeatured: true,
         createdAt: true,
         tags: {
@@ -61,14 +62,52 @@ export async function GET(request: Request) {
     );
   }
 
-  const orderBy =
-    mode === "hot"
-      ? { copies: "desc" as const }
-      : { createdAt: "desc" as const };
+  if (mode === "hot") {
+    const all = await prisma.meme.findMany({
+      where: baseWhere,
+      select: {
+        id: true,
+        title: true,
+        type: true,
+        mediaUrl: true,
+        thumbUrl: true,
+        copies: true,
+        downloads: true,
+        isFeatured: true,
+        createdAt: true,
+        tags: {
+          select: {
+            tag: { select: { name: true } },
+          },
+        },
+      },
+    });
+
+    const sorted = all
+      .slice()
+      .sort((a, b) => {
+        const heatDiff =
+          b.copies + b.downloads - (a.copies + a.downloads);
+        if (heatDiff !== 0) return heatDiff;
+        return b.createdAt.getTime() - a.createdAt.getTime();
+      })
+      .slice(0, limit)
+      .map((item) => ({
+        ...item,
+        tags: sortTags(item.tags.map((t) => t.tag.name)),
+      }));
+
+    return successResponse(
+      { items: sorted, mode, limit },
+      "查询成功",
+      200,
+      { "Cache-Control": buildCacheControl(config.cacheHotSeconds) }
+    );
+  }
 
   const items = await prisma.meme.findMany({
     where: baseWhere,
-    orderBy,
+    orderBy: { createdAt: "desc" as const },
     take: limit,
     select: {
       id: true,
@@ -77,6 +116,7 @@ export async function GET(request: Request) {
       mediaUrl: true,
       thumbUrl: true,
       copies: true,
+      downloads: true,
       isFeatured: true,
       createdAt: true,
       tags: {
