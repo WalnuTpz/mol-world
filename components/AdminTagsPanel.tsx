@@ -13,6 +13,8 @@ type TagItem = {
   count: number;
 };
 
+type SortMode = "count_desc" | "name_asc";
+
 export default function AdminTagsPanel() {
   const confirm = useToastConfirm();
   const toast = useToast();
@@ -30,12 +32,14 @@ export default function AdminTagsPanel() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [jumpValue, setJumpValue] = useState("1");
+  const [sort, setSort] = useState<SortMode>("count_desc");
   const limit = 20;
 
-  const loadList = async (targetPage: number, targetQuery: string) => {
+  const loadList = async (targetPage: number, targetQuery: string, mode: SortMode) => {
     const params = new URLSearchParams({
       page: String(targetPage),
       limit: String(limit),
+      sort: mode,
     });
     if (targetQuery.trim()) params.set("q", targetQuery.trim());
     const res = await fetch(`/api/admin/tags?${params.toString()}`);
@@ -52,7 +56,7 @@ export default function AdminTagsPanel() {
     let cancelled = false;
     setLoading(true);
     setError("");
-    loadList(page, query)
+    loadList(page, query, sort)
       .then((data) => {
         if (cancelled) return;
         setItems(data.items);
@@ -70,11 +74,11 @@ export default function AdminTagsPanel() {
     return () => {
       cancelled = true;
     };
-  }, [page, query, toast]);
+  }, [page, query, sort, toast]);
 
   useEffect(() => {
     setPage(1);
-  }, [query]);
+  }, [query, sort]);
 
   useEffect(() => {
     setJumpValue(String(page));
@@ -172,7 +176,7 @@ export default function AdminTagsPanel() {
       toast(`${data.message || "已合并"}${mergedText}`, "success");
       setMergeFrom("");
       setMergeTo("");
-      const list = await loadList(page, query);
+      const list = await loadList(page, query, sort);
       setItems(list.items);
       setTotal(list.total);
     } catch (err) {
@@ -208,7 +212,7 @@ export default function AdminTagsPanel() {
       }
       const data = (await res.json()) as { message?: string };
       toast(data.message || "已删除", "success");
-      const list = await loadList(page, query);
+      const list = await loadList(page, query, sort);
       if (list.items.length === 0 && page > 1) {
         setPage(page - 1);
         return;
@@ -270,29 +274,49 @@ export default function AdminTagsPanel() {
         </div>
       </div>
       <div className={styles.mergeRow}>
-        <input
-          className={styles.mergeInput}
-          type="text"
-          placeholder="合并来源（标签名或ID）"
-          value={mergeFrom}
-          onChange={(event) => setMergeFrom(event.target.value)}
-        />
-        <span className={styles.mergeArrow}>→</span>
-        <input
-          className={styles.mergeInput}
-          type="text"
-          placeholder="合并目标（标签名或ID）"
-          value={mergeTo}
-          onChange={(event) => setMergeTo(event.target.value)}
-        />
-        <button
-          type="button"
-          className={styles.actionPrimary}
-          onClick={handleMerge}
-          disabled={merging}
-        >
-          合并
-        </button>
+        <div className={styles.mergeInputs}>
+          <input
+            className={styles.mergeInput}
+            type="text"
+            placeholder="合并来源（标签名或ID）"
+            value={mergeFrom}
+            onChange={(event) => setMergeFrom(event.target.value)}
+          />
+          <span className={styles.mergeArrow}>→</span>
+          <input
+            className={styles.mergeInput}
+            type="text"
+            placeholder="合并目标（标签名或ID）"
+            value={mergeTo}
+            onChange={(event) => setMergeTo(event.target.value)}
+          />
+          <button
+            type="button"
+            className={styles.actionPrimary}
+            onClick={handleMerge}
+            disabled={merging}
+          >
+            合并
+          </button>
+        </div>
+        <div className={styles.sortActions}>
+          <button
+            type="button"
+            className={styles.actionGhost}
+            onClick={() =>
+              setSort((prev) => (prev === "count_desc" ? "name_asc" : "count_desc"))
+            }
+          >
+            {sort === "count_desc" ? "按数量" : "按名称"}
+          </button>
+          <button
+            type="button"
+            className={styles.actionGhost}
+            onClick={() => setSort((prev) => (prev === "name_asc" ? "count_desc" : "name_asc"))}
+          >
+            {sort === "count_desc" ? "降序" : "升序"}
+          </button>
+        </div>
       </div>
       <div className={styles.list}>
         <div className={`${styles.row} ${styles.rowHeader}`}>

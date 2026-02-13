@@ -68,9 +68,23 @@
 .mergeRow {
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: space-between;
+  gap: 16px;
   flex-wrap: wrap;
   margin-bottom: 14px;
+}
+
+.mergeInputs {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.sortActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .mergeInput {
