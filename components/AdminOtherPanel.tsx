@@ -131,6 +131,31 @@ export default function AdminOtherPanel() {
     }
   };
 
+  const resetCopies = async () => {
+    if (resourceLoading) return;
+    const ok = await confirm(
+      "确认清零全站复制次数吗？",
+      "该操作会将所有表情包复制次数重置为 0。"
+    );
+    if (!ok) return;
+    setResourceLoading(true);
+    try {
+      const res = await fetch("/api/admin/copies/reset", { method: "POST" });
+      const data = (await res.json().catch(() => null)) as
+        | { count?: number; error?: string; message?: string }
+        | null;
+      if (!res.ok) {
+        throw new Error(data?.error || data?.message || "清零失败");
+      }
+      toast(`已清零复制次数（${data?.count ?? 0}）`, "success");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "清零失败";
+      toast(message, "error");
+    } finally {
+      setResourceLoading(false);
+    }
+  };
+
   const handleLogout = () => {
     confirm("确认退出管理员登录吗？").then((ok) => {
       if (!ok) return;
@@ -221,6 +246,22 @@ export default function AdminOtherPanel() {
                 : "-"}
             </span>
           </div>
+        </div>
+      </div>
+      <div className={styles.section}>
+        <div className={styles.sectionTitle}>复制次数清零</div>
+        <div className={styles.sectionHint}>
+          全站表情包复制次数统一归零，请谨慎操作。
+        </div>
+        <div className={styles.resourceActions}>
+          <button
+            type="button"
+            className={`${styles.resourceButton} ${styles.resourceButtonDanger}`}
+            onClick={resetCopies}
+            disabled={resourceLoading}
+          >
+            全站复制次数清零
+          </button>
         </div>
       </div>
       <div className={styles.panelActions}>
