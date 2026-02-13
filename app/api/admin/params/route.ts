@@ -1,12 +1,17 @@
 import { errorResponse, successResponse } from "@/lib/api";
 import { getAppConfig, updateAppConfig } from "@/lib/appConfig";
+import { requireAdmin } from "@/lib/adminAuth";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const auth = await requireAdmin(request);
+  if (!auth.ok) return auth.response;
   const config = await getAppConfig();
   return successResponse({ config }, "查询成功");
 }
 
 export async function PATCH(request: Request) {
+  const auth = await requireAdmin(request);
+  if (!auth.ok) return auth.response;
   const body = (await request.json().catch(() => null)) as
     | Record<string, unknown>
     | { updates?: Record<string, unknown> }

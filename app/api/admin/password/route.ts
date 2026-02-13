@@ -5,7 +5,6 @@ import {
   getAdminSessionCookieName,
   isAdminSessionValid,
   updateAdminPassword,
-  verifyAdminPassword,
 } from "@/lib/adminSession";
 import { getAppConfig } from "@/lib/appConfig";
 import { logAudit } from "@/lib/audit";
@@ -16,6 +15,28 @@ const getCookieValue = (request: Request, name: string) => {
   return match ? decodeURIComponent(match[1]) : null;
 };
 
+export async function GET(request: Request) {
+  const auth = await isAdminSessionValid(
+    getCookieValue(request, getAdminSessionCookieName())
+  );
+  if (!auth) {
+    return errorResponse("未登录", 401, "UNAUTHORIZED");
+  }
+
+  const credential = await getAdminCredential();
+  if (!credential) {
+    return errorResponse("管理员账号未配置", 400, "NO_ADMIN");
+  }
+  if (!credential.passPlain) {
+    return errorResponse("密码未保存，请先修改一次密码", 400, "NO_PASSWORD");
+  }
+
+  return successResponse(
+    { user: credential.user, pass: credential.passPlain },
+    "查询成功"
+  );
+}
+
 export async function POST(request: Request) {
   const token = getCookieValue(request, getAdminSessionCookieName());
   const authed = await isAdminSessionValid(token);
@@ -24,13 +45,12 @@ export async function POST(request: Request) {
   }
 
   const body = (await request.json().catch(() => null)) as
-    | { currentPass?: string; newPass?: string; confirmPass?: string }
+    | { newPass?: string; confirmPass?: string }
     | null;
-  const currentPass = body?.currentPass?.trim() ?? "";
   const newPass = body?.newPass ?? "";
   const confirmPass = body?.confirmPass ?? "";
 
-  if (!currentPass || !newPass || !confirmPass) {
+  if (!newPass || !confirmPass) {
     return errorResponse("请填写完整信息", 400, "MISSING_FIELDS");
   }
   if (newPass !== confirmPass) {
@@ -40,17 +60,6 @@ export async function POST(request: Request) {
   const credential = await getAdminCredential();
   if (!credential) {
     return errorResponse("管理员账号未配置", 400, "NO_ADMIN");
-  }
-
-  const verify = await verifyAdminPassword(credential.user, currentPass);
-  if (!verify.ok) {
-    void logAudit({
-      action: "admin_change_password",
-      status: "error",
-      message: verify.error || "原密码错误",
-      request,
-    });
-    return errorResponse(verify.error || "原密码错误", 401, "INVALID_CREDENTIALS");
   }
 
   const result = await updateAdminPassword(credential.user, newPass);

@@ -32,7 +32,6 @@ export default function AdminOtherPanel() {
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordError, setPasswordError] = useState("");
   const [passwordForm, setPasswordForm] = useState({
-    current: "",
     next: "",
     confirm: "",
   });
@@ -346,9 +345,33 @@ export default function AdminOtherPanel() {
 
   const handleChangePassword = () => {
     if (passwordLoading) return;
-    setPasswordForm({ current: "", next: "", confirm: "" });
+    setPasswordForm({ next: "", confirm: "" });
     setPasswordError("");
     setPasswordOpen(true);
+  };
+
+  const handleViewPassword = async () => {
+    if (passwordLoading) return;
+    setPasswordError("");
+    try {
+      const res = await fetch("/api/admin/password");
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as
+          | { error?: string; message?: string }
+          | null;
+        throw new Error(data?.error || data?.message || "获取失败");
+      }
+      const data = (await res.json().catch(() => null)) as
+        | { user?: string; pass?: string }
+        | null;
+      if (!data?.user || !data?.pass) {
+        throw new Error("账号信息不完整");
+      }
+      toast(`账号：${data.user}`, "info", 3200, `密码：${data.pass}`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "获取失败";
+      toast(message, "error");
+    }
   };
 
   const closePasswordDialog = () => {
@@ -360,10 +383,9 @@ export default function AdminOtherPanel() {
   const submitPasswordChange = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (passwordLoading) return;
-    const current = passwordForm.current.trim();
     const next = passwordForm.next.trim();
     const confirmPass = passwordForm.confirm.trim();
-    if (!current || !next || !confirmPass) {
+    if (!next || !confirmPass) {
       setPasswordError("请填写完整信息");
       return;
     }
@@ -378,7 +400,6 @@ export default function AdminOtherPanel() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          currentPass: current,
           newPass: next,
           confirmPass,
         }),
@@ -614,6 +635,13 @@ export default function AdminOtherPanel() {
               <button
                 type="button"
                 className={styles.resourceButton}
+                onClick={handleViewPassword}
+              >
+                查看密码
+              </button>
+              <button
+                type="button"
+                className={styles.resourceButton}
                 onClick={handleChangePassword}
               >
                 修改密码
@@ -635,23 +663,6 @@ export default function AdminOtherPanel() {
               <div className={`${toastStyles.toast} ${styles.passwordModal}`}>
                 <div className={toastStyles.toastMessage}>修改密码</div>
                 <form className={styles.passwordForm} onSubmit={submitPasswordChange}>
-                  <label className={styles.passwordField}>
-                    <span className={styles.passwordLabel}>原密码</span>
-                    <input
-                      className={styles.passwordInput}
-                      type="password"
-                      value={passwordForm.current}
-                      onChange={(event) =>
-                        setPasswordForm((prev) => ({
-                          ...prev,
-                          current: event.target.value,
-                        }))
-                      }
-                      autoComplete="current-password"
-                      placeholder="输入原密码"
-                      disabled={passwordLoading}
-                    />
-                  </label>
                   <label className={styles.passwordField}>
                     <span className={styles.passwordLabel}>新密码</span>
                     <input

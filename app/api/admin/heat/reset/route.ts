@@ -1,8 +1,11 @@
 import { prisma } from "@/lib/db";
 import { errorResponse, successResponse } from "@/lib/api";
+import { requireAdmin } from "@/lib/adminAuth";
 import { logAudit } from "@/lib/audit";
 
 export async function POST(request: Request) {
+  const auth = await requireAdmin(request);
+  if (!auth.ok) return auth.response;
   try {
     const result = await prisma.meme.updateMany({
       data: { copies: 0, downloads: 0 },

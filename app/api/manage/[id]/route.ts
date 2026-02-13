@@ -3,6 +3,7 @@ import { mkdir, rename, unlink } from "node:fs/promises";
 
 import { prisma } from "@/lib/db";
 import { errorResponse, successResponse } from "@/lib/api";
+import { requireAdmin } from "@/lib/adminAuth";
 import { logAudit } from "@/lib/audit";
 import { normalizeTagInput, sortTags } from "@/lib/tags";
 import { ensureTagsWithNumId } from "@/lib/numId";
@@ -68,6 +69,8 @@ export async function PATCH(
   request: Request,
   context: { params: { id: string } | Promise<{ id: string }> }
 ) {
+  const auth = await requireAdmin(request);
+  if (!auth.ok) return auth.response;
   const config = await getAppConfig();
   const tagRules = getTagRulesFromConfig(config);
   const { id } = await Promise.resolve(context.params);

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { errorResponse, successResponse } from "@/lib/api";
+import { requireAdmin } from "@/lib/adminAuth";
 import { normalizeTagInput } from "@/lib/tags";
 import { getAppConfig, getTagRulesFromConfig } from "@/lib/appConfig";
 
@@ -37,6 +38,8 @@ const resolveTagByIdOrName = async (
 };
 
 export async function POST(request: Request) {
+  const auth = await requireAdmin(request);
+  if (!auth.ok) return auth.response;
   const config = await getAppConfig();
   const tagRules = getTagRulesFromConfig(config);
   const body = (await request.json().catch(() => null)) as Payload | null;

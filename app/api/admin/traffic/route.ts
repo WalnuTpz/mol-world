@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { errorResponse, successResponse } from "@/lib/api";
+import { requireAdmin } from "@/lib/adminAuth";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -14,6 +15,8 @@ const buildDayKeys = (days: number) => {
 };
 
 export async function GET(request: Request) {
+  const auth = await requireAdmin(request);
+  if (!auth.ok) return auth.response;
   try {
     const { searchParams } = new URL(request.url);
     const range = searchParams.get("range") ?? "30d";

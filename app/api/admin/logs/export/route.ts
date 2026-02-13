@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/db";
 import { errorResponse } from "@/lib/api";
+import { requireAdmin } from "@/lib/adminAuth";
 import { normalizeSearchTokens } from "@/lib/tags";
 import { getAppConfig, getTagRulesFromConfig } from "@/lib/appConfig";
 
@@ -26,6 +27,8 @@ const resolveSince = (range: string) => {
 };
 
 export async function GET(request: Request) {
+  const auth = await requireAdmin(request);
+  if (!auth.ok) return auth.response;
   const config = await getAppConfig();
   const tagRules = getTagRulesFromConfig(config);
   const { searchParams } = new URL(request.url);

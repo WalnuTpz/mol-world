@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { errorResponse, successResponse } from "@/lib/api";
+import { requireAdmin } from "@/lib/adminAuth";
 
 const resolveTagByParam = async (value: string) => {
   if (/^\d+$/.test(value)) {
@@ -18,6 +19,8 @@ export async function DELETE(
   request: Request,
   context: { params: { id: string } | Promise<{ id: string }> }
 ) {
+  const auth = await requireAdmin(request);
+  if (!auth.ok) return auth.response;
   const { id: rawId } = await Promise.resolve(context.params);
   if (!rawId) {
     return errorResponse("请求参数不完整", 400, "MISSING_ID");

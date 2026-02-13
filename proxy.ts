@@ -13,21 +13,10 @@ const getClientId = (request: NextRequest) => {
   return ip ?? "unknown";
 };
 
-const isAdminAuthed = (request: NextRequest) => {
-  const user = process.env.REVIEW_USER;
-  const pass = process.env.REVIEW_PASS;
-  if (!user || !pass) return false;
-  const token = request.cookies.get("admin_session")?.value;
-  if (!token) return false;
-  try {
-    const expected = btoa(`${user}:${pass}`);
-    return token === expected;
-  } catch {
-    return false;
-  }
-};
+const isAdminAuthed = (request: NextRequest) =>
+  Boolean(request.cookies.get("admin_session")?.value);
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const authed = isAdminAuthed(request);
   const isAdminApi =
@@ -72,6 +61,8 @@ export function middleware(request: NextRequest) {
 
   return NextResponse.next();
 }
+
+export default proxy;
 
 export const config = {
   matcher: [

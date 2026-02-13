@@ -3,6 +3,7 @@ import { unlink } from "node:fs/promises";
 
 import { prisma } from "@/lib/db";
 import { successResponse } from "@/lib/api";
+import { requireAdmin } from "@/lib/adminAuth";
 import { logAudit } from "@/lib/audit";
 
 export const runtime = "nodejs";
@@ -29,6 +30,8 @@ const removeFromUploads = async (mediaUrl: string) => {
 };
 
 export async function POST(request: Request) {
+  const auth = await requireAdmin(request);
+  if (!auth.ok) return auth.response;
   const pending = await prisma.meme.findMany({
     where: {
       status: "PENDING" as const,

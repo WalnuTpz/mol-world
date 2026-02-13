@@ -3,6 +3,7 @@ import { mkdir, rename } from "node:fs/promises";
 
 import { prisma } from "@/lib/db";
 import { errorResponse, successResponse } from "@/lib/api";
+import { requireAdmin } from "@/lib/adminAuth";
 import { logAudit } from "@/lib/audit";
 
 type Payload = {
@@ -60,6 +61,8 @@ const restoreFromTrash = async (entry: { trashPath: string; sourcePath: string }
 };
 
 export async function POST(request: Request) {
+  const auth = await requireAdmin(request);
+  if (!auth.ok) return auth.response;
   const body = (await request.json().catch(() => null)) as Payload | null;
   const ids = Array.isArray(body?.ids) ? body?.ids.filter(Boolean) : [];
   const action = body?.action;

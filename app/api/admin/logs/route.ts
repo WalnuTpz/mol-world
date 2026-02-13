@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { errorResponse, successResponse } from "@/lib/api";
+import { requireAdmin } from "@/lib/adminAuth";
 import { normalizeSearchTokens } from "@/lib/tags";
 import { getAppConfig, getTagRulesFromConfig } from "@/lib/appConfig";
 
@@ -9,6 +10,8 @@ function parseIntParam(value: string | null, fallback: number) {
 }
 
 export async function GET(request: Request) {
+  const auth = await requireAdmin(request);
+  if (!auth.ok) return auth.response;
   const config = await getAppConfig();
   const tagRules = getTagRulesFromConfig(config);
   const { searchParams } = new URL(request.url);
@@ -69,6 +72,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const auth = await requireAdmin(request);
+  if (!auth.ok) return auth.response;
   const body = (await request.json().catch(() => null)) as
     | { range?: string }
     | null;

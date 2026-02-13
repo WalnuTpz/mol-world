@@ -3,6 +3,7 @@ import { promises as fs } from "node:fs";
 
 import { prisma } from "@/lib/db";
 import { errorResponse, successResponse } from "@/lib/api";
+import { requireAdmin } from "@/lib/adminAuth";
 
 const ORIGINAL_PREFIX = "/memes/original/";
 const THUMB_PREFIX = "/memes/thumb/";
@@ -91,7 +92,9 @@ const scanResources = async (): Promise<{
   };
 };
 
-export async function GET() {
+export async function GET(request: Request) {
+  const auth = await requireAdmin(request);
+  if (!auth.ok) return auth.response;
   try {
     const { stats } = await scanResources();
     return successResponse({ stats }, "检查完成");
@@ -102,6 +105,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const auth = await requireAdmin(request);
+  if (!auth.ok) return auth.response;
   let payload: { action?: string } | null = null;
   try {
     payload = (await request.json().catch(() => null)) as { action?: string } | null;

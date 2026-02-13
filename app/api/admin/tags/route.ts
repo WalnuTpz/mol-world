@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { successResponse } from "@/lib/api";
+import { requireAdmin } from "@/lib/adminAuth";
 import { getAppConfig } from "@/lib/appConfig";
 
 function parseIntParam(value: string | null, fallback: number) {
@@ -22,6 +23,8 @@ const resolveSort = (value: string | null): SortMode => {
 };
 
 export async function GET(request: Request) {
+  const auth = await requireAdmin(request);
+  if (!auth.ok) return auth.response;
   const config = await getAppConfig();
   const { searchParams } = new URL(request.url);
   const page = parseIntParam(searchParams.get("page"), 1);

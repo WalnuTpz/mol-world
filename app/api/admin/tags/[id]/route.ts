@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { errorResponse, successResponse } from "@/lib/api";
+import { requireAdmin } from "@/lib/adminAuth";
 import { normalizeTagInput } from "@/lib/tags";
 import { getAppConfig, getTagRulesFromConfig } from "@/lib/appConfig";
 
@@ -24,6 +25,8 @@ export async function PATCH(
   request: Request,
   context: { params: { id: string } | Promise<{ id: string }> }
 ) {
+  const auth = await requireAdmin(request);
+  if (!auth.ok) return auth.response;
   const config = await getAppConfig();
   const tagRules = getTagRulesFromConfig(config);
   const { id: rawId } = await Promise.resolve(context.params);
