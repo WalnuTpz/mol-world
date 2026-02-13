@@ -281,6 +281,14 @@ export default function ReviewPanel({ pageLimit = 12 }: ReviewPanelProps) {
           <button
             type="button"
             className={styles.toolbarButton}
+            onClick={() => setSelected(new Set())}
+            disabled={selectedCount === 0 || batching}
+          >
+            取消选择
+          </button>
+          <button
+            type="button"
+            className={styles.toolbarButton}
             onClick={toggleSelectAll}
             disabled={!hasItems}
           >

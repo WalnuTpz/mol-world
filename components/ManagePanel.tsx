@@ -396,6 +396,14 @@ export default function ManagePanel({ pageLimit = 12 }: ManagePanelProps) {
           <button
             type="button"
             className={styles.toolbarButton}
+            onClick={() => setSelected(new Set())}
+            disabled={selectedCount === 0 || batching}
+          >
+            取消选择
+          </button>
+          <button
+            type="button"
+            className={styles.toolbarButton}
             onClick={toggleSelectAll}
             disabled={!hasItems}
           >
