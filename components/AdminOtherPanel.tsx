@@ -347,101 +347,6 @@ export default function AdminOtherPanel() {
         管理公告、标签池或全局配置等扩展内容。
       </div>
       <div className={styles.section}>
-        <div className={styles.sectionTitle}>脚本入口</div>
-        <div className={styles.sectionHintRow}>
-          <span>在项目根目录执行命令</span>
-          <span className={styles.sectionWarnInline}>
-            部分脚本会改动数据库或文件，请确认备份后再执行。
-          </span>
-        </div>
-        <div className={styles.scriptList}>
-          {scripts.map((script) => (
-            <div key={script.title} className={styles.scriptCard}>
-              <div
-                className={`${styles.scriptTitle} ${script.danger ? styles.scriptTitleDanger : ""
-                  }`}
-              >
-                {script.title}
-              </div>
-              <div className={styles.scriptText}>{script.desc}</div>
-              <div className={styles.scriptCmdRow}>
-                <code className={styles.scriptCmd}>{script.command}</code>
-                <button
-                  type="button"
-                  className={styles.scriptCopy}
-                  onClick={() => copyCommand(script.command)}
-                >
-                  复制
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className={styles.section}>
-        <div className={styles.sectionTitle}>资源与清零</div>
-        <div className={styles.resourceGrid}>
-          <div className={styles.resourceCard}>
-            <div className={styles.sectionTitle}>资源检查</div>
-            <div className={styles.sectionHint}>
-              检查缺图与孤儿文件情况，可手动清理孤儿文件。
-            </div>
-            <div className={styles.resourceActions}>
-              <button
-                type="button"
-                className={styles.resourceButton}
-                onClick={loadResources}
-                disabled={resourceLoading}
-              >
-                缺图检查
-              </button>
-              <button
-                type="button"
-                className={`${styles.resourceButton} ${styles.resourceButtonDanger}`}
-                onClick={cleanupOrphans}
-                disabled={resourceLoading}
-              >
-                清理孤儿文件
-              </button>
-            </div>
-            <div className={styles.resourceList}>
-              <div className={styles.resourceRow}>
-                <span className={styles.resourceLabel}>缺图（原图/缩略图）</span>
-                <span className={styles.resourceValue}>
-                  {resourceStats
-                    ? `${resourceStats.missing.original} / ${resourceStats.missing.thumb}`
-                    : "-"}
-                </span>
-              </div>
-              <div className={styles.resourceRow}>
-                <span className={styles.resourceLabel}>孤儿文件（原图/缩略图）</span>
-                <span className={styles.resourceValue}>
-                  {resourceStats
-                    ? `${resourceStats.orphans.original} / ${resourceStats.orphans.thumb}`
-                    : "-"}
-                </span>
-              </div>
-            </div>
-          </div>
-          <div className={styles.resourceCard}>
-            <div className={styles.sectionTitle}>热度清零</div>
-            <div className={styles.sectionHint}>
-              全部表情包热度统一归零，请谨慎操作。
-            </div>
-            <div className={styles.resourceActions}>
-              <button
-                type="button"
-                className={`${styles.resourceButton} ${styles.resourceButtonDanger}`}
-                onClick={resetHeat}
-                disabled={resourceLoading}
-              >
-                全站热度清零
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div className={styles.section}>
         <div className={styles.sectionHeader}>
           <div className={styles.sectionTitle}>流量与热度</div>
           <div className={styles.trafficControls}>
@@ -554,6 +459,101 @@ export default function AdminOtherPanel() {
             ) : (
               <div className={styles.trafficEmpty}>暂无数据</div>
             )}
+          </div>
+        </div>
+      </div>
+      <div className={styles.section}>
+        <div className={styles.sectionTitle}>脚本入口</div>
+        <div className={styles.sectionHintRow}>
+          <span>在项目根目录执行命令</span>
+          <span className={styles.sectionWarnInline}>
+            部分脚本会改动数据库或文件，请确认备份后再执行。
+          </span>
+        </div>
+        <div className={styles.scriptList}>
+          {scripts.map((script) => (
+            <div key={script.title} className={styles.scriptCard}>
+              <div
+                className={`${styles.scriptTitle} ${script.danger ? styles.scriptTitleDanger : ""
+                  }`}
+              >
+                {script.title}
+              </div>
+              <div className={styles.scriptText}>{script.desc}</div>
+              <div className={styles.scriptCmdRow}>
+                <code className={styles.scriptCmd}>{script.command}</code>
+                <button
+                  type="button"
+                  className={styles.scriptCopy}
+                  onClick={() => copyCommand(script.command)}
+                >
+                  复制
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className={styles.section}>
+        <div className={styles.sectionTitle}>资源与清零</div>
+        <div className={styles.resourceGrid}>
+          <div className={styles.resourceCard}>
+            <div className={styles.sectionTitle}>资源检查</div>
+            <div className={styles.sectionHint}>
+              检查缺图与孤儿文件情况，可手动清理孤儿文件。
+            </div>
+            <div className={styles.resourceActions}>
+              <button
+                type="button"
+                className={styles.resourceButton}
+                onClick={loadResources}
+                disabled={resourceLoading}
+              >
+                缺图检查
+              </button>
+              <button
+                type="button"
+                className={`${styles.resourceButton} ${styles.resourceButtonDanger}`}
+                onClick={cleanupOrphans}
+                disabled={resourceLoading}
+              >
+                清理孤儿文件
+              </button>
+            </div>
+            <div className={styles.resourceList}>
+              <div className={styles.resourceRow}>
+                <span className={styles.resourceLabel}>缺图（原图/缩略图）</span>
+                <span className={styles.resourceValue}>
+                  {resourceStats
+                    ? `${resourceStats.missing.original} / ${resourceStats.missing.thumb}`
+                    : "-"}
+                </span>
+              </div>
+              <div className={styles.resourceRow}>
+                <span className={styles.resourceLabel}>孤儿文件（原图/缩略图）</span>
+                <span className={styles.resourceValue}>
+                  {resourceStats
+                    ? `${resourceStats.orphans.original} / ${resourceStats.orphans.thumb}`
+                    : "-"}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div className={styles.resourceCard}>
+            <div className={styles.sectionTitle}>热度清零</div>
+            <div className={styles.sectionHint}>
+              全部表情包热度统一归零，请谨慎操作。
+            </div>
+            <div className={styles.resourceActions}>
+              <button
+                type="button"
+                className={`${styles.resourceButton} ${styles.resourceButtonDanger}`}
+                onClick={resetHeat}
+                disabled={resourceLoading}
+              >
+                全站热度清零
+              </button>
+            </div>
           </div>
         </div>
       </div>
