@@ -98,6 +98,33 @@
   gap: 10px;
 }
 
+.tagMergeRow {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.tagMergeInput {
+  min-width: 180px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(0, 0, 0, 0.3);
+  color: #ffffff;
+  font-size: 13px;
+}
+
+.tagMergeInput::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.tagMergeArrow {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.55);
+}
+
 .tagSearch {
   width: 220px;
   padding: 8px 12px;
