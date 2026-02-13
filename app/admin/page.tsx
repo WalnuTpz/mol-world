@@ -58,7 +58,7 @@ export default async function AdminPage({
   return (
     <div className={`${baseStyles.page} ${baseStyles.pageWithPagination}`}>
       <header className={baseStyles.header}>
-        <div className={baseStyles.headerInner}>
+        <div className={`${baseStyles.headerInner} ${styles.adminHeaderInner}`}>
           <div className={baseStyles.brandGroup}>
             <Link className={baseStyles.brand} href="/">
               <span className={baseStyles.brandText}>
@@ -70,112 +70,48 @@ export default async function AdminPage({
               className={baseStyles.brandIconLink}
               iconClassName={baseStyles.brandIcon}
             />
+            <span className={styles.adminBadge}>Admin</span>
           </div>
-          <form
-            className={baseStyles.searchForm}
-            action="/"
-            method="get"
-            autoComplete="off"
-          >
-            <input
-              name="q"
-              className={baseStyles.searchInput}
-              placeholder="搜索可爱的表情包"
-              autoComplete="off"
-            />
-            <input type="hidden" name="view" value="search" />
-            <input type="hidden" name="page" value="1" />
-            <button
-              type="submit"
-              className={baseStyles.searchButton}
-              aria-label="搜索"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                width="18"
-                height="18"
-                aria-hidden="true"
-                focusable="false"
-              >
-                <circle
-                  cx="11"
-                  cy="11"
-                  r="6.5"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  fill="none"
-                />
-                <line
-                  x1="16.2"
-                  y1="16.2"
-                  x2="20.5"
-                  y2="20.5"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </button>
-          </form>
-          <div className={baseStyles.headerActions}>
+          <div className={styles.adminNav}>
             <nav className={baseStyles.nav}>
               <Link
-                className={`${baseStyles.navItem} ${baseStyles.navItemInactive}`}
-                href="/?view=hot"
+                className={`${baseStyles.navItem} ${
+                  view === "manage" ? baseStyles.navItemActive : baseStyles.navItemInactive
+                }`}
+                href="/admin?view=manage"
               >
-                热门
+                管理
               </Link>
               <Link
-                className={`${baseStyles.navItem} ${baseStyles.navItemInactive}`}
-                href="/?view=all"
+                className={`${baseStyles.navItem} ${
+                  view === "review" ? baseStyles.navItemActive : baseStyles.navItemInactive
+                }`}
+                href="/admin?view=review"
               >
-                全部
+                审核
+              </Link>
+              <Link
+                className={`${baseStyles.navItem} ${
+                  view === "logs" ? baseStyles.navItemActive : baseStyles.navItemInactive
+                }`}
+                href="/admin?view=logs"
+              >
+                日志
+              </Link>
+              <Link
+                className={`${baseStyles.navItem} ${
+                  view === "other" ? baseStyles.navItemActive : baseStyles.navItemInactive
+                }`}
+                href="/admin?view=other"
+              >
+                其他
               </Link>
             </nav>
-            <Link className={baseStyles.uploadBtn} href="/upload">
-              上传
-            </Link>
           </div>
         </div>
       </header>
 
       <main className={baseStyles.content}>
-        <div className={styles.headerRow}>
-          <div>
-            <h1 className={styles.title}>管理控制台</h1>
-            <div className={styles.subtitle}>
-              集成审核、管理、日志与其他内容入口
-            </div>
-          </div>
-        </div>
-
-        <div className={styles.tabs}>
-          <Link
-            className={`${styles.tab} ${view === "manage" ? styles.tabActive : ""}`}
-            href="/admin?view=manage"
-          >
-            管理
-          </Link>
-          <Link
-            className={`${styles.tab} ${view === "review" ? styles.tabActive : ""}`}
-            href="/admin?view=review"
-          >
-            审核
-          </Link>
-          <Link
-            className={`${styles.tab} ${view === "logs" ? styles.tabActive : ""}`}
-            href="/admin?view=logs"
-          >
-            日志
-          </Link>
-          <Link
-            className={`${styles.tab} ${view === "other" ? styles.tabActive : ""}`}
-            href="/admin?view=other"
-          >
-            其他
-          </Link>
-        </div>
-
         {view === "review" ? (
           <ReviewPanel />
         ) : view === "manage" ? (
