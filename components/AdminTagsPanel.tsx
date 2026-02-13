@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import baseStyles from "@/app/page.module.css";
 import styles from "@/components/AdminTagsPanel.module.css";
 import { useToast, useToastConfirm } from "@/components/ToastProvider";
 
@@ -27,6 +28,7 @@ export default function AdminTagsPanel() {
   const [error, setError] = useState("");
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [jumpValue, setJumpValue] = useState("1");
   const limit = 20;
 
   const loadList = async (targetPage: number, targetQuery: string) => {
@@ -73,7 +75,14 @@ export default function AdminTagsPanel() {
     setPage(1);
   }, [query]);
 
+  useEffect(() => {
+    setJumpValue(String(page));
+  }, [page]);
+
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / limit)), [total, limit]);
+  const hasPrev = page > 1;
+  const hasNext = page < totalPages;
+  const disableJump = loading || totalPages <= 1;
   const hasItems = items.length > 0;
   const emptyText = useMemo(() => {
     if (loading) return "加载中...";
@@ -203,12 +212,20 @@ export default function AdminTagsPanel() {
     }
   };
 
+  const handleJump = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const next = Number.parseInt(jumpValue, 10);
+    if (!Number.isFinite(next)) return;
+    const clamped = Math.min(Math.max(next, 1), totalPages);
+    setPage(clamped);
+  };
+
   return (
     <div className={styles.content}>
       <div className={styles.headerRow}>
         <div className={styles.headerBlock}>
-          <h1 className={styles.title}>标签管理</h1>
-          <div className={styles.subtitle}>管理标签</div>
+          <h1 className={styles.title}>管理标签</h1>
+          <div className={styles.subtitle}>查看与管理所有标签的状态</div>
         </div>
         <div className={styles.searchBox}>
           <input
@@ -341,8 +358,52 @@ export default function AdminTagsPanel() {
           <div className={styles.empty}>{emptyText}</div>
         )}
       </div>
-      <div className={styles.pagination}>
-        当前第 {page} 页 / 共 {totalPages} 页
+      <div className={baseStyles.pagination}>
+        <div className={baseStyles.pageInfo}>
+          当前第 {page} 页 / 共 {totalPages} 页
+        </div>
+        <div className={baseStyles.pageControls}>
+          <div className={baseStyles.pageNav}>
+            <button
+              type="button"
+              className={hasPrev ? baseStyles.pageNavBtn : baseStyles.pageNavBtnDisabled}
+              onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+              disabled={!hasPrev}
+            >
+              上一页
+            </button>
+            <button
+              type="button"
+              className={hasNext ? baseStyles.pageNavBtn : baseStyles.pageNavBtnDisabled}
+              onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
+              disabled={!hasNext}
+            >
+              下一页
+            </button>
+          </div>
+          <form className={baseStyles.pageJump} onSubmit={handleJump}>
+            <label className={baseStyles.pageJumpLabel}>
+              跳转到
+              <input
+                className={baseStyles.pageJumpInput}
+                type="number"
+                min={1}
+                max={totalPages}
+                value={jumpValue}
+                onChange={(event) => setJumpValue(event.target.value)}
+                disabled={disableJump}
+              />
+              页
+            </label>
+            <button
+              className={baseStyles.pageJumpButton}
+              type="submit"
+              disabled={disableJump}
+            >
+              跳转
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );

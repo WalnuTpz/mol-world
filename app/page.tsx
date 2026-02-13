@@ -288,17 +288,17 @@ export default async function Home({
       const where =
         tokens.length > 0
           ? {
-              status: "PUBLISHED",
-              AND: tokens.map((token) => ({
-                OR: [
-                  { title: { contains: token } },
-                  { tags: { some: { tag: { name: { contains: token } } } } },
-                ],
-              })),
-            }
+            status: "PUBLISHED",
+            AND: tokens.map((token) => ({
+              OR: [
+                { title: { contains: token } },
+                { tags: { some: { tag: { name: { contains: token } } } } },
+              ],
+            })),
+          }
           : {
-              status: "PUBLISHED",
-            };
+            status: "PUBLISHED",
+          };
 
       if (sort === "name") {
         const list = await prisma.meme.findMany({
@@ -359,9 +359,8 @@ export default async function Home({
         : "暂无热门表情包，请先在管理页设置精选内容。";
   return (
     <div
-      className={`${styles.page} ${
-        view === "all" || view === "search" ? styles.pageWithPagination : ""
-      }`}
+      className={`${styles.page} ${view === "all" || view === "search" ? styles.pageWithPagination : ""
+        }`}
     >
       <WelcomeModal />
       <header className={styles.header}>
@@ -462,17 +461,15 @@ export default async function Home({
           {view === "hot" && (
             <div className={styles.filters}>
               <Link
-                className={`${styles.filterBtn} ${
-                  hotSort === "hot" ? styles.filterActive : ""
-                }`}
+                className={`${styles.filterBtn} ${hotSort === "hot" ? styles.filterActive : ""
+                  }`}
                 href="/?view=hot&hotSort=hot"
               >
                 最热
               </Link>
               <RandomLink
-                className={`${styles.filterBtn} ${
-                  hotSort === "random" ? styles.filterActive : ""
-                }`}
+                className={`${styles.filterBtn} ${hotSort === "random" ? styles.filterActive : ""
+                  }`}
                 disabledClassName={styles.filterDisabled}
                 href="/?view=hot&hotSort=random"
               >
@@ -661,7 +658,7 @@ export default async function Home({
           <div className={styles.footerSection}>
             <div className={styles.footerTitle}>关于 molworld</div>
             <div className={styles.footerText}>
-              十分神秘的 mol 表情包分享平台，致力于传播可爱的 mol 表情包。
+              十分神秘的表情包分享平台，致力于传播可爱的 mol 表情包。
             </div>
           </div>
         </div>
