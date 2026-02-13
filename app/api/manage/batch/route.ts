@@ -85,7 +85,10 @@ export async function POST(request: Request) {
   if (action === "publish" || action === "hide") {
     const status = action === "publish" ? "PUBLISHED" : "HIDDEN";
     const result = await prisma.meme.updateMany({
-      where: { id: { in: ids } },
+      where: {
+        id: { in: ids },
+        status: { in: ["PUBLISHED", "HIDDEN"] as const },
+      },
       data: { status },
     });
     void logAudit({
@@ -100,7 +103,10 @@ export async function POST(request: Request) {
 
   if (action === "reset") {
     const result = await prisma.meme.updateMany({
-      where: { id: { in: ids } },
+      where: {
+        id: { in: ids },
+        status: { in: ["PUBLISHED", "HIDDEN"] as const },
+      },
       data: { copies: 0, downloads: 0 },
     });
     void logAudit({
@@ -122,9 +128,17 @@ export async function POST(request: Request) {
         id: true,
         mediaUrl: true,
         thumbUrl: true,
+        status: true,
       },
     });
     if (!current) {
+      failed.push(id);
+      continue;
+    }
+    if (
+      current.status === "PENDING" ||
+      current.mediaUrl.startsWith("/uploads/")
+    ) {
       failed.push(id);
       continue;
     }

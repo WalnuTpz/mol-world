@@ -211,6 +211,20 @@ export async function PATCH(
       });
       return errorResponse("资源不存在", 404, "NOT_FOUND");
     }
+    if (
+      current.status !== "PENDING" ||
+      !current.mediaUrl.startsWith("/uploads/")
+    ) {
+      void logAudit({
+        action: "review:delete",
+        status: "error",
+        message: "当前状态不可审核",
+        targetType: "meme",
+        targetId: id,
+        request,
+      });
+      return errorResponse("当前状态不可审核", 400, "INVALID_STATE");
+    }
 
     let backup: { media?: string; thumb?: string } | null = null;
     const backupDir = path.join(process.cwd(), "public", "uploads", "trash");
@@ -289,11 +303,34 @@ export async function PATCH(
       id: true,
       mediaUrl: true,
       type: true,
+      status: true,
     },
   });
+  if (!current) {
+    void logAudit({
+      action: "review:update",
+      status: "error",
+      message: "资源不存在",
+      targetType: "meme",
+      targetId: id,
+      request,
+    });
+    return errorResponse("资源不存在", 404, "NOT_FOUND");
+  }
+  if (current.status !== "PENDING" || !current.mediaUrl.startsWith("/uploads/")) {
+    void logAudit({
+      action: "review:update",
+      status: "error",
+      message: "当前状态不可审核",
+      targetType: "meme",
+      targetId: id,
+      request,
+    });
+    return errorResponse("当前状态不可审核", 400, "INVALID_STATE");
+  }
 
   let moved: Awaited<ReturnType<typeof moveToLibrary>> = null;
-  if (status && current) {
+  if (status) {
     try {
       moved = await moveToLibrary(
         current.id,

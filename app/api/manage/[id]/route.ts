@@ -125,6 +125,7 @@ export async function PATCH(
         id: true,
         mediaUrl: true,
         thumbUrl: true,
+        status: true,
       },
     });
 
@@ -138,6 +139,20 @@ export async function PATCH(
         request,
       });
       return errorResponse("资源不存在", 404, "NOT_FOUND");
+    }
+    if (
+      current.status === "PENDING" ||
+      current.mediaUrl.startsWith("/uploads/")
+    ) {
+      void logAudit({
+        action: "manage:delete",
+        status: "error",
+        message: "当前状态不可管理",
+        targetType: "meme",
+        targetId: id,
+        request,
+      });
+      return errorResponse("当前状态不可管理", 400, "INVALID_STATE");
     }
 
     const timestamp = Date.now();
@@ -188,6 +203,33 @@ export async function PATCH(
     }
 
     return successResponse({}, "删除成功");
+  }
+
+  const current = await prisma.meme.findUnique({
+    where: { id },
+    select: { id: true, status: true, mediaUrl: true },
+  });
+  if (!current) {
+    void logAudit({
+      action: "manage:update",
+      status: "error",
+      message: "资源不存在",
+      targetType: "meme",
+      targetId: id,
+      request,
+    });
+    return errorResponse("资源不存在", 404, "NOT_FOUND");
+  }
+  if (current.status === "PENDING" || current.mediaUrl.startsWith("/uploads/")) {
+    void logAudit({
+      action: "manage:update",
+      status: "error",
+      message: "当前状态不可管理",
+      targetType: "meme",
+      targetId: id,
+      request,
+    });
+    return errorResponse("当前状态不可管理", 400, "INVALID_STATE");
   }
 
   const tagRows = tags.length > 0 ? await ensureTagsWithNumId(prisma, tags) : [];
