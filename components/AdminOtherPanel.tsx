@@ -22,6 +22,7 @@ export default function AdminOtherPanel() {
   const [mergeFrom, setMergeFrom] = useState("");
   const [mergeTo, setMergeTo] = useState("");
   const [merging, setMerging] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [page, setPage] = useState(1);
@@ -186,6 +187,53 @@ export default function AdminOtherPanel() {
     }
   };
 
+  const handleDelete = async (item: TagItem, mode: "unlink" | "force") => {
+    if (deletingId) return;
+    const label = mode === "force" ? "删除标签与关联" : "解除关联";
+    const ok = await confirm(
+      `确认${label}吗？`,
+      mode === "force"
+        ? "该标签将被删除，关联关系也会清除。"
+        : "仅移除关联关系，标签本体保留。"
+    );
+    if (!ok) return;
+    setDeletingId(item.id);
+    try {
+      const res = await fetch(
+        `/api/admin/tags/${item.id}/delete?mode=${mode}`,
+        { method: "DELETE" }
+      );
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as {
+          error?: string;
+          message?: string;
+        } | null;
+        throw new Error(data?.error || data?.message || "删除失败");
+      }
+      const data = (await res.json()) as { message?: string };
+      toast(data.message || "已删除", "success");
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: String(limit),
+      });
+      if (query.trim()) params.set("q", query.trim());
+      const listRes = await fetch(`/api/admin/tags?${params.toString()}`);
+      if (listRes.ok) {
+        const listData = (await listRes.json()) as {
+          items: TagItem[];
+          total: number;
+        };
+        setItems(listData.items);
+        setTotal(listData.total);
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "删除失败";
+      toast(message, "error");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   return (
     <section className={styles.panel}>
       <div className={styles.panelTitle}>其他内容</div>
@@ -275,13 +323,31 @@ export default function AdminOtherPanel() {
                       </button>
                     </div>
                   ) : (
-                    <button
-                      type="button"
-                      className={styles.tagActionGhost}
-                      onClick={() => startEdit(item)}
-                    >
-                      重命名
-                    </button>
+                    <div className={styles.tagActions}>
+                      <button
+                        type="button"
+                        className={styles.tagActionGhost}
+                        onClick={() => startEdit(item)}
+                      >
+                        重命名
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.tagActionGhost}
+                        onClick={() => handleDelete(item, "unlink")}
+                        disabled={deletingId === item.id}
+                      >
+                        解除
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.tagActionDanger}
+                        onClick={() => handleDelete(item, "force")}
+                        disabled={deletingId === item.id}
+                      >
+                        删除
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>

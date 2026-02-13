@@ -213,6 +213,21 @@
   border-color: rgba(255, 255, 255, 0.4);
 }
 
+.tagActionDanger {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 80, 80, 0.6);
+  background: rgba(255, 80, 80, 0.12);
+  color: #ffbcbc;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.tagActionDanger:hover {
+  border-color: rgba(255, 80, 80, 0.8);
+  background: rgba(255, 80, 80, 0.22);
+}
+
 .tagEmpty {
   padding: 18px 14px;
   font-size: 13px;
