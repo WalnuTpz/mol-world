@@ -9,6 +9,6 @@ const getCookieValue = (request: Request, name: string) => {
 
 export async function GET(request: Request) {
   const token = getCookieValue(request, getAdminSessionCookieName());
-  const authed = isAdminSessionValid(token);
+  const authed = await isAdminSessionValid(token);
   return successResponse({ authed }, "查询成功");
 }

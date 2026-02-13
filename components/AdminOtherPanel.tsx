@@ -2,9 +2,11 @@
 
 import styles from "@/app/admin/page.module.css";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Chart from "chart.js/auto";
 
 import { useToast, useToastConfirm } from "@/components/ToastProvider";
+import toastStyles from "@/components/Toast.module.css";
 import { formatCount } from "@/lib/format";
 
 export default function AdminOtherPanel() {
@@ -26,6 +28,15 @@ export default function AdminOtherPanel() {
     top: { id: string; title: string | null; type: string; thumbUrl: string; heat: number }[];
     daily: { day: string; heat: number; cumulative: number; visits: number }[];
   } | null>(null);
+  const [passwordOpen, setPasswordOpen] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordForm, setPasswordForm] = useState({
+    current: "",
+    next: "",
+    confirm: "",
+  });
+  const [mounted, setMounted] = useState(false);
 
   const scripts = [
     {
@@ -181,6 +192,10 @@ export default function AdminOtherPanel() {
     void loadTraffic(trafficRange);
   }, [trafficRange]);
 
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const dailyHeat = useMemo(
     () => trafficData?.daily.map((item) => item.heat) ?? [],
     [trafficData]
@@ -330,7 +345,56 @@ export default function AdminOtherPanel() {
   };
 
   const handleChangePassword = () => {
-    toast("修改密码功能待完善", "info");
+    if (passwordLoading) return;
+    setPasswordForm({ current: "", next: "", confirm: "" });
+    setPasswordError("");
+    setPasswordOpen(true);
+  };
+
+  const closePasswordDialog = () => {
+    if (passwordLoading) return;
+    setPasswordOpen(false);
+    setPasswordError("");
+  };
+
+  const submitPasswordChange = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (passwordLoading) return;
+    const current = passwordForm.current.trim();
+    const next = passwordForm.next.trim();
+    const confirmPass = passwordForm.confirm.trim();
+    if (!current || !next || !confirmPass) {
+      setPasswordError("请填写完整信息");
+      return;
+    }
+    if (next !== confirmPass) {
+      setPasswordError("两次输入的新密码不一致");
+      return;
+    }
+    setPasswordLoading(true);
+    setPasswordError("");
+    try {
+      const res = await fetch("/api/admin/password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          currentPass: current,
+          newPass: next,
+          confirmPass,
+        }),
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as
+          | { error?: string; message?: string }
+          | null;
+        setPasswordError(data?.error || data?.message || "修改失败");
+        return;
+      }
+      toast("密码已更新", "success");
+      setPasswordOpen(false);
+    } finally {
+      setPasswordLoading(false);
+    }
   };
 
   const handleLogout = () => {
@@ -565,6 +629,89 @@ export default function AdminOtherPanel() {
           </div>
         </div>
       </div>
+      {passwordOpen && mounted
+        ? createPortal(
+            <div className={styles.passwordOverlay} role="dialog" aria-modal="true">
+              <div className={`${toastStyles.toast} ${styles.passwordModal}`}>
+                <div className={toastStyles.toastMessage}>修改密码</div>
+                <form className={styles.passwordForm} onSubmit={submitPasswordChange}>
+                  <label className={styles.passwordField}>
+                    <span className={styles.passwordLabel}>原密码</span>
+                    <input
+                      className={styles.passwordInput}
+                      type="password"
+                      value={passwordForm.current}
+                      onChange={(event) =>
+                        setPasswordForm((prev) => ({
+                          ...prev,
+                          current: event.target.value,
+                        }))
+                      }
+                      autoComplete="current-password"
+                      placeholder="输入原密码"
+                      disabled={passwordLoading}
+                    />
+                  </label>
+                  <label className={styles.passwordField}>
+                    <span className={styles.passwordLabel}>新密码</span>
+                    <input
+                      className={styles.passwordInput}
+                      type="password"
+                      value={passwordForm.next}
+                      onChange={(event) =>
+                        setPasswordForm((prev) => ({
+                          ...prev,
+                          next: event.target.value,
+                        }))
+                      }
+                      autoComplete="new-password"
+                      placeholder="输入新密码"
+                      disabled={passwordLoading}
+                    />
+                  </label>
+                  <label className={styles.passwordField}>
+                    <span className={styles.passwordLabel}>确认新密码</span>
+                    <input
+                      className={styles.passwordInput}
+                      type="password"
+                      value={passwordForm.confirm}
+                      onChange={(event) =>
+                        setPasswordForm((prev) => ({
+                          ...prev,
+                          confirm: event.target.value,
+                        }))
+                      }
+                      autoComplete="new-password"
+                      placeholder="再次输入新密码"
+                      disabled={passwordLoading}
+                    />
+                  </label>
+                  {passwordError ? (
+                    <div className={styles.passwordError}>{passwordError}</div>
+                  ) : null}
+                  <div className={toastStyles.toastActions}>
+                    <button
+                      type="button"
+                      className={`${toastStyles.toastAction} ${toastStyles.toastActionGhost}`}
+                      onClick={closePasswordDialog}
+                      disabled={passwordLoading}
+                    >
+                      取消
+                    </button>
+                    <button
+                      type="submit"
+                      className={`${toastStyles.toastAction} ${toastStyles.toastActionPrimary}`}
+                      disabled={passwordLoading}
+                    >
+                      {passwordLoading ? "提交中..." : "确认"}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
     </section>
   );
 }

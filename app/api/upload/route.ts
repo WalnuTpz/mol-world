@@ -7,6 +7,7 @@ import { logAudit } from "@/lib/audit";
 import { normalizeTagInput } from "@/lib/tags";
 import { ensureTagsWithNumId, getNextMemeNumId } from "@/lib/numId";
 import { getAppConfig, getTagRulesFromConfig } from "@/lib/appConfig";
+import { getAdminSessionCookieName, isAdminSessionValid } from "@/lib/adminSession";
 
 export const runtime = "nodejs";
 
@@ -33,14 +34,9 @@ const getCookieValue = (request: Request, name: string) => {
   return match ? decodeURIComponent(match[1]) : null;
 };
 
-const isAdminAuthed = (request: Request) => {
-  const user = process.env.REVIEW_USER;
-  const pass = process.env.REVIEW_PASS;
-  if (!user || !pass) return false;
-  const token = getCookieValue(request, "admin_session");
-  if (!token) return false;
-  const expected = Buffer.from(`${user}:${pass}`, "utf8").toString("base64");
-  return token === expected;
+const isAdminAuthed = async (request: Request) => {
+  const token = getCookieValue(request, getAdminSessionCookieName());
+  return isAdminSessionValid(token);
 };
 
 export async function POST(request: Request) {
@@ -131,7 +127,7 @@ export async function POST(request: Request) {
 
   const clientId = getClientId(request);
   const now = Date.now();
-  const isAdmin = isAdminAuthed(request);
+  const isAdmin = await isAdminAuthed(request);
   if (!isAdmin) {
     if (globalUploading || now - lastGlobalUploadAt < globalCooldownMs) {
       const retryAfter = Math.ceil(

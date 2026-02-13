@@ -112,3 +112,12 @@ model AppConfig {
   value     String
   updatedAt DateTime @updatedAt
 }
+
+model AdminCredential {
+  id        String   @id @default(cuid())
+  user      String   @unique
+  passHash  String
+  salt      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

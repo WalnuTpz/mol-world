@@ -143,7 +143,7 @@ export default async function Home({
   searchParams: SearchParams | Promise<SearchParams>;
 }) {
   const cookieStore = await cookies();
-  const authed = isAdminSessionValid(
+  const authed = await isAdminSessionValid(
     cookieStore.get(getAdminSessionCookieName())?.value
   );
   const today = getDayKey();

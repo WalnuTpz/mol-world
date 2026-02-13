@@ -57,7 +57,7 @@ export default async function AdminPage({
       ? viewParam
       : "manage";
   const cookieStore = await cookies();
-  const authed = isAdminSessionValid(
+  const authed = await isAdminSessionValid(
     cookieStore.get(getAdminSessionCookieName())?.value
   );
   if (!authed) {

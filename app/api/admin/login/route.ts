@@ -1,5 +1,9 @@
 import { errorResponse, successResponse } from "@/lib/api";
-import { getAdminSessionCookieName, getExpectedSessionValue } from "@/lib/adminSession";
+import {
+  buildAdminSessionToken,
+  getAdminSessionCookieName,
+  verifyAdminPassword,
+} from "@/lib/adminSession";
 import { getAppConfig } from "@/lib/appConfig";
 
 type AttemptState = {
@@ -47,14 +51,8 @@ export async function POST(request: Request) {
   if (!user || !pass) {
     return errorResponse("请输入账号和密码", 400, "MISSING_CREDENTIALS");
   }
-  const expected = getExpectedSessionValue();
-  const ok =
-    expected &&
-    user.length > 0 &&
-    pass.length > 0 &&
-    Buffer.from(`${user}:${pass}`, "utf8").toString("base64") === expected;
-
-  if (!ok) {
+  const result = await verifyAdminPassword(user, pass);
+  if (!result.ok) {
     const nextState: AttemptState = current
       ? { ...current }
       : { count: 0, cooldownUntil: 0 };
@@ -70,11 +68,14 @@ export async function POST(request: Request) {
     if (nextState.cooldownUntil > now) {
       return buildCooldownError(nextState.cooldownUntil - now);
     }
-    return errorResponse("账号或密码错误", 401, "INVALID_CREDENTIALS");
+    return errorResponse(result.error || "账号或密码错误", 401, "INVALID_CREDENTIALS");
   }
 
   attempts.delete(clientId);
   const maxAge = 60 * 60 * 24 * config.adminSessionDays;
-  const cookie = `${getAdminSessionCookieName()}=${expected}; Path=/; Max-Age=${maxAge}; HttpOnly; SameSite=Lax`;
+  const cookie = `${getAdminSessionCookieName()}=${buildAdminSessionToken(
+    result.credential.user,
+    result.credential.passHash
+  )}; Path=/; Max-Age=${maxAge}; HttpOnly; SameSite=Lax`;
   return successResponse({}, "登录成功", 200, { "Set-Cookie": cookie });
 }

@@ -605,3 +605,57 @@
   font-size: 12px;
   color: rgba(255, 255, 255, 0.55);
 }
+
+.passwordOverlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 9998;
+}
+
+.passwordModal {
+  min-width: 320px;
+  max-width: 420px;
+  width: min(90vw, 420px);
+  text-align: left;
+}
+
+.passwordForm {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.passwordField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.passwordLabel {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.passwordInput {
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 8px 10px;
+  background: rgba(0, 0, 0, 0.2);
+  color: #ffffff;
+  font-size: 13px;
+}
+
+.passwordInput:disabled {
+  opacity: 0.6;
+}
+
+.passwordError {
+  font-size: 12px;
+  color: #ffb1b1;
+  text-align: left;
+}
