@@ -9,6 +9,7 @@ import ManagePanel from "@/components/ManagePanel";
 import LogPanel from "@/components/LogPanel";
 import AdminOtherPanel from "@/components/AdminOtherPanel";
 import AdminTagsPanel from "@/components/AdminTagsPanel";
+import AdminParamsPanel from "@/components/AdminParamsPanel";
 import AdminLoginTrigger from "@/components/AdminLoginTrigger";
 import { getAdminSessionCookieName, isAdminSessionValid } from "@/lib/adminSession";
 
@@ -24,6 +25,7 @@ const viewLabels = {
   review: "待审核",
   manage: "内容管理",
   tags: "标签管理",
+  params: "参数管理",
   logs: "操作日志",
   other: "其他内容",
 } as const;
@@ -32,6 +34,7 @@ const viewDescriptions = {
   review: "查看并审核新上传的表情包内容。",
   manage: "管理已发布或隐藏的表情包。",
   tags: "管理表情包标签与关联关系。",
+  params: "管理随机池、热门数量与缓存参数。",
   logs: "查看上传/审核/删除等操作记录。",
   other: "管理公告、标签池或全局配置等扩展内容。",
 } as const;
@@ -46,6 +49,7 @@ export default async function AdminPage({
   const view =
     viewParam === "manage" ||
     viewParam === "tags" ||
+    viewParam === "params" ||
     viewParam === "logs" ||
     viewParam === "other" ||
     viewParam === "review"
@@ -96,6 +100,14 @@ export default async function AdminPage({
               </Link>
               <Link
                 className={`${baseStyles.navItem} ${
+                  view === "params" ? baseStyles.navItemActive : baseStyles.navItemInactive
+                }`}
+                href="/admin?view=params"
+              >
+                参数
+              </Link>
+              <Link
+                className={`${baseStyles.navItem} ${
                   view === "review" ? baseStyles.navItemActive : baseStyles.navItemInactive
                 }`}
                 href="/admin?view=review"
@@ -130,6 +142,8 @@ export default async function AdminPage({
           <ManagePanel />
         ) : view === "tags" ? (
           <AdminTagsPanel />
+        ) : view === "params" ? (
+          <AdminParamsPanel />
         ) : view === "logs" ? (
           <LogPanel />
         ) : (
