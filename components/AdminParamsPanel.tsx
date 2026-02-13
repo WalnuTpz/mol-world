@@ -419,7 +419,7 @@ export default function AdminParamsPanel() {
     <div className={styles.content}>
       <div className={styles.headerRow}>
         <div className={styles.headerBlock}>
-          <h1 className={styles.title}>参数管理</h1>
+          <h1 className={styles.title}>管理参数</h1>
           <div className={styles.subtitle}>
             集中查看并调整当前配置参数
           </div>
@@ -427,9 +427,8 @@ export default function AdminParamsPanel() {
         <div className={styles.headerActions}>
           <button
             type="button"
-            className={`${styles.resetButton} ${
-              loading || saving ? styles.resetButtonDisabled : ""
-            }`}
+            className={`${styles.resetButton} ${loading || saving ? styles.resetButtonDisabled : ""
+              }`}
             onClick={handleReset}
             disabled={loading || saving}
           >
@@ -437,9 +436,8 @@ export default function AdminParamsPanel() {
           </button>
           <button
             type="button"
-            className={`${styles.cancelButton} ${
-              !dirty || loading || saving ? styles.cancelButtonDisabled : ""
-            }`}
+            className={`${styles.cancelButton} ${!dirty || loading || saving ? styles.cancelButtonDisabled : ""
+              }`}
             onClick={() => {
               if (!dirty) return;
               setValues(initialValues);
