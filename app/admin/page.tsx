@@ -62,7 +62,7 @@ export default async function AdminPage({
   return (
     <div className={`${baseStyles.page} ${baseStyles.pageWithPagination}`}>
       <header className={baseStyles.header}>
-        <div className={`${baseStyles.headerInner} ${styles.adminHeaderInner}`}>
+        <div className={styles.adminHeaderInner}>
           <div className={baseStyles.brandGroup}>
             <Link className={baseStyles.brand} href="/">
               <span className={baseStyles.brandText}>
