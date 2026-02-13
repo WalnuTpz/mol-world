@@ -146,6 +146,10 @@ export default function AdminTagsPanel() {
       toast("请输入需要合并的标签", "error");
       return;
     }
+    if (from === to) {
+      toast("来源与目标不能相同", "error");
+      return;
+    }
     const ok = await confirm("确认合并标签吗？", "该操作会合并关联关系并删除原标签。");
     if (!ok) return;
     setMerging(true);
@@ -162,8 +166,10 @@ export default function AdminTagsPanel() {
         } | null;
         throw new Error(data?.error || data?.message || "合并失败");
       }
-      const data = (await res.json()) as { message?: string };
-      toast(data.message || "已合并", "success");
+      const data = (await res.json()) as { message?: string; merged?: number };
+      const mergedText =
+        typeof data.merged === "number" ? `，合并了 ${data.merged} 个关联` : "";
+      toast(`${data.message || "已合并"}${mergedText}`, "success");
       setMergeFrom("");
       setMergeTo("");
       const list = await loadList(page, query);
