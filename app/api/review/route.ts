@@ -15,7 +15,10 @@ export async function GET(request: Request) {
   const config = await getAppConfig();
   const { searchParams } = new URL(request.url);
   const page = parseIntParam(searchParams.get("page"), 1);
-  const limit = parseIntParam(searchParams.get("limit"), config.reviewPageLimit);
+  const limit = Math.min(
+    parseIntParam(searchParams.get("limit"), config.reviewPageLimit),
+    config.reviewPageLimit
+  );
   const skip = (page - 1) * limit;
 
   const where = {

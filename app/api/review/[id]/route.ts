@@ -169,6 +169,21 @@ export async function PATCH(
   }
   const title = body.title?.trim() ?? null;
   const status = body.status;
+  if (typeof body.title !== "undefined" && typeof body.title !== "string") {
+    return errorResponse("标题格式不合法", 400, "INVALID_TITLE");
+  }
+  if (
+    typeof body.tags !== "undefined" &&
+    !(typeof body.tags === "string" || Array.isArray(body.tags))
+  ) {
+    return errorResponse("标签格式不合法", 400, "INVALID_TAGS");
+  }
+  if (status && status !== "PUBLISHED" && status !== "HIDDEN") {
+    return errorResponse("状态不合法", 400, "INVALID_STATUS");
+  }
+  if (body.action && body.action !== "delete") {
+    return errorResponse("操作不合法", 400, "INVALID_ACTION");
+  }
   const tags = body.tags ? normalizeTagInput(body.tags, tagRules) : [];
 
   if (body.action === "delete") {

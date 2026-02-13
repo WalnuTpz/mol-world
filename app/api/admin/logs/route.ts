@@ -16,7 +16,10 @@ export async function GET(request: Request) {
   const tagRules = getTagRulesFromConfig(config);
   const { searchParams } = new URL(request.url);
   const page = parseIntParam(searchParams.get("page"), 1);
-  const limit = parseIntParam(searchParams.get("limit"), config.logPageLimit);
+  const limit = Math.min(
+    parseIntParam(searchParams.get("limit"), config.logPageLimit),
+    config.logPageLimit
+  );
   const q = (searchParams.get("q") ?? "").trim();
   const skip = (page - 1) * limit;
   const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);

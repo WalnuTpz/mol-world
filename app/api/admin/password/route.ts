@@ -58,6 +58,9 @@ export async function POST(request: Request) {
   if (!newPass || !confirmPass) {
     return errorResponse("请填写完整信息", 400, "MISSING_FIELDS");
   }
+  if (newPass.length < 4 || newPass.length > 64) {
+    return errorResponse("密码长度需在 4-64 位之间", 400, "INVALID_PASSWORD");
+  }
   if (newPass !== confirmPass) {
     return errorResponse("两次输入的新密码不一致", 400, "PASSWORD_MISMATCH");
   }

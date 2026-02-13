@@ -28,7 +28,10 @@ export async function GET(request: Request) {
   const config = await getAppConfig();
   const { searchParams } = new URL(request.url);
   const page = parseIntParam(searchParams.get("page"), 1);
-  const limit = parseIntParam(searchParams.get("limit"), config.tagPageLimit);
+  const limit = Math.min(
+    parseIntParam(searchParams.get("limit"), config.tagPageLimit),
+    config.tagPageLimit
+  );
   const q = (searchParams.get("q") ?? "").trim();
   const sort = resolveSort(searchParams.get("sort"));
   const skip = (page - 1) * limit;

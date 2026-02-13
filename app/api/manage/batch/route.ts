@@ -75,6 +75,12 @@ export async function POST(request: Request) {
   if (!action || ids.length === 0) {
     return errorResponse("请求参数不完整", 400, "MISSING_PARAMS");
   }
+  if (!["publish", "hide", "delete", "reset"].includes(action)) {
+    return errorResponse("操作不合法", 400, "INVALID_ACTION");
+  }
+  if (ids.length > 200) {
+    return errorResponse("批量数量过多", 400, "TOO_MANY_IDS");
+  }
 
   if (action === "publish" || action === "hide") {
     const status = action === "publish" ? "PUBLISHED" : "HIDDEN";
