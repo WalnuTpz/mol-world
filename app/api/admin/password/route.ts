@@ -47,6 +47,11 @@ export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as
     | { newPass?: string; confirmPass?: string }
     | null;
+  const allowedKeys = new Set(["newPass", "confirmPass"]);
+  const extraKeys = Object.keys(body ?? {}).filter((key) => !allowedKeys.has(key));
+  if (extraKeys.length > 0) {
+    return errorResponse("请求参数不合法", 400, "INVALID_FIELDS");
+  }
   const newPass = body?.newPass ?? "";
   const confirmPass = body?.confirmPass ?? "";
 

@@ -64,6 +64,11 @@ export async function POST(request: Request) {
   const auth = await requireAdmin(request);
   if (!auth.ok) return auth.response;
   const body = (await request.json().catch(() => null)) as Payload | null;
+  const allowedKeys = new Set(["ids", "action"]);
+  const extraKeys = Object.keys(body ?? {}).filter((key) => !allowedKeys.has(key));
+  if (extraKeys.length > 0) {
+    return errorResponse("请求参数不合法", 400, "INVALID_FIELDS");
+  }
   const ids = Array.isArray(body?.ids) ? body?.ids.filter(Boolean) : [];
   const action = body?.action;
 

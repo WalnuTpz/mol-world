@@ -85,6 +85,20 @@ export async function PATCH(
   }
 
   const body = (await request.json()) as Payload;
+  const allowedKeys = new Set(["title", "tags", "status", "action"]);
+  const extraKeys = Object.keys(body ?? {}).filter((key) => !allowedKeys.has(key));
+  if (extraKeys.length > 0) {
+    void logAudit({
+      action: "manage:update",
+      status: "error",
+      message: "请求参数不合法",
+      targetType: "meme",
+      targetId: id,
+      data: { extraKeys },
+      request,
+    });
+    return errorResponse("请求参数不合法", 400, "INVALID_FIELDS");
+  }
   const title = body.title?.trim() ?? null;
   const status = body.status;
   const tags = body.tags ? normalizeTagInput(body.tags, tagRules) : [];

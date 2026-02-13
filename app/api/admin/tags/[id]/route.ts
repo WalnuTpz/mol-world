@@ -35,6 +35,11 @@ export async function PATCH(
   }
 
   const body = (await request.json().catch(() => null)) as Payload | null;
+  const allowedKeys = new Set(["name"]);
+  const extraKeys = Object.keys(body ?? {}).filter((key) => !allowedKeys.has(key));
+  if (extraKeys.length > 0) {
+    return errorResponse("请求参数不合法", 400, "INVALID_FIELDS");
+  }
   const rawName = body?.name ?? "";
   const normalized = normalizeTagInput(rawName, tagRules);
   if (normalized.length === 0) {

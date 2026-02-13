@@ -43,6 +43,11 @@ export async function POST(request: Request) {
   const config = await getAppConfig();
   const tagRules = getTagRulesFromConfig(config);
   const body = (await request.json().catch(() => null)) as Payload | null;
+  const allowedKeys = new Set(["from", "to"]);
+  const extraKeys = Object.keys(body ?? {}).filter((key) => !allowedKeys.has(key));
+  if (extraKeys.length > 0) {
+    return errorResponse("请求参数不合法", 400, "INVALID_FIELDS");
+  }
   const fromRaw = body?.from?.trim() ?? "";
   const toRaw = body?.to?.trim() ?? "";
   if (!fromRaw || !toRaw) {
