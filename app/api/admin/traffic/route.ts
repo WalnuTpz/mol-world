@@ -82,7 +82,7 @@ export async function GET(request: Request) {
 
     const topIds = Array.from(topMap.entries())
       .sort((a, b) => b[1] - a[1])
-      .slice(0, 10)
+      .slice(0, 30)
       .map(([id]) => id);
 
     const topItems =

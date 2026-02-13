@@ -359,7 +359,8 @@
   padding: 0;
   margin: 0;
   display: grid;
-  gap: 6px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px;
 }
 
 .trafficItem {
@@ -368,12 +369,23 @@
   gap: 8px;
   font-size: 12px;
   color: rgba(255, 255, 255, 0.8);
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.22);
 }
 
 .trafficRank {
-  width: 22px;
-  color: rgba(255, 255, 255, 0.6);
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.85);
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
 }
 
 .trafficName {
@@ -387,6 +399,12 @@
 .trafficValue {
   color: rgba(255, 255, 255, 0.95);
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.trafficItem:nth-child(-n+3) .trafficRank {
+  background: rgba(255, 186, 64, 0.28);
+  color: #ffd37a;
 }
 
 .trafficChartBox {
@@ -559,6 +577,7 @@
   margin-top: 18px;
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 12px;
   flex-wrap: wrap;
 }

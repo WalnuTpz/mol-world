@@ -452,7 +452,7 @@ export default function AdminOtherPanel() {
                   }`}
                 onClick={() => setTrafficView("top")}
               >
-                热门 Top 10
+                热门 Top 30
               </button>
               <button
                 type="button"
@@ -503,7 +503,7 @@ export default function AdminOtherPanel() {
           </div>
         </div>
         <div className={styles.sectionHint}>
-          展示热门 Top 10 、访问与热度趋势（{rangeLabel}）。
+          展示热门 Top 30 、访问与热度趋势（{rangeLabel}）。
         </div>
         <div className={styles.trafficPanel}>
           <div className={styles.trafficPanelBody}>
