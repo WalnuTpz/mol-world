@@ -37,7 +37,7 @@ const viewDescriptions = {
   tags: "管理表情包标签与关联关系。",
   params: "管理随机池、热门数量与缓存参数。",
   logs: "查看上传/审核/删除等操作记录。",
-  other: "管理公告、标签池或全局配置等扩展内容。",
+  other: "管理流量热度、脚本入口与资源维护等运营功能。",
 } as const;
 
 export default async function AdminPage({

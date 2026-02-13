@@ -28,6 +28,9 @@ export default function UploadPage() {
     return true;
   };
 
+  const normalizeTagInput = (value: string) =>
+    value.replace(/[，,、;；]+/g, " ");
+
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null;
     if (file && !isValidFile(file)) {
@@ -290,9 +293,9 @@ export default function UploadPage() {
               <input
                 className={styles.input}
                 type="text"
-                placeholder="给你的 mol 想一些标签"
+                placeholder="给你的 mol 添加一些标签（用空格隔开）"
                 value={tags}
-                onChange={(event) => setTags(event.target.value)}
+                onChange={(event) => setTags(normalizeTagInput(event.target.value))}
               />
             </label>
             <div className={styles.submitRow}>

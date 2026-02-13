@@ -433,7 +433,7 @@ export default function AdminOtherPanel() {
     <section className={styles.panel}>
       <div className={styles.panelTitle}>其他内容</div>
       <div className={styles.panelText}>
-        管理公告、标签池或全局配置等扩展内容。
+        管理流量热度、脚本入口与资源维护等运营功能。
       </div>
       <div className={styles.section}>
         <div className={styles.sectionHeader}>
