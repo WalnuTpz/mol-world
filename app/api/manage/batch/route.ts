@@ -87,12 +87,12 @@ export async function POST(request: Request) {
   if (action === "reset") {
     const result = await prisma.meme.updateMany({
       where: { id: { in: ids } },
-      data: { copies: 0 },
+      data: { copies: 0, downloads: 0 },
     });
     void logAudit({
       action: "manage:batch",
       status: "success",
-      message: "批量清零完成",
+      message: "批量热度清零完成",
       data: { action, count: result.count },
       request,
     });

@@ -5,21 +5,21 @@ import { logAudit } from "@/lib/audit";
 export async function POST(request: Request) {
   try {
     const result = await prisma.meme.updateMany({
-      data: { copies: 0 },
+      data: { copies: 0, downloads: 0 },
     });
     void logAudit({
-      action: "manage:reset-copies",
+      action: "manage:reset-heat",
       status: "success",
-      message: "全站复制次数清零",
+      message: "全站热度清零",
       data: { count: result.count },
       request,
     });
     return successResponse({ count: result.count }, "清零成功");
   } catch (error) {
     void logAudit({
-      action: "manage:reset-copies",
+      action: "manage:reset-heat",
       status: "error",
-      message: "全站复制次数清零失败",
+      message: "全站热度清零失败",
       request,
     });
     const message = error instanceof Error ? error.message : "清零失败";

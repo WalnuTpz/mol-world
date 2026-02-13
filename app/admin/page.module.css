@@ -119,9 +119,16 @@
 .scriptList {
   margin-top: 12px;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(3, minmax(220px, 1fr));
   gap: 12px;
 }
+
+@media (max-width: 980px) {
+  .scriptList {
+    grid-template-columns: repeat(2, minmax(220px, 1fr));
+  }
+}
+
 
 .scriptCard {
   border-radius: 12px;
@@ -243,14 +250,14 @@
   font-weight: 600;
 }
 
-.trafficGrid {
+.resourceGrid {
   margin-top: 12px;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(2, minmax(240px, 1fr));
   gap: 12px;
 }
 
-.trafficCard {
+.resourceCard {
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(0, 0, 0, 0.25);
@@ -258,7 +265,86 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  min-height: 160px;
+}
+
+.trafficControls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.trafficSelect {
+  min-width: 90px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: #0f0f0f;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 12px;
+  outline: none;
+}
+
+.trafficSelect:disabled {
+  opacity: 0.6;
+}
+
+.trafficPanel {
+  margin-top: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.25);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 220px;
+}
+
+.trafficPanelTitle {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.trafficToggleGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.trafficToggle {
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.trafficToggle:hover {
+  border-color: rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.trafficToggleActive {
+  background: #ffffff;
+  color: #111111;
+  border-color: transparent;
+}
+
+.trafficToggleActive:hover {
+  background: #ffffff;
+  color: #111111;
+}
+
+.trafficPanelBody {
+  display: flex;
+  flex: 1;
+  align-items: center;
 }
 
 .trafficCardTitle {

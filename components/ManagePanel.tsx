@@ -306,7 +306,7 @@ export default function ManagePanel({ pageLimit = 12 }: ManagePanelProps) {
         : action === "hide"
           ? "批量隐藏"
           : action === "reset"
-            ? "批量清零"
+            ? "批量热度清零"
             : "批量删除";
     const ok = await confirm(
       `确认${label}选中的 ${selectedCount} 条吗？`,

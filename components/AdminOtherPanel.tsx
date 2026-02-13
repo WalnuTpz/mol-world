@@ -43,15 +43,21 @@ export default function AdminOtherPanel() {
       command: "pnpm tsx prisma/backfill-title-tags.ts",
     },
     {
-      title: "按标题重命名文件",
+      title: "按标题重命名文件（危险）",
       desc: "将素材文件名改为对应标题。",
       command: "pnpm tsx prisma/rename-media-by-title.ts",
       danger: true,
     },
     {
-      title: "修正创建时间",
+      title: "修正创建时间（危险）",
       desc: "按顺序调整 createdAt 时间。",
       command: "pnpm tsx prisma/adjust-created-at.ts",
+      danger: true,
+    },
+    {
+      title: "清理 trash 目录（危险）",
+      desc: "删除 public/trash 内所有文件。",
+      command: "pnpm tsx prisma/cleanup-trash.ts",
       danger: true,
     },
   ];
@@ -72,13 +78,13 @@ export default function AdminOtherPanel() {
       const res = await fetch("/api/admin/resources", { cache: "no-store" });
       const data = (await res.json().catch(() => null)) as
         | {
-            stats?: {
-              missing: { original: number; thumb: number };
-              orphans: { original: number; thumb: number };
-            };
-            error?: string;
-            message?: string;
-          }
+          stats?: {
+            missing: { original: number; thumb: number };
+            orphans: { original: number; thumb: number };
+          };
+          error?: string;
+          message?: string;
+        }
         | null;
       if (!res.ok || !data?.stats) {
         throw new Error(data?.error || data?.message || "检查失败");
@@ -106,14 +112,14 @@ export default function AdminOtherPanel() {
       });
       const data = (await res.json().catch(() => null)) as
         | {
-            removed?: { original: number; thumb: number };
-            stats?: {
-              missing: { original: number; thumb: number };
-              orphans: { original: number; thumb: number };
-            };
-            error?: string;
-            message?: string;
-          }
+          removed?: { original: number; thumb: number };
+          stats?: {
+            missing: { original: number; thumb: number };
+            orphans: { original: number; thumb: number };
+          };
+          error?: string;
+          message?: string;
+        }
         | null;
       if (!res.ok) {
         throw new Error(data?.error || data?.message || "清理失败");
@@ -214,23 +220,23 @@ export default function AdminOtherPanel() {
   };
   const rangeLabel = rangeLabelMap[trafficRange];
 
-  const resetCopies = async () => {
+  const resetHeat = async () => {
     if (resourceLoading) return;
     const ok = await confirm(
-      "确认清零全站复制次数吗？",
-      "该操作会将所有表情包复制次数重置为 0。"
+      "确认清零全站热度吗？",
+      "该操作会将所有表情包热度重置为 0。"
     );
     if (!ok) return;
     setResourceLoading(true);
     try {
-      const res = await fetch("/api/admin/copies/reset", { method: "POST" });
+      const res = await fetch("/api/admin/heat/reset", { method: "POST" });
       const data = (await res.json().catch(() => null)) as
         | { count?: number; error?: string; message?: string }
         | null;
       if (!res.ok) {
         throw new Error(data?.error || data?.message || "清零失败");
       }
-      toast(`已清零复制次数（${data?.count ?? 0}）`, "success");
+      toast(`已清零热度（${data?.count ?? 0}）`, "success");
     } catch (err) {
       const message = err instanceof Error ? err.message : "清零失败";
       toast(message, "error");
@@ -268,9 +274,8 @@ export default function AdminOtherPanel() {
           {scripts.map((script) => (
             <div key={script.title} className={styles.scriptCard}>
               <div
-                className={`${styles.scriptTitle} ${
-                  script.danger ? styles.scriptTitleDanger : ""
-                }`}
+                className={`${styles.scriptTitle} ${script.danger ? styles.scriptTitleDanger : ""
+                  }`}
               >
                 {script.title}
               </div>
@@ -290,44 +295,65 @@ export default function AdminOtherPanel() {
         </div>
       </div>
       <div className={styles.section}>
-        <div className={styles.sectionTitle}>资源检查</div>
-        <div className={styles.sectionHint}>
-          检查缺图与孤儿文件情况，可手动清理孤儿文件。
-        </div>
-        <div className={styles.resourceActions}>
-          <button
-            type="button"
-            className={styles.resourceButton}
-            onClick={loadResources}
-            disabled={resourceLoading}
-          >
-            缺图检查
-          </button>
-          <button
-            type="button"
-            className={`${styles.resourceButton} ${styles.resourceButtonDanger}`}
-            onClick={cleanupOrphans}
-            disabled={resourceLoading}
-          >
-            清理孤儿文件
-          </button>
-        </div>
-        <div className={styles.resourceList}>
-          <div className={styles.resourceRow}>
-            <span className={styles.resourceLabel}>缺图（原图/缩略图）</span>
-            <span className={styles.resourceValue}>
-              {resourceStats
-                ? `${resourceStats.missing.original} / ${resourceStats.missing.thumb}`
-                : "-"}
-            </span>
+        <div className={styles.sectionTitle}>资源与清零</div>
+        <div className={styles.resourceGrid}>
+          <div className={styles.resourceCard}>
+            <div className={styles.sectionTitle}>资源检查</div>
+            <div className={styles.sectionHint}>
+              检查缺图与孤儿文件情况，可手动清理孤儿文件。
+            </div>
+            <div className={styles.resourceActions}>
+              <button
+                type="button"
+                className={styles.resourceButton}
+                onClick={loadResources}
+                disabled={resourceLoading}
+              >
+                缺图检查
+              </button>
+              <button
+                type="button"
+                className={`${styles.resourceButton} ${styles.resourceButtonDanger}`}
+                onClick={cleanupOrphans}
+                disabled={resourceLoading}
+              >
+                清理孤儿文件
+              </button>
+            </div>
+            <div className={styles.resourceList}>
+              <div className={styles.resourceRow}>
+                <span className={styles.resourceLabel}>缺图（原图/缩略图）</span>
+                <span className={styles.resourceValue}>
+                  {resourceStats
+                    ? `${resourceStats.missing.original} / ${resourceStats.missing.thumb}`
+                    : "-"}
+                </span>
+              </div>
+              <div className={styles.resourceRow}>
+                <span className={styles.resourceLabel}>孤儿文件（原图/缩略图）</span>
+                <span className={styles.resourceValue}>
+                  {resourceStats
+                    ? `${resourceStats.orphans.original} / ${resourceStats.orphans.thumb}`
+                    : "-"}
+                </span>
+              </div>
+            </div>
           </div>
-          <div className={styles.resourceRow}>
-            <span className={styles.resourceLabel}>孤儿文件（原图/缩略图）</span>
-            <span className={styles.resourceValue}>
-              {resourceStats
-                ? `${resourceStats.orphans.original} / ${resourceStats.orphans.thumb}`
-                : "-"}
-            </span>
+          <div className={styles.resourceCard}>
+            <div className={styles.sectionTitle}>热度清零</div>
+            <div className={styles.sectionHint}>
+              全站表情包热度统一归零，请谨慎操作。
+            </div>
+            <div className={styles.resourceActions}>
+              <button
+                type="button"
+                className={`${styles.resourceButton} ${styles.resourceButtonDanger}`}
+                onClick={resetHeat}
+                disabled={resourceLoading}
+              >
+                全站热度清零
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -338,27 +364,24 @@ export default function AdminOtherPanel() {
             <div className={styles.trafficToggleGroup}>
               <button
                 type="button"
-                className={`${styles.trafficToggle} ${
-                  trafficView === "top" ? styles.trafficToggleActive : ""
-                }`}
+                className={`${styles.trafficToggle} ${trafficView === "top" ? styles.trafficToggleActive : ""
+                  }`}
                 onClick={() => setTrafficView("top")}
               >
                 热门 Top 10
               </button>
               <button
                 type="button"
-                className={`${styles.trafficToggle} ${
-                  trafficView === "cumulative" ? styles.trafficToggleActive : ""
-                }`}
+                className={`${styles.trafficToggle} ${trafficView === "cumulative" ? styles.trafficToggleActive : ""
+                  }`}
                 onClick={() => setTrafficView("cumulative")}
               >
                 热度总和
               </button>
               <button
                 type="button"
-                className={`${styles.trafficToggle} ${
-                  trafficView === "daily" ? styles.trafficToggleActive : ""
-                }`}
+                className={`${styles.trafficToggle} ${trafficView === "daily" ? styles.trafficToggleActive : ""
+                  }`}
                 onClick={() => setTrafficView("daily")}
               >
                 每日新增
@@ -446,22 +469,6 @@ export default function AdminOtherPanel() {
               <div className={styles.trafficEmpty}>暂无数据</div>
             )}
           </div>
-        </div>
-      </div>
-      <div className={styles.section}>
-        <div className={styles.sectionTitle}>复制次数清零</div>
-        <div className={styles.sectionHint}>
-          全站表情包复制次数统一归零，请谨慎操作。
-        </div>
-        <div className={styles.resourceActions}>
-          <button
-            type="button"
-            className={`${styles.resourceButton} ${styles.resourceButtonDanger}`}
-            onClick={resetCopies}
-            disabled={resourceLoading}
-          >
-            全站复制次数清零
-          </button>
         </div>
       </div>
       <div className={styles.panelActions}>
