@@ -11,6 +11,8 @@ type Payload = {
   action?: "publish" | "hide" | "delete" | "reset";
 };
 
+const MAX_BATCH = 50;
+
 const resolveDeletePath = (url: string) => {
   const normalized = url.trim();
   if (normalized.startsWith("/memes/original/")) {
@@ -70,58 +72,74 @@ export async function POST(request: Request) {
     return errorResponse("请求参数不合法", 400, "INVALID_FIELDS");
   }
   const ids = Array.isArray(body?.ids) ? body?.ids.filter(Boolean) : [];
+  const uniqueIds = Array.from(new Set(ids));
   const action = body?.action;
 
-  if (!action || ids.length === 0) {
+  if (!action || uniqueIds.length === 0) {
     return errorResponse("请求参数不完整", 400, "MISSING_PARAMS");
   }
   if (!["publish", "hide", "delete", "reset"].includes(action)) {
     return errorResponse("操作不合法", 400, "INVALID_ACTION");
   }
-  if (ids.length > 200) {
-    return errorResponse("批量数量过多", 400, "TOO_MANY_IDS");
+  if (uniqueIds.length > MAX_BATCH) {
+    return errorResponse(
+      `批量数量过多（最多${MAX_BATCH}条）`,
+      400,
+      "TOO_MANY_IDS"
+    );
   }
+  const total = uniqueIds.length;
 
   if (action === "publish" || action === "hide") {
     const status = action === "publish" ? "PUBLISHED" : "HIDDEN";
     const result = await prisma.meme.updateMany({
       where: {
-        id: { in: ids },
+        id: { in: uniqueIds },
         status: { in: ["PUBLISHED", "HIDDEN"] as const },
       },
       data: { status },
     });
+    const success = result.count;
+    const failed = total - success;
     void logAudit({
       action: "manage:batch",
       status: "success",
       message: `${status === "PUBLISHED" ? "批量发布" : "批量隐藏"}完成`,
-      data: { action, count: result.count },
+      data: { action, success, failed, total },
       request,
     });
-    return successResponse({ count: result.count }, "批量更新成功");
+    return successResponse(
+      { success, failed, total, count: success },
+      "批量更新成功"
+    );
   }
 
   if (action === "reset") {
     const result = await prisma.meme.updateMany({
       where: {
-        id: { in: ids },
+        id: { in: uniqueIds },
         status: { in: ["PUBLISHED", "HIDDEN"] as const },
       },
       data: { copies: 0, downloads: 0 },
     });
+    const success = result.count;
+    const failed = total - success;
     void logAudit({
       action: "manage:batch",
       status: "success",
       message: "批量热度清零完成",
-      data: { action, count: result.count },
+      data: { action, success, failed, total },
       request,
     });
-    return successResponse({ count: result.count }, "批量清零成功");
+    return successResponse(
+      { success, failed, total, count: success },
+      "批量清零成功"
+    );
   }
 
   let deleted = 0;
   const failed: string[] = [];
-  for (const id of ids) {
+  for (const id of uniqueIds) {
     const current = await prisma.meme.findUnique({
       where: { id },
       select: {
@@ -185,7 +203,13 @@ export async function POST(request: Request) {
   }
 
   return successResponse(
-    { count: deleted, failed },
+    {
+      success: deleted,
+      failed: failed.length,
+      total,
+      failedIds: failed,
+      count: deleted,
+    },
     failed.length ? "部分删除失败" : "删除成功"
   );
 }

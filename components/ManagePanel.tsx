@@ -330,10 +330,16 @@ export default function ManagePanel({ pageLimit = 12 }: ManagePanelProps) {
         throw new Error(data?.error || data?.message || "批量操作失败");
       }
       const data = (await res.json().catch(() => null)) as
-        | { count?: number; failed?: string[] }
+        | {
+            success?: number;
+            failed?: number;
+            failedIds?: string[];
+            count?: number;
+          }
         | null;
-      const successCount = data?.count ?? 0;
-      const failedCount = data?.failed?.length ?? 0;
+      const successCount = data?.success ?? data?.count ?? 0;
+      const failedCount =
+        data?.failed ?? data?.failedIds?.length ?? 0;
       if (failedCount > 0) {
         toast(`成功 ${successCount} / 失败 ${failedCount}`, "error");
       } else {

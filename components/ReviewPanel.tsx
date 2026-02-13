@@ -29,6 +29,8 @@ type ReviewPanelProps = {
   pageLimit?: number;
 };
 
+const MAX_BATCH = 50;
+
 export default function ReviewPanel({ pageLimit = 12 }: ReviewPanelProps) {
   const [items, setItems] = useState<ReviewItem[]>([]);
   const [drafts, setDrafts] = useState<Record<string, DraftState>>({});
@@ -221,6 +223,10 @@ export default function ReviewPanel({ pageLimit = 12 }: ReviewPanelProps) {
 
   const batchAction = async (action: "save" | "publish" | "delete") => {
     if (batching || selectedCount === 0) return;
+    if (selectedCount > MAX_BATCH) {
+      toast(`批量数量过多（最多${MAX_BATCH}条）`, "error");
+      return;
+    }
     const label =
       action === "save"
         ? "批量保存"
