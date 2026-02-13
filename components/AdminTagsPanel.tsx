@@ -13,7 +13,9 @@ type TagItem = {
   count: number;
 };
 
-type SortMode = "count_desc" | "name_asc";
+type SortMode = "count_desc" | "count_asc" | "name_asc" | "name_desc";
+type SortField = "count" | "name";
+type SortOrder = "desc" | "asc";
 
 export default function AdminTagsPanel() {
   const confirm = useToastConfirm();
@@ -32,7 +34,8 @@ export default function AdminTagsPanel() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [jumpValue, setJumpValue] = useState("1");
-  const [sort, setSort] = useState<SortMode>("count_desc");
+  const [sortField, setSortField] = useState<SortField>("count");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
   const limit = 20;
 
   const loadList = async (targetPage: number, targetQuery: string, mode: SortMode) => {
@@ -56,7 +59,8 @@ export default function AdminTagsPanel() {
     let cancelled = false;
     setLoading(true);
     setError("");
-    loadList(page, query, sort)
+    const mode = `${sortField}_${sortOrder}` as SortMode;
+    loadList(page, query, mode)
       .then((data) => {
         if (cancelled) return;
         setItems(data.items);
@@ -74,11 +78,11 @@ export default function AdminTagsPanel() {
     return () => {
       cancelled = true;
     };
-  }, [page, query, sort, toast]);
+  }, [page, query, sortField, sortOrder, toast]);
 
   useEffect(() => {
     setPage(1);
-  }, [query, sort]);
+  }, [query, sortField, sortOrder]);
 
   useEffect(() => {
     setJumpValue(String(page));
@@ -176,7 +180,7 @@ export default function AdminTagsPanel() {
       toast(`${data.message || "已合并"}${mergedText}`, "success");
       setMergeFrom("");
       setMergeTo("");
-      const list = await loadList(page, query, sort);
+      const list = await loadList(page, query, `${sortField}_${sortOrder}` as SortMode);
       setItems(list.items);
       setTotal(list.total);
     } catch (err) {
@@ -212,7 +216,7 @@ export default function AdminTagsPanel() {
       }
       const data = (await res.json()) as { message?: string };
       toast(data.message || "已删除", "success");
-      const list = await loadList(page, query, sort);
+      const list = await loadList(page, query, `${sortField}_${sortOrder}` as SortMode);
       if (list.items.length === 0 && page > 1) {
         setPage(page - 1);
         return;
@@ -304,17 +308,19 @@ export default function AdminTagsPanel() {
             type="button"
             className={styles.actionGhost}
             onClick={() =>
-              setSort((prev) => (prev === "count_desc" ? "name_asc" : "count_desc"))
+              setSortField((prev) => (prev === "count" ? "name" : "count"))
             }
           >
-            {sort === "count_desc" ? "按数量" : "按名称"}
+            {sortField === "count" ? "按数量" : "按名称"}
           </button>
           <button
             type="button"
             className={styles.actionGhost}
-            onClick={() => setSort((prev) => (prev === "name_asc" ? "count_desc" : "name_asc"))}
+            onClick={() =>
+              setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))
+            }
           >
-            {sort === "count_desc" ? "降序" : "升序"}
+            {sortOrder === "asc" ? "升序" : "降序"}
           </button>
         </div>
       </div>

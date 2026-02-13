@@ -8,10 +8,15 @@ function parseIntParam(value: string | null, fallback: number) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
-type SortMode = "count_desc" | "count_asc" | "name_asc";
+type SortMode = "count_desc" | "count_asc" | "name_asc" | "name_desc";
 
 const resolveSort = (value: string | null): SortMode => {
-  if (value === "count_asc" || value === "name_asc" || value === "count_desc") {
+  if (
+    value === "count_asc" ||
+    value === "count_desc" ||
+    value === "name_asc" ||
+    value === "name_desc"
+  ) {
     return value;
   }
   return "count_desc";
@@ -29,9 +34,11 @@ export async function GET(request: Request) {
   const orderBy =
     sort === "name_asc"
       ? { name: "asc" as const }
-      : {
-          memes: { _count: sort === "count_asc" ? ("asc" as const) : "desc" },
-        };
+      : sort === "name_desc"
+        ? { name: "desc" as const }
+        : {
+            memes: { _count: sort === "count_asc" ? ("asc" as const) : "desc" },
+          };
 
   const [items, total] = await Promise.all([
     prisma.tag.findMany({
