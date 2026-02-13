@@ -41,6 +41,7 @@ export async function GET(request: Request) {
       orderBy,
       select: {
         id: true,
+        numId: true,
         name: true,
         _count: { select: { memes: true } },
       },
@@ -50,6 +51,7 @@ export async function GET(request: Request) {
 
   const normalized = items.map((item) => ({
     id: item.id,
+    numId: item.numId,
     name: item.name,
     count: item._count.memes,
   }));

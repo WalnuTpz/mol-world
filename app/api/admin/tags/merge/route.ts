@@ -8,9 +8,16 @@ type Payload = {
 };
 
 const resolveTagByIdOrName = async (value: string) => {
+  if (/^\d+$/.test(value)) {
+    const byNum = await prisma.tag.findUnique({
+      where: { numId: Number(value) },
+      select: { id: true, name: true, numId: true },
+    });
+    if (byNum) return byNum;
+  }
   const byId = await prisma.tag.findUnique({
     where: { id: value },
-    select: { id: true, name: true },
+    select: { id: true, name: true, numId: true },
   });
   if (byId) return byId;
   const normalized = normalizeTagInput(value);
@@ -20,7 +27,7 @@ const resolveTagByIdOrName = async (value: string) => {
   const name = normalized[0];
   const byName = await prisma.tag.findUnique({
     where: { name },
-    select: { id: true, name: true },
+    select: { id: true, name: true, numId: true },
   });
   return byName ?? null;
 };
@@ -81,8 +88,18 @@ export async function POST(request: Request) {
       merged: links.length,
       added: createResult.count,
       item: updated
-        ? { id: updated.id, name: updated.name, count: updated._count.memes }
-        : { id: toResolved.id, name: toResolved.name, count: 0 },
+        ? {
+            id: updated.id,
+            numId: updated.numId,
+            name: updated.name,
+            count: updated._count.memes,
+          }
+        : {
+            id: toResolved.id,
+            numId: toResolved.numId,
+            name: toResolved.name,
+            count: 0,
+          },
     };
   });
 

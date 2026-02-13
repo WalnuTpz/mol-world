@@ -8,6 +8,7 @@ import { useToast, useToastConfirm } from "@/components/ToastProvider";
 
 type TagItem = {
   id: string;
+  numId: number;
   name: string;
   count: number;
 };
@@ -225,7 +226,7 @@ export default function AdminTagsPanel() {
       <div className={styles.headerRow}>
         <div className={styles.headerBlock}>
           <h1 className={styles.title}>管理标签</h1>
-          <div className={styles.subtitle}>查看与管理所有标签的状态</div>
+          <div className={styles.subtitle}>管理标签</div>
         </div>
         <div className={styles.searchBox}>
           <input
@@ -262,7 +263,7 @@ export default function AdminTagsPanel() {
         <input
           className={styles.mergeInput}
           type="text"
-          placeholder="合并来源（标签名或ID）"
+          placeholder="合并来源（标签名或编号）"
           value={mergeFrom}
           onChange={(event) => setMergeFrom(event.target.value)}
         />
@@ -270,7 +271,7 @@ export default function AdminTagsPanel() {
         <input
           className={styles.mergeInput}
           type="text"
-          placeholder="合并目标（标签名或ID）"
+          placeholder="合并目标（标签名或编号）"
           value={mergeTo}
           onChange={(event) => setMergeTo(event.target.value)}
         />
@@ -286,6 +287,7 @@ export default function AdminTagsPanel() {
       <div className={styles.list}>
         <div className={`${styles.row} ${styles.rowHeader}`}>
           <div className={styles.cell}>标签</div>
+          <div className={styles.cell}>编号</div>
           <div className={styles.cell}>关联数量</div>
           <div className={styles.cell}>操作</div>
         </div>
@@ -303,6 +305,7 @@ export default function AdminTagsPanel() {
                   item.name
                 )}
               </div>
+              <div className={styles.cell}>{item.numId}</div>
               <div className={styles.cell}>{item.count}</div>
               <div className={styles.cell}>
                 {editingId === item.id ? (
