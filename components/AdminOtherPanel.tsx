@@ -1,11 +1,18 @@
 "use client";
 
 import styles from "@/app/admin/page.module.css";
+import { useState } from "react";
+
 import { useToast, useToastConfirm } from "@/components/ToastProvider";
 
 export default function AdminOtherPanel() {
   const toast = useToast();
   const confirm = useToastConfirm();
+  const [resourceLoading, setResourceLoading] = useState(false);
+  const [resourceStats, setResourceStats] = useState<{
+    missing: { original: number; thumb: number };
+    orphans: { original: number; thumb: number };
+  } | null>(null);
 
   const scripts = [
     {
@@ -49,6 +56,78 @@ export default function AdminOtherPanel() {
       toast("已复制命令", "success");
     } catch {
       toast("复制失败，请手动复制", "error");
+    }
+  };
+
+  const loadResources = async () => {
+    if (resourceLoading) return;
+    setResourceLoading(true);
+    try {
+      const res = await fetch("/api/admin/resources", { cache: "no-store" });
+      const data = (await res.json().catch(() => null)) as
+        | {
+            stats?: {
+              missing: { original: number; thumb: number };
+              orphans: { original: number; thumb: number };
+            };
+            error?: string;
+            message?: string;
+          }
+        | null;
+      if (!res.ok || !data?.stats) {
+        throw new Error(data?.error || data?.message || "检查失败");
+      }
+      setResourceStats(data.stats);
+      toast("资源检查完成", "success");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "检查失败";
+      toast(message, "error");
+    } finally {
+      setResourceLoading(false);
+    }
+  };
+
+  const cleanupOrphans = async () => {
+    if (resourceLoading) return;
+    const ok = await confirm("确认清理孤儿文件吗？", "仅清理 original/thumb 目录中的孤儿文件。");
+    if (!ok) return;
+    setResourceLoading(true);
+    try {
+      const res = await fetch("/api/admin/resources", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "cleanup" }),
+      });
+      const data = (await res.json().catch(() => null)) as
+        | {
+            removed?: { original: number; thumb: number };
+            stats?: {
+              missing: { original: number; thumb: number };
+              orphans: { original: number; thumb: number };
+            };
+            error?: string;
+            message?: string;
+          }
+        | null;
+      if (!res.ok) {
+        throw new Error(data?.error || data?.message || "清理失败");
+      }
+      if (data?.stats) {
+        setResourceStats(data.stats);
+      }
+      if (data?.removed) {
+        toast(
+          `已清理孤儿文件（原图 ${data.removed.original} / 缩略图 ${data.removed.thumb}）`,
+          "success"
+        );
+      } else {
+        toast("已清理孤儿文件", "success");
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "清理失败";
+      toast(message, "error");
+    } finally {
+      setResourceLoading(false);
     }
   };
 
@@ -100,6 +179,48 @@ export default function AdminOtherPanel() {
               </div>
             </div>
           ))}
+        </div>
+      </div>
+      <div className={styles.section}>
+        <div className={styles.sectionTitle}>资源检查</div>
+        <div className={styles.sectionHint}>
+          检查缺图与孤儿文件情况，可手动清理孤儿文件。
+        </div>
+        <div className={styles.resourceActions}>
+          <button
+            type="button"
+            className={styles.resourceButton}
+            onClick={loadResources}
+            disabled={resourceLoading}
+          >
+            缺图检查
+          </button>
+          <button
+            type="button"
+            className={`${styles.resourceButton} ${styles.resourceButtonDanger}`}
+            onClick={cleanupOrphans}
+            disabled={resourceLoading}
+          >
+            清理孤儿文件
+          </button>
+        </div>
+        <div className={styles.resourceList}>
+          <div className={styles.resourceRow}>
+            <span className={styles.resourceLabel}>缺图（原图/缩略图）</span>
+            <span className={styles.resourceValue}>
+              {resourceStats
+                ? `${resourceStats.missing.original} / ${resourceStats.missing.thumb}`
+                : "-"}
+            </span>
+          </div>
+          <div className={styles.resourceRow}>
+            <span className={styles.resourceLabel}>孤儿文件（原图/缩略图）</span>
+            <span className={styles.resourceValue}>
+              {resourceStats
+                ? `${resourceStats.orphans.original} / ${resourceStats.orphans.thumb}`
+                : "-"}
+            </span>
+          </div>
         </div>
       </div>
       <div className={styles.panelActions}>
