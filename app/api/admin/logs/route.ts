@@ -75,15 +75,15 @@ export async function POST(request: Request) {
   const range = body?.range ?? "";
   const now = Date.now();
   const since =
-    range === "1d"
-      ? new Date(now - 24 * 60 * 60 * 1000)
+    range === "3d"
+      ? new Date(now - 3 * 24 * 60 * 60 * 1000)
       : range === "7d"
         ? new Date(now - 7 * 24 * 60 * 60 * 1000)
         : range === "30d"
           ? new Date(now - 30 * 24 * 60 * 60 * 1000)
           : null;
 
-  if (!["1d", "7d", "30d", "all"].includes(range)) {
+  if (!["3d", "7d", "30d", "all"].includes(range)) {
     return errorResponse("无效的删除范围", 400, "INVALID_RANGE");
   }
 

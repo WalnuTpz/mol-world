@@ -1,0 +1,7 @@
+-- CreateTable
+CREATE TABLE "SiteDailyStat" (
+    "day" TEXT NOT NULL PRIMARY KEY,
+    "visits" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL
+);

@@ -146,6 +146,12 @@ export default async function Home({
   const authed = isAdminSessionValid(
     cookieStore.get(getAdminSessionCookieName())?.value
   );
+  const today = getDayKey();
+  await prisma.siteDailyStat.upsert({
+    where: { day: today },
+    create: { day: today, visits: 1 },
+    update: { visits: { increment: 1 } },
+  });
   const config = await getAppConfig();
   const tagRules = getTagRulesFromConfig(config);
   const resolvedParams =

@@ -1,7 +1,8 @@
 "use client";
 
 import styles from "@/app/admin/page.module.css";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import Chart from "chart.js/auto";
 
 import { useToast, useToastConfirm } from "@/components/ToastProvider";
 import { formatCount } from "@/lib/format";
@@ -15,15 +16,15 @@ export default function AdminOtherPanel() {
     orphans: { original: number; thumb: number };
   } | null>(null);
   const [trafficLoading, setTrafficLoading] = useState(false);
-  const [trafficRange, setTrafficRange] = useState<"1d" | "7d" | "30d" | "all">(
+  const [trafficRange, setTrafficRange] = useState<"3d" | "7d" | "30d" | "all">(
     "7d"
   );
   const [trafficView, setTrafficView] = useState<
-    "top" | "cumulative" | "daily"
+    "visits" | "top" | "cumulative" | "daily"
   >("top");
   const [trafficData, setTrafficData] = useState<{
     top: { id: string; title: string | null; type: string; thumbUrl: string; heat: number }[];
-    daily: { day: string; heat: number; cumulative: number }[];
+    daily: { day: string; heat: number; cumulative: number; visits: number }[];
   } | null>(null);
 
   const scripts = [
@@ -159,7 +160,7 @@ export default function AdminOtherPanel() {
             thumbUrl: string;
             heat: number;
           }[];
-          daily?: { day: string; heat: number; cumulative: number }[];
+          daily?: { day: string; heat: number; cumulative: number; visits: number }[];
           error?: string;
           message?: string;
         }
@@ -184,41 +185,124 @@ export default function AdminOtherPanel() {
     () => trafficData?.daily.map((item) => item.heat) ?? [],
     [trafficData]
   );
+  const visitSeries = useMemo(
+    () => trafficData?.daily.map((item) => item.visits) ?? [],
+    [trafficData]
+  );
   const cumulativeHeat = useMemo(
     () => trafficData?.daily.map((item) => item.cumulative) ?? [],
     [trafficData]
   );
 
-  const buildSparkline = (values: number[]) => {
-    if (values.length === 0) return "";
-    const max = Math.max(...values, 1);
-    const min = Math.min(...values, 0);
-    const range = Math.max(1, max - min);
-    const width = 320;
-    const height = 90;
-    const step = values.length > 1 ? width / (values.length - 1) : width;
-    return values
-      .map((value, index) => {
-        const x = index * step;
-        const y = height - ((value - min) / range) * height;
-        return `${x.toFixed(2)},${y.toFixed(2)}`;
-      })
-      .join(" ");
-  };
-
-  const dailyPoints = useMemo(() => buildSparkline(dailyHeat), [dailyHeat]);
-  const cumulativePoints = useMemo(
-    () => buildSparkline(cumulativeHeat),
-    [cumulativeHeat]
-  );
-
   const rangeLabelMap: Record<typeof trafficRange, string> = {
-    "1d": "最近1天",
+    "3d": "最近3天",
     "7d": "最近7天",
     "30d": "最近30天",
     all: "全部",
   };
   const rangeLabel = rangeLabelMap[trafficRange];
+  const dayLabels = useMemo(
+    () => trafficData?.daily.map((item) => item.day) ?? [],
+    [trafficData]
+  );
+
+  const formatDayLabel = (value: string) => {
+    if (!value) return "";
+    return value.length >= 5 ? value.slice(5) : value;
+  };
+
+  const TrafficLineChart = ({
+    labels,
+    data,
+    ariaLabel,
+  }: {
+    labels: string[];
+    data: number[];
+    ariaLabel: string;
+  }) => {
+    const canvasRef = useRef<HTMLCanvasElement | null>(null);
+    const safeLabels = labels.map(formatDayLabel);
+    const safeData =
+      safeLabels.length === data.length
+        ? data
+        : data.slice(0, safeLabels.length);
+    useEffect(() => {
+      if (!canvasRef.current) return;
+      const ctx = canvasRef.current.getContext("2d");
+      if (!ctx) return;
+      const chart = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: safeLabels,
+          datasets: [
+            {
+              data: safeData,
+              borderColor: "rgba(255, 255, 255, 0.9)",
+              backgroundColor: "rgba(255, 255, 255, 0.08)",
+              borderWidth: 2,
+              pointRadius: 2,
+              pointHoverRadius: 4,
+              tension: 0.35,
+              fill: true,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              enabled: true,
+              backgroundColor: "rgba(20, 20, 20, 0.9)",
+              borderColor: "rgba(255, 255, 255, 0.12)",
+              borderWidth: 1,
+              titleColor: "#fff",
+              bodyColor: "#fff",
+              displayColors: false,
+            },
+          },
+          interaction: {
+            mode: "index",
+            intersect: false,
+          },
+          scales: {
+            x: {
+              ticks: {
+                color: "rgba(255, 255, 255, 0.6)",
+                maxTicksLimit: 6,
+              },
+              grid: {
+                color: "rgba(255, 255, 255, 0.08)",
+              },
+            },
+            y: {
+              ticks: {
+                color: "rgba(255, 255, 255, 0.6)",
+                callback: (value) =>
+                  formatCount(Number(value)),
+              },
+              grid: {
+                color: "rgba(255, 255, 255, 0.08)",
+              },
+            },
+          },
+        },
+      });
+      return () => chart.destroy();
+    }, [safeLabels.join("|"), safeData.join("|")]);
+
+    return (
+      <div className={styles.trafficChartBox}>
+        <canvas
+          ref={canvasRef}
+          className={styles.trafficChartCanvas}
+          aria-label={ariaLabel}
+          role="img"
+        />
+      </div>
+    );
+  };
 
   const resetHeat = async () => {
     if (resourceLoading) return;
@@ -342,7 +426,7 @@ export default function AdminOtherPanel() {
           <div className={styles.resourceCard}>
             <div className={styles.sectionTitle}>热度清零</div>
             <div className={styles.sectionHint}>
-              全站表情包热度统一归零，请谨慎操作。
+              全部表情包热度统一归零，请谨慎操作。
             </div>
             <div className={styles.resourceActions}>
               <button
@@ -372,6 +456,14 @@ export default function AdminOtherPanel() {
               </button>
               <button
                 type="button"
+                className={`${styles.trafficToggle} ${trafficView === "visits" ? styles.trafficToggleActive : ""
+                  }`}
+                onClick={() => setTrafficView("visits")}
+              >
+                访问趋势
+              </button>
+              <button
+                type="button"
                 className={`${styles.trafficToggle} ${trafficView === "cumulative" ? styles.trafficToggleActive : ""
                   }`}
                 onClick={() => setTrafficView("cumulative")}
@@ -395,7 +487,7 @@ export default function AdminOtherPanel() {
               }
               disabled={trafficLoading}
             >
-              <option value="1d">最近1天</option>
+              <option value="3d">最近3天</option>
               <option value="7d">最近7天</option>
               <option value="30d">最近30天</option>
               <option value="all">全部</option>
@@ -411,11 +503,21 @@ export default function AdminOtherPanel() {
           </div>
         </div>
         <div className={styles.sectionHint}>
-          展示热门 Top 10 与热度趋势（{rangeLabel}）。
+          展示热门 Top 10 、访问与热度趋势（{rangeLabel}）。
         </div>
         <div className={styles.trafficPanel}>
           <div className={styles.trafficPanelBody}>
-            {trafficView === "top" ? (
+            {trafficView === "visits" ? (
+              visitSeries.length ? (
+                <TrafficLineChart
+                  labels={dayLabels}
+                  data={visitSeries}
+                  ariaLabel="访问趋势"
+                />
+              ) : (
+                <div className={styles.trafficEmpty}>暂无数据</div>
+              )
+            ) : trafficView === "top" ? (
               trafficData?.top?.length ? (
                 <ol className={styles.trafficList}>
                   {trafficData.top.map((item, index) => (
@@ -434,37 +536,21 @@ export default function AdminOtherPanel() {
                 <div className={styles.trafficEmpty}>暂无数据</div>
               )
             ) : trafficView === "cumulative" ? (
-              cumulativePoints ? (
-                <svg
-                  className={styles.trafficChart}
-                  viewBox="0 0 320 90"
-                  role="img"
-                  aria-label="热度总和曲线"
-                >
-                  <polyline
-                    points={cumulativePoints}
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  />
-                </svg>
+              cumulativeHeat.length ? (
+                <TrafficLineChart
+                  labels={dayLabels}
+                  data={cumulativeHeat}
+                  ariaLabel="热度总和曲线"
+                />
               ) : (
                 <div className={styles.trafficEmpty}>暂无数据</div>
               )
-            ) : dailyPoints ? (
-              <svg
-                className={styles.trafficChart}
-                viewBox="0 0 320 90"
-                role="img"
-                aria-label="每日新增热度"
-              >
-                <polyline
-                  points={dailyPoints}
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                />
-              </svg>
+            ) : dailyHeat.length ? (
+              <TrafficLineChart
+                labels={dayLabels}
+                data={dailyHeat}
+                ariaLabel="每日新增热度"
+              />
             ) : (
               <div className={styles.trafficEmpty}>暂无数据</div>
             )}

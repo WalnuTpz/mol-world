@@ -38,7 +38,7 @@ export default function LogPanel({ pageLimit = 20 }: LogPanelProps) {
   const [total, setTotal] = useState(0);
   const [jumpValue, setJumpValue] = useState("1");
   const [clearing, setClearing] = useState(false);
-  const [range, setRange] = useState<"1d" | "7d" | "30d" | "all">("7d");
+  const [range, setRange] = useState<"3d" | "7d" | "30d" | "all">("7d");
   const [exporting, setExporting] = useState(false);
   const toast = useToast();
   const confirm = useToastConfirm();
@@ -120,7 +120,7 @@ export default function LogPanel({ pageLimit = 20 }: LogPanelProps) {
     setPage(clamped);
   };
 
-  const clearLogs = async (range: "1d" | "7d" | "30d" | "all", label: string) => {
+  const clearLogs = async (range: "3d" | "7d" | "30d" | "all", label: string) => {
     if (clearing) return;
     const ok = await confirm(`确认删除${label}日志吗？`, "此操作不可撤销。");
     if (!ok) return;
@@ -154,7 +154,7 @@ export default function LogPanel({ pageLimit = 20 }: LogPanelProps) {
   };
 
   const rangeLabels: Record<typeof range, string> = {
-    "1d": "最近1天",
+    "3d": "最近3天",
     "7d": "最近7天",
     "30d": "最近30天",
     all: "全部",
@@ -219,7 +219,7 @@ export default function LogPanel({ pageLimit = 20 }: LogPanelProps) {
               onChange={(event) => setRange(event.target.value as typeof range)}
               disabled={clearing || exporting}
             >
-              <option value="1d">最近1天</option>
+              <option value="3d">最近3天</option>
               <option value="7d">最近7天</option>
               <option value="30d">最近30天</option>
               <option value="all">全部</option>

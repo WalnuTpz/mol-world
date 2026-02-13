@@ -63,6 +63,13 @@ model MemeDailyStat {
   @@index([memeId])
 }
 
+model SiteDailyStat {
+  day       String   @id
+  visits    Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model DailyPool {
   id         String          @id @default(cuid())
   day        String

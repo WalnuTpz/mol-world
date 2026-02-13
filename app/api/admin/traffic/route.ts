@@ -18,8 +18,8 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const range = searchParams.get("range") ?? "30d";
     const rangeDays =
-      range === "1d" ? 1 : range === "7d" ? 7 : range === "30d" ? 30 : null;
-    if (!["1d", "7d", "30d", "all"].includes(range)) {
+      range === "3d" ? 3 : range === "7d" ? 7 : range === "30d" ? 30 : null;
+    if (!["3d", "7d", "30d", "all"].includes(range)) {
       return errorResponse("无效的时间范围", 400, "INVALID_RANGE");
     }
 
@@ -34,16 +34,24 @@ export async function GET(request: Request) {
         downloads: true,
       },
     });
+    const visitStats = await prisma.siteDailyStat.findMany({
+      where: rangeDays ? { day: { in: dayKeys } } : undefined,
+      select: { day: true, visits: true },
+    });
 
     if (!rangeDays) {
       const unique = new Set<string>();
       for (const row of stats) {
         unique.add(row.day);
       }
+      for (const row of visitStats) {
+        unique.add(row.day);
+      }
       dayKeys = Array.from(unique).sort();
     }
 
     const dailyTotals = new Map<string, number>();
+    const visitTotals = new Map<string, number>();
     const topMap = new Map<string, number>();
     const dayKeySet = rangeDays ? new Set(dayKeys) : null;
 
@@ -55,12 +63,21 @@ export async function GET(request: Request) {
       }
     }
 
+    for (const row of visitStats) {
+      visitTotals.set(row.day, row.visits);
+    }
+
     const daily = [];
     let cumulative = 0;
     for (const day of dayKeys) {
       const heat = dailyTotals.get(day) ?? 0;
       cumulative += heat;
-      daily.push({ day, heat, cumulative });
+      daily.push({
+        day,
+        heat,
+        cumulative,
+        visits: visitTotals.get(day) ?? 0,
+      });
     }
 
     const topIds = Array.from(topMap.entries())

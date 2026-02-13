@@ -19,7 +19,7 @@ const formatTime = (value: Date) =>
 
 const resolveSince = (range: string) => {
   const now = Date.now();
-  if (range === "1d") return new Date(now - 24 * 60 * 60 * 1000);
+  if (range === "3d") return new Date(now - 3 * 24 * 60 * 60 * 1000);
   if (range === "7d") return new Date(now - 7 * 24 * 60 * 60 * 1000);
   if (range === "30d") return new Date(now - 30 * 24 * 60 * 60 * 1000);
   return null;
@@ -32,7 +32,7 @@ export async function GET(request: Request) {
   const range = searchParams.get("range") ?? "7d";
   const q = (searchParams.get("q") ?? "").trim();
 
-  if (!["1d", "7d", "30d", "all"].includes(range)) {
+  if (!["3d", "7d", "30d", "all"].includes(range)) {
     return errorResponse("无效的导出范围", 400, "INVALID_RANGE");
   }
 
