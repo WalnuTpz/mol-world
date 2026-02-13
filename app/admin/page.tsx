@@ -12,6 +12,7 @@ import AdminTagsPanel from "@/components/AdminTagsPanel";
 import AdminParamsPanel from "@/components/AdminParamsPanel";
 import AdminLoginTrigger from "@/components/AdminLoginTrigger";
 import { getAdminSessionCookieName, isAdminSessionValid } from "@/lib/adminSession";
+import { getAppConfig } from "@/lib/appConfig";
 
 type SearchParams = {
   view?: string | string[];
@@ -62,6 +63,7 @@ export default async function AdminPage({
   if (!authed) {
     redirect("/");
   }
+  const config = await getAppConfig();
 
   return (
     <div className={`${baseStyles.page} ${baseStyles.pageWithPagination}`}>
@@ -137,15 +139,15 @@ export default async function AdminPage({
 
       <main className={baseStyles.content}>
         {view === "review" ? (
-          <ReviewPanel />
+          <ReviewPanel pageLimit={config.reviewPageLimit} />
         ) : view === "manage" ? (
-          <ManagePanel />
+          <ManagePanel pageLimit={config.managePageLimit} />
         ) : view === "tags" ? (
-          <AdminTagsPanel />
+          <AdminTagsPanel pageLimit={config.tagPageLimit} />
         ) : view === "params" ? (
           <AdminParamsPanel />
         ) : view === "logs" ? (
-          <LogPanel />
+          <LogPanel pageLimit={config.logPageLimit} />
         ) : (
           <AdminOtherPanel />
         )}

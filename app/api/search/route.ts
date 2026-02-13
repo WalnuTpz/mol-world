@@ -1,10 +1,7 @@
-import { NextResponse } from "next/server";
-
 import { prisma } from "@/lib/db";
 import { successResponse } from "@/lib/api";
 import { normalizeSearchTokens, sortTags } from "@/lib/tags";
-
-export const revalidate = 30;
+import { buildCacheControl, getAppConfig, getTagRulesFromConfig } from "@/lib/appConfig";
 
 function parseIntParam(value: string | null, fallback: number) {
   const parsed = Number.parseInt(value ?? "", 10);
@@ -12,10 +9,12 @@ function parseIntParam(value: string | null, fallback: number) {
 }
 
 export async function GET(request: Request) {
+  const config = await getAppConfig();
+  const tagRules = getTagRulesFromConfig(config);
   const { searchParams } = new URL(request.url);
   const q = (searchParams.get("q") ?? "").trim();
   const page = parseIntParam(searchParams.get("page"), 1);
-  const limit = parseIntParam(searchParams.get("limit"), 40);
+  const limit = parseIntParam(searchParams.get("limit"), config.listLimit);
   const skip = (page - 1) * limit;
 
   if (!q) {
@@ -25,7 +24,7 @@ export async function GET(request: Request) {
     );
   }
 
-  const tokens = normalizeSearchTokens(q);
+  const tokens = normalizeSearchTokens(q, tagRules);
   const where = tokens.length
     ? {
         status: "PUBLISHED" as const,
@@ -72,6 +71,8 @@ export async function GET(request: Request) {
 
   return successResponse(
     { items: normalized, page, limit, total, q },
-    "查询成功"
+    "查询成功",
+    200,
+    { "Cache-Control": buildCacheControl(config.cacheSearchSeconds) }
   );
 }

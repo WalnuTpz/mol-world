@@ -1,13 +1,17 @@
 import { prisma } from "@/lib/db";
 import { errorResponse, successResponse } from "@/lib/api";
 import { normalizeTagInput } from "@/lib/tags";
+import { getAppConfig, getTagRulesFromConfig } from "@/lib/appConfig";
 
 type Payload = {
   from?: string;
   to?: string;
 };
 
-const resolveTagByIdOrName = async (value: string) => {
+const resolveTagByIdOrName = async (
+  value: string,
+  tagRules: Parameters<typeof normalizeTagInput>[1]
+) => {
   if (/^\d+$/.test(value)) {
     const byNum = await prisma.tag.findUnique({
       where: { numId: Number(value) },
@@ -20,7 +24,7 @@ const resolveTagByIdOrName = async (value: string) => {
     select: { id: true, name: true, numId: true },
   });
   if (byId) return byId;
-  const normalized = normalizeTagInput(value);
+  const normalized = normalizeTagInput(value, tagRules);
   if (normalized.length !== 1) {
     return { error: normalized.length === 0 ? "INVALID_TAG" : "MULTI_TAG" } as const;
   }
@@ -33,6 +37,8 @@ const resolveTagByIdOrName = async (value: string) => {
 };
 
 export async function POST(request: Request) {
+  const config = await getAppConfig();
+  const tagRules = getTagRulesFromConfig(config);
   const body = (await request.json().catch(() => null)) as Payload | null;
   const fromRaw = body?.from?.trim() ?? "";
   const toRaw = body?.to?.trim() ?? "";
@@ -40,7 +46,7 @@ export async function POST(request: Request) {
     return errorResponse("请求参数不完整", 400, "MISSING_PARAMS");
   }
 
-  const fromResolved = await resolveTagByIdOrName(fromRaw);
+  const fromResolved = await resolveTagByIdOrName(fromRaw, tagRules);
   if (!fromResolved || ("error" in fromResolved && fromResolved.error === "INVALID_TAG")) {
     return errorResponse("标签不存在", 404, "TAG_NOT_FOUND");
   }
@@ -48,7 +54,7 @@ export async function POST(request: Request) {
     return errorResponse("仅支持单个标签", 400, "MULTI_TAG");
   }
 
-  const toResolved = await resolveTagByIdOrName(toRaw);
+  const toResolved = await resolveTagByIdOrName(toRaw, tagRules);
   if (!toResolved || ("error" in toResolved && toResolved.error === "INVALID_TAG")) {
     return errorResponse("标签不存在", 404, "TAG_NOT_FOUND");
   }

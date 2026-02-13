@@ -1,8 +1,7 @@
-import { NextResponse } from "next/server";
-
 import { prisma } from "@/lib/db";
 import { successResponse } from "@/lib/api";
 import { sortTags } from "@/lib/tags";
+import { getAppConfig } from "@/lib/appConfig";
 
 function parseIntParam(value: string | null, fallback: number) {
   const parsed = Number.parseInt(value ?? "", 10);
@@ -10,9 +9,10 @@ function parseIntParam(value: string | null, fallback: number) {
 }
 
 export async function GET(request: Request) {
+  const config = await getAppConfig();
   const { searchParams } = new URL(request.url);
   const page = parseIntParam(searchParams.get("page"), 1);
-  const limit = parseIntParam(searchParams.get("limit"), 20);
+  const limit = parseIntParam(searchParams.get("limit"), config.reviewPageLimit);
   const skip = (page - 1) * limit;
 
   const where = {

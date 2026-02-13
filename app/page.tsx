@@ -9,6 +9,7 @@ import AdminLoginTrigger from "@/components/AdminLoginTrigger";
 import { prisma } from "@/lib/db";
 import { getAdminSessionCookieName, isAdminSessionValid } from "@/lib/adminSession";
 import { normalizeSearchTokens, sortTags } from "@/lib/tags";
+import { getAppConfig, getTagRulesFromConfig } from "@/lib/appConfig";
 import styles from "./page.module.css";
 
 export const dynamic = "force-dynamic";
@@ -40,9 +41,6 @@ function shuffle<T>(items: T[]) {
   return arr;
 }
 
-const DAILY_POOL_GROUPS = 20;
-const DAILY_POOL_SIZE = 24;
-
 const getDayKey = () => new Date().toISOString().slice(0, 10);
 
 const pickRandomSubset = <T,>(items: T[], count: number) => {
@@ -55,7 +53,12 @@ const pickRandomSubset = <T,>(items: T[], count: number) => {
   return arr.slice(0, count);
 };
 
-const ensureDailyPools = async (day: string, memeIds: string[]) => {
+const ensureDailyPools = async (
+  day: string,
+  memeIds: string[],
+  groupCount: number,
+  groupSize: number
+) => {
   if (memeIds.length === 0) return [];
 
   const existing = await prisma.dailyPool.findMany({
@@ -64,15 +67,15 @@ const ensureDailyPools = async (day: string, memeIds: string[]) => {
   });
 
   const shouldRebuild =
-    existing.length !== DAILY_POOL_GROUPS ||
-    existing.some((group) => group._count.items < DAILY_POOL_SIZE);
+    existing.length !== groupCount ||
+    existing.some((group) => group._count.items < groupSize);
 
   if (shouldRebuild) {
     await prisma.dailyPoolItem.deleteMany({ where: { pool: { day } } });
     await prisma.dailyPool.deleteMany({ where: { day } });
 
-    for (let i = 0; i < DAILY_POOL_GROUPS; i += 1) {
-      const ids = pickRandomSubset(memeIds, DAILY_POOL_SIZE);
+    for (let i = 0; i < groupCount; i += 1) {
+      const ids = pickRandomSubset(memeIds, groupSize);
       await prisma.dailyPool.create({
         data: {
           day,
@@ -141,12 +144,14 @@ export default async function Home({
   const authed = isAdminSessionValid(
     cookieStore.get(getAdminSessionCookieName())?.value
   );
+  const config = await getAppConfig();
+  const tagRules = getTagRulesFromConfig(config);
   const resolvedParams =
     (await Promise.resolve(searchParams)) ?? ({} as SearchParams);
   const viewParam = getParam(resolvedParams?.view);
   const q = (getParam(resolvedParams?.q) ?? "").trim();
-  const limit = parseIntParam(getParam(resolvedParams?.limit), 24);
-  const hotLimit = 24;
+  const limit = parseIntParam(getParam(resolvedParams?.limit), config.listLimit);
+  const hotLimit = config.hotLimit;
   const page = parseIntParam(getParam(resolvedParams?.page), 1);
   const sortParam = getParam(resolvedParams?.sort);
   const sort =
@@ -177,7 +182,12 @@ export default async function Home({
         select: { id: true },
       });
       const memeIds = ids.map((item) => item.id);
-      const pools = await ensureDailyPools(getDayKey(), memeIds);
+      const pools = await ensureDailyPools(
+        getDayKey(),
+        memeIds,
+        config.dailyPoolGroups,
+        config.dailyPoolSize
+      );
       if (pools.length > 0) {
         const group = pools[Math.floor(Math.random() * pools.length)];
         const groupIds = group.items.map((item) => item.memeId);
@@ -284,7 +294,7 @@ export default async function Home({
       totalPages = 1;
     } else {
       const skip = (page - 1) * limit;
-      const tokens = normalizeSearchTokens(q);
+      const tokens = normalizeSearchTokens(q, tagRules);
       const where =
         tokens.length > 0
           ? {
@@ -349,6 +359,8 @@ export default async function Home({
   const hasNext = page < totalPages;
   const disableJump = totalPages <= 1;
   const encodedQ = encodeURIComponent(q);
+  const copyCooldownMs = config.copyCooldownSeconds * 1000;
+  const randomCooldownMs = config.randomCooldownSeconds * 1000;
   const emptyStateText =
     view === "search"
       ? q
@@ -472,6 +484,7 @@ export default async function Home({
                   }`}
                 disabledClassName={styles.filterDisabled}
                 href="/?view=hot&hotSort=random"
+                cooldownMs={randomCooldownMs}
               >
                 随机
               </RandomLink>
@@ -533,7 +546,7 @@ export default async function Home({
           <div className={styles.emptyState}>{emptyStateText}</div>
         ) : (
           <div className={styles.gridWrap}>
-            <MemeGrid items={items} />
+            <MemeGrid items={items} copyCooldownMs={copyCooldownMs} />
           </div>
         )}
 

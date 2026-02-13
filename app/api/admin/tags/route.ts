@@ -1,7 +1,6 @@
 import { prisma } from "@/lib/db";
 import { successResponse } from "@/lib/api";
-
-const DEFAULT_LIMIT = 20;
+import { getAppConfig } from "@/lib/appConfig";
 
 function parseIntParam(value: string | null, fallback: number) {
   const parsed = Number.parseInt(value ?? "", 10);
@@ -23,9 +22,10 @@ const resolveSort = (value: string | null): SortMode => {
 };
 
 export async function GET(request: Request) {
+  const config = await getAppConfig();
   const { searchParams } = new URL(request.url);
   const page = parseIntParam(searchParams.get("page"), 1);
-  const limit = parseIntParam(searchParams.get("limit"), DEFAULT_LIMIT);
+  const limit = parseIntParam(searchParams.get("limit"), config.tagPageLimit);
   const q = (searchParams.get("q") ?? "").trim();
   const sort = resolveSort(searchParams.get("sort"));
   const skip = (page - 1) * limit;

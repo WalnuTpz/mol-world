@@ -1,20 +1,15 @@
 import path from "node:path";
 import { mkdir, writeFile } from "node:fs/promises";
 
-import { NextResponse } from "next/server";
-
 import { prisma } from "@/lib/db";
 import { errorResponse, successResponse } from "@/lib/api";
 import { logAudit } from "@/lib/audit";
 import { normalizeTagInput } from "@/lib/tags";
 import { ensureTagsWithNumId, getNextMemeNumId } from "@/lib/numId";
+import { getAppConfig, getTagRulesFromConfig } from "@/lib/appConfig";
 
 export const runtime = "nodejs";
 
-const MAX_SIZE = 10 * 1024 * 1024;
-const UPLOAD_COOLDOWN_MS = 60 * 1000;
-const GLOBAL_UPLOAD_COOLDOWN_MS = 10 * 1000;
-const REVIEW_QUEUE_LIMIT = 100;
 const ALLOWED_TYPES: Record<string, string> = {
   "image/png": ".png",
   "image/jpeg": ".jpg",
@@ -49,6 +44,12 @@ const isAdminAuthed = (request: Request) => {
 };
 
 export async function POST(request: Request) {
+  const config = await getAppConfig();
+  const tagRules = getTagRulesFromConfig(config);
+  const maxSize = config.uploadMaxSizeMb * 1024 * 1024;
+  const uploadCooldownMs = config.uploadCooldownSeconds * 1000;
+  const globalCooldownMs = config.uploadGlobalCooldownSeconds * 1000;
+  const reviewQueueLimit = config.reviewQueueLimit;
   const formData = await request.formData();
   const file = formData.get("file");
   const rawTitle = formData.get("title");
@@ -64,7 +65,7 @@ export async function POST(request: Request) {
     return errorResponse("缺少文件", 400, "MISSING_FILE");
   }
 
-  if (file.size > MAX_SIZE) {
+  if (file.size > maxSize) {
     void logAudit({
       action: "upload",
       status: "error",
@@ -91,7 +92,8 @@ export async function POST(request: Request) {
     typeof rawTitle === "string" && rawTitle.trim().length > 0
       ? rawTitle.trim()
       : null;
-  const tags = typeof rawTags === "string" ? normalizeTagInput(rawTags) : [];
+  const tags =
+    typeof rawTags === "string" ? normalizeTagInput(rawTags, tagRules) : [];
 
   if (title) {
     const existing = await prisma.meme.findFirst({
@@ -116,7 +118,7 @@ export async function POST(request: Request) {
       mediaUrl: { startsWith: "/uploads/" },
     },
   });
-  if (pendingCount >= REVIEW_QUEUE_LIMIT) {
+  if (pendingCount >= reviewQueueLimit) {
     void logAudit({
       action: "upload",
       status: "error",
@@ -131,9 +133,9 @@ export async function POST(request: Request) {
   const now = Date.now();
   const isAdmin = isAdminAuthed(request);
   if (!isAdmin) {
-    if (globalUploading || now - lastGlobalUploadAt < GLOBAL_UPLOAD_COOLDOWN_MS) {
+    if (globalUploading || now - lastGlobalUploadAt < globalCooldownMs) {
       const retryAfter = Math.ceil(
-        (GLOBAL_UPLOAD_COOLDOWN_MS - (now - lastGlobalUploadAt)) / 1000
+        (globalCooldownMs - (now - lastGlobalUploadAt)) / 1000
       );
       return errorResponse(
         "操作过于频繁，请稍后再试",
@@ -144,9 +146,9 @@ export async function POST(request: Request) {
     }
 
     const lastUploadAt = uploadCooldown.get(clientId);
-    if (lastUploadAt && now - lastUploadAt < UPLOAD_COOLDOWN_MS) {
+    if (lastUploadAt && now - lastUploadAt < uploadCooldownMs) {
       const retryAfter = Math.ceil(
-        (UPLOAD_COOLDOWN_MS - (now - lastUploadAt)) / 1000
+        (uploadCooldownMs - (now - lastUploadAt)) / 1000
       );
       return errorResponse(
         "上传过于频繁，请稍后再试",

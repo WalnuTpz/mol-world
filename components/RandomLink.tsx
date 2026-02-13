@@ -14,6 +14,7 @@ type RandomLinkProps = {
   disabledClassName?: string;
   style?: CSSProperties;
   disabledStyle?: CSSProperties;
+  cooldownMs?: number;
   children: React.ReactNode;
 };
 
@@ -23,6 +24,7 @@ export default function RandomLink({
   disabledClassName,
   style,
   disabledStyle,
+  cooldownMs,
   children,
 }: RandomLinkProps) {
   const toast = useToast();
@@ -46,11 +48,18 @@ export default function RandomLink({
     }, remaining);
   };
 
+  const resolvedCooldown = Math.max(
+    0,
+    Number.isFinite(cooldownMs ?? COOLDOWN_MS)
+      ? Number(cooldownMs ?? COOLDOWN_MS)
+      : COOLDOWN_MS
+  );
+
   useEffect(() => {
     try {
       const last = Number(localStorage.getItem(STORAGE_KEY) ?? "0");
       if (Number.isFinite(last) && last > 0) {
-        startCooldown(last + COOLDOWN_MS);
+        startCooldown(last + resolvedCooldown);
       }
     } catch {
       // ignore
@@ -60,20 +69,20 @@ export default function RandomLink({
         window.clearTimeout(timerRef.current);
       }
     };
-  }, []);
+  }, [resolvedCooldown]);
 
   const handleClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
     const now = Date.now();
     try {
       const last = Number(localStorage.getItem(STORAGE_KEY) ?? "0");
-      if (Number.isFinite(last) && now - last < COOLDOWN_MS) {
+      if (Number.isFinite(last) && now - last < resolvedCooldown) {
         event.preventDefault();
-        startCooldown(last + COOLDOWN_MS);
+        startCooldown(last + resolvedCooldown);
         toast("操作过于频繁", "error", undefined, "请稍后再试");
         return;
       }
       localStorage.setItem(STORAGE_KEY, String(now));
-      startCooldown(now + COOLDOWN_MS);
+      startCooldown(now + resolvedCooldown);
     } catch {
       // ignore
     }

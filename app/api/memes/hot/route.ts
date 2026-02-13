@@ -1,10 +1,7 @@
-import { NextResponse } from "next/server";
-
 import { prisma } from "@/lib/db";
 import { successResponse } from "@/lib/api";
 import { sortTags } from "@/lib/tags";
-
-export const revalidate = 30;
+import { buildCacheControl, getAppConfig } from "@/lib/appConfig";
 
 function parseIntParam(value: string | null, fallback: number) {
   const parsed = Number.parseInt(value ?? "", 10);
@@ -21,9 +18,10 @@ function shuffle<T>(items: T[]) {
 }
 
 export async function GET(request: Request) {
+  const config = await getAppConfig();
   const { searchParams } = new URL(request.url);
   const mode = searchParams.get("mode") ?? "latest";
-  const limit = parseIntParam(searchParams.get("limit"), 30);
+  const limit = parseIntParam(searchParams.get("limit"), config.hotLimit);
 
   const baseWhere = {
     isFeatured: true,
@@ -94,5 +92,10 @@ export async function GET(request: Request) {
     tags: sortTags(item.tags.map((t) => t.tag.name)),
   }));
 
-  return successResponse({ items: normalized, mode, limit }, "查询成功");
+  return successResponse(
+    { items: normalized, mode, limit },
+    "查询成功",
+    200,
+    { "Cache-Control": buildCacheControl(config.cacheHotSeconds) }
+  );
 }

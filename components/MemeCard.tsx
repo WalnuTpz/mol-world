@@ -9,7 +9,7 @@ import { formatCount } from "@/lib/format";
 
 type MemeType = "STATIC" | "ANIMATED";
 
-const COPY_COOLDOWN_MS = 5000;
+const DEFAULT_COPY_COOLDOWN_MS = 5000;
 let lastCopyAt = 0;
 
 export type MemeCardProps = {
@@ -20,6 +20,7 @@ export type MemeCardProps = {
   thumbUrl: string;
   copyCount: number;
   tags?: string[];
+  copyCooldownMs?: number;
 };
 
 export default function MemeCard({
@@ -30,6 +31,7 @@ export default function MemeCard({
   thumbUrl,
   copyCount,
   tags = [],
+  copyCooldownMs,
 }: MemeCardProps) {
   const [count, setCount] = useState(copyCount);
   const [selected, setSelected] = useState(false);
@@ -141,7 +143,13 @@ export default function MemeCard({
   const handleCopy = async () => {
     triggerHighlight();
     const now = Date.now();
-    if (now - lastCopyAt < COPY_COOLDOWN_MS) {
+    const cooldown = Math.max(
+      0,
+      Number.isFinite(copyCooldownMs ?? DEFAULT_COPY_COOLDOWN_MS)
+        ? Number(copyCooldownMs ?? DEFAULT_COPY_COOLDOWN_MS)
+        : DEFAULT_COPY_COOLDOWN_MS
+    );
+    if (now - lastCopyAt < cooldown) {
       toast("操作过于频繁", "error", undefined, "请稍后再试");
       return;
     }

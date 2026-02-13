@@ -1,14 +1,13 @@
 import path from "node:path";
 import { copyFile, mkdir, rename, unlink } from "node:fs/promises";
 
-import { NextResponse } from "next/server";
-
 import { prisma } from "@/lib/db";
 import { errorResponse, successResponse } from "@/lib/api";
 import { logAudit } from "@/lib/audit";
 import { generateThumb } from "@/lib/thumbs";
 import { normalizeTagInput, sortTags } from "@/lib/tags";
 import { ensureTagsWithNumId } from "@/lib/numId";
+import { getAppConfig, getTagRulesFromConfig } from "@/lib/appConfig";
 
 type Payload = {
   title?: string;
@@ -112,6 +111,8 @@ export async function PATCH(
   request: Request,
   context: { params: { id: string } | Promise<{ id: string }> }
 ) {
+  const config = await getAppConfig();
+  const tagRules = getTagRulesFromConfig(config);
   const { id } = await Promise.resolve(context.params);
   if (!id) {
     void logAudit({
@@ -151,7 +152,7 @@ export async function PATCH(
   }
   const title = body.title?.trim() ?? null;
   const status = body.status;
-  const tags = body.tags ? normalizeTagInput(body.tags) : [];
+  const tags = body.tags ? normalizeTagInput(body.tags, tagRules) : [];
 
   if (body.action === "delete") {
     const current = await prisma.meme.findUnique({

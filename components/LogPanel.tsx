@@ -16,7 +16,9 @@ type LogItem = {
   createdAt: string;
 };
 
-const PAGE_LIMIT = 20;
+type LogPanelProps = {
+  pageLimit?: number;
+};
 
 const formatTime = (value: string) => {
   const date = new Date(value);
@@ -26,7 +28,7 @@ const formatTime = (value: string) => {
   });
 };
 
-export default function LogPanel() {
+export default function LogPanel({ pageLimit = 20 }: LogPanelProps) {
   const [items, setItems] = useState<LogItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -42,6 +44,7 @@ export default function LogPanel() {
   const toast = useToast();
   const confirm = useToastConfirm();
 
+  const limit = Math.max(1, Math.round(pageLimit));
   const loadPage = useCallback(
     async (targetPage: number, keyword: string) => {
       let cancelled = false;
@@ -50,7 +53,7 @@ export default function LogPanel() {
       try {
         const params = new URLSearchParams({
           page: String(targetPage),
-          limit: String(PAGE_LIMIT),
+          limit: String(limit),
           q: keyword,
         });
         const res = await fetch(`/api/admin/logs?${params.toString()}`);
@@ -79,7 +82,7 @@ export default function LogPanel() {
         cancelled = true;
       };
     },
-    []
+    [limit]
   );
 
   useEffect(() => {
@@ -97,7 +100,7 @@ export default function LogPanel() {
     setJumpValue(String(page));
   }, [page]);
 
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_LIMIT));
+  const totalPages = Math.max(1, Math.ceil(total / limit));
   const hasPrev = page > 1;
   const hasNext = page < totalPages;
   const disableJump = loading || totalPages <= 1;

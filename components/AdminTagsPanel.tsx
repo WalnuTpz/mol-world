@@ -17,7 +17,11 @@ type SortMode = "count_desc" | "count_asc" | "name_asc" | "name_desc";
 type SortField = "count" | "name";
 type SortOrder = "desc" | "asc";
 
-export default function AdminTagsPanel() {
+type AdminTagsPanelProps = {
+  pageLimit?: number;
+};
+
+export default function AdminTagsPanel({ pageLimit = 20 }: AdminTagsPanelProps) {
   const confirm = useToastConfirm();
   const toast = useToast();
   const [query, setQuery] = useState("");
@@ -36,7 +40,7 @@ export default function AdminTagsPanel() {
   const [jumpValue, setJumpValue] = useState("1");
   const [sortField, setSortField] = useState<SortField>("count");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
-  const limit = 20;
+  const limit = Math.max(1, Math.round(pageLimit));
 
   const loadList = async (targetPage: number, targetQuery: string, mode: SortMode) => {
     const params = new URLSearchParams({

@@ -31,7 +31,9 @@ type DraftState = {
   saving: boolean;
 };
 
-const PAGE_LIMIT = 12;
+type ManagePanelProps = {
+  pageLimit?: number;
+};
 
 const formatTime = (value: string) => {
   const date = new Date(value);
@@ -58,7 +60,7 @@ const statusLabel = (status: ManageItem["status"]) => {
   }
 };
 
-export default function ManagePanel() {
+export default function ManagePanel({ pageLimit = 12 }: ManagePanelProps) {
   const [items, setItems] = useState<ManageItem[]>([]);
   const [drafts, setDrafts] = useState<Record<string, DraftState>>({});
   const [loading, setLoading] = useState(true);
@@ -75,6 +77,7 @@ export default function ManagePanel() {
   const allowSave = useClickGuard();
   const allowRemove = useClickGuard();
 
+  const limit = Math.max(1, Math.round(pageLimit));
   const loadPage = useCallback(
     async (targetPage: number, keyword: string) => {
       let cancelled = false;
@@ -83,7 +86,7 @@ export default function ManagePanel() {
       try {
         const params = new URLSearchParams({
           page: String(targetPage),
-          limit: String(PAGE_LIMIT),
+          limit: String(limit),
           q: keyword,
         });
         const res = await fetch(`/api/manage?${params.toString()}`);
@@ -127,7 +130,7 @@ export default function ManagePanel() {
         cancelled = true;
       };
     },
-    []
+    [limit]
   );
 
   useEffect(() => {
@@ -157,7 +160,7 @@ export default function ManagePanel() {
     setJumpValue(String(page));
   }, [page]);
 
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_LIMIT));
+  const totalPages = Math.max(1, Math.ceil(total / limit));
   const hasPrev = page > 1;
   const hasNext = page < totalPages;
   const disableJump = loading || totalPages <= 1;

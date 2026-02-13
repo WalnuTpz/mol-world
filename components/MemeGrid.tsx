@@ -13,9 +13,10 @@ type Meme = {
 
 type MemeGridProps = {
   items: Meme[];
+  copyCooldownMs?: number;
 };
 
-export default function MemeGrid({ items }: MemeGridProps) {
+export default function MemeGrid({ items, copyCooldownMs }: MemeGridProps) {
   return (
     <div className={styles.grid}>
       {items.map((meme) => (
@@ -28,6 +29,7 @@ export default function MemeGrid({ items }: MemeGridProps) {
           thumbUrl={meme.thumbUrl}
           copyCount={meme.copies}
           tags={meme.tags ?? []}
+          copyCooldownMs={copyCooldownMs}
         />
       ))}
     </div>

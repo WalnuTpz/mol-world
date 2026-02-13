@@ -11,6 +11,12 @@
   margin-bottom: 18px;
 }
 
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .headerBlock {
   display: flex;
   flex-direction: column;
@@ -27,6 +33,36 @@
 .subtitle {
   font-size: 14px;
   color: rgba(255, 255, 255, 0.6);
+}
+
+.saveButton {
+  border-radius: 999px;
+  padding: 8px 18px;
+  border: 1px solid #ffffff;
+  background: #ffffff;
+  color: #111111;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.saveButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+}
+
+.saveButtonDisabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+  transform: none;
+  box-shadow: none;
+}
+
+.errorText {
+  margin-bottom: 16px;
+  font-size: 13px;
+  color: rgba(255, 180, 180, 0.95);
 }
 
 .grid {
@@ -61,6 +97,7 @@
   display: grid;
   grid-template-columns: minmax(120px, 1fr) auto;
   gap: 6px 12px;
+  align-items: center;
   font-size: 13px;
   color: rgba(255, 255, 255, 0.8);
 }
@@ -69,9 +106,31 @@
   color: rgba(255, 255, 255, 0.75);
 }
 
-.itemValue {
-  font-weight: 600;
+.itemControl {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.itemInput {
+  width: 86px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(0, 0, 0, 0.35);
   color: #ffffff;
+  padding: 0 8px;
+  font-size: 13px;
+}
+
+.itemInput:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.itemUnit {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
 }
 
 .itemHint {

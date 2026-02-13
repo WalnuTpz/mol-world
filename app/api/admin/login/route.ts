@@ -1,5 +1,6 @@
 import { errorResponse, successResponse } from "@/lib/api";
 import { getAdminSessionCookieName, getExpectedSessionValue } from "@/lib/adminSession";
+import { getAppConfig } from "@/lib/appConfig";
 
 type AttemptState = {
   count: number;
@@ -7,7 +8,6 @@ type AttemptState = {
 };
 
 const attempts = new Map<string, AttemptState>();
-const COOLDOWN_MS = 24 * 60 * 60 * 1000;
 
 const getClientId = (request: Request) => {
   const forwarded = request.headers.get("x-forwarded-for");
@@ -29,6 +29,8 @@ const buildCooldownError = (remainingMs: number) =>
   );
 
 export async function POST(request: Request) {
+  const config = await getAppConfig();
+  const cooldownMs = config.loginCooldownHours * 60 * 60 * 1000;
   const clientId = getClientId(request);
   const now = Date.now();
   const current = attempts.get(clientId);
@@ -61,7 +63,7 @@ export async function POST(request: Request) {
     }
     nextState.count += 1;
     if (nextState.count >= 3) {
-      nextState.cooldownUntil = now + COOLDOWN_MS;
+      nextState.cooldownUntil = now + cooldownMs;
       nextState.count = 0;
     }
     attempts.set(clientId, nextState);
@@ -72,7 +74,7 @@ export async function POST(request: Request) {
   }
 
   attempts.delete(clientId);
-  const maxAge = 60 * 60 * 24 * 7;
+  const maxAge = 60 * 60 * 24 * config.adminSessionDays;
   const cookie = `${getAdminSessionCookieName()}=${expected}; Path=/; Max-Age=${maxAge}; HttpOnly; SameSite=Lax`;
   return successResponse({}, "登录成功", 200, { "Set-Cookie": cookie });
 }

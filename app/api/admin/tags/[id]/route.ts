@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { errorResponse, successResponse } from "@/lib/api";
 import { normalizeTagInput } from "@/lib/tags";
+import { getAppConfig, getTagRulesFromConfig } from "@/lib/appConfig";
 
 type Payload = {
   name?: string;
@@ -23,6 +24,8 @@ export async function PATCH(
   request: Request,
   context: { params: { id: string } | Promise<{ id: string }> }
 ) {
+  const config = await getAppConfig();
+  const tagRules = getTagRulesFromConfig(config);
   const { id: rawId } = await Promise.resolve(context.params);
   if (!rawId) {
     return errorResponse("请求参数不完整", 400, "MISSING_ID");
@@ -30,7 +33,7 @@ export async function PATCH(
 
   const body = (await request.json().catch(() => null)) as Payload | null;
   const rawName = body?.name ?? "";
-  const normalized = normalizeTagInput(rawName);
+  const normalized = normalizeTagInput(rawName, tagRules);
   if (normalized.length === 0) {
     return errorResponse("标签不能为空", 400, "INVALID_TAG");
   }

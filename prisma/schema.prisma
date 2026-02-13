@@ -85,3 +85,9 @@ model AuditLog {
   @@index([status])
   @@index([createdAt])
 }
+
+model AppConfig {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}

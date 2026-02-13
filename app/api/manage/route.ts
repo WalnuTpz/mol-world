@@ -1,8 +1,7 @@
-import { NextResponse } from "next/server";
-
 import { prisma } from "@/lib/db";
 import { successResponse } from "@/lib/api";
 import { normalizeSearchTokens, sortTags } from "@/lib/tags";
+import { getAppConfig, getTagRulesFromConfig } from "@/lib/appConfig";
 
 function parseIntParam(value: string | null, fallback: number) {
   const parsed = Number.parseInt(value ?? "", 10);
@@ -22,7 +21,7 @@ const TYPE_MAP = new Map<string, TypeFilter>([
   ["静态", "STATIC"],
 ]);
 
-const parseManageQuery = (query: string) => {
+const parseManageQuery = (query: string, tagRules?: Parameters<typeof normalizeSearchTokens>[1]) => {
   const rawTokens = query.split(/\s+/).filter(Boolean);
   let status: StatusFilter | undefined;
   let type: TypeFilter | undefined;
@@ -60,18 +59,20 @@ const parseManageQuery = (query: string) => {
   return {
     status,
     type,
-    tokens: normalizeSearchTokens(remaining.join(" ")),
+    tokens: normalizeSearchTokens(remaining.join(" "), tagRules),
   };
 };
 
 export async function GET(request: Request) {
+  const config = await getAppConfig();
+  const tagRules = getTagRulesFromConfig(config);
   const { searchParams } = new URL(request.url);
   const page = parseIntParam(searchParams.get("page"), 1);
-  const limit = parseIntParam(searchParams.get("limit"), 40);
+  const limit = parseIntParam(searchParams.get("limit"), config.managePageLimit);
   const q = (searchParams.get("q") ?? "").trim();
   const skip = (page - 1) * limit;
 
-  const { status, type, tokens } = parseManageQuery(q);
+  const { status, type, tokens } = parseManageQuery(q, tagRules);
 
   const where = {
     status: status ? status : ({ in: ["PUBLISHED", "HIDDEN"] as const } as const),

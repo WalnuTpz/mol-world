@@ -25,9 +25,11 @@ type DraftState = {
   saving: boolean;
 };
 
-const PAGE_LIMIT = 12;
+type ReviewPanelProps = {
+  pageLimit?: number;
+};
 
-export default function ReviewPanel() {
+export default function ReviewPanel({ pageLimit = 12 }: ReviewPanelProps) {
   const [items, setItems] = useState<ReviewItem[]>([]);
   const [drafts, setDrafts] = useState<Record<string, DraftState>>({});
   const [loading, setLoading] = useState(true);
@@ -42,13 +44,14 @@ export default function ReviewPanel() {
   const allowSubmit = useClickGuard();
   const allowRemove = useClickGuard();
 
+  const limit = Math.max(1, Math.round(pageLimit));
   const loadPage = useCallback(async (targetPage: number) => {
     let cancelled = false;
     setLoading(true);
     setError("");
     try {
       const res = await fetch(
-        `/api/review?page=${targetPage}&limit=${PAGE_LIMIT}`
+        `/api/review?page=${targetPage}&limit=${limit}`
       );
       if (!res.ok) throw new Error("加载失败");
       const data = (await res.json()) as {
@@ -86,7 +89,7 @@ export default function ReviewPanel() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [limit]);
 
   useEffect(() => {
     loadPage(page);
@@ -108,7 +111,7 @@ export default function ReviewPanel() {
     setJumpValue(String(page));
   }, [page]);
 
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_LIMIT));
+  const totalPages = Math.max(1, Math.ceil(total / limit));
   const hasPrev = page > 1;
   const hasNext = page < totalPages;
   const disableJump = loading || totalPages <= 1;
