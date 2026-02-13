@@ -5,6 +5,7 @@ import { PrismaClient } from "@prisma/client";
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 
 import { normalizeTags } from "../lib/tags";
+import { ensureTagsWithNumId } from "../lib/numId";
 
 const TAGS = [
   "对称",
@@ -79,17 +80,13 @@ async function main() {
 
     if (toAdd.length === 0) continue;
 
+    const tagRows = await ensureTagsWithNumId(prisma, toAdd);
     await prisma.meme.update({
       where: { id: meme.id },
       data: {
         tags: {
-          create: toAdd.map((name) => ({
-            tag: {
-              connectOrCreate: {
-                where: { name },
-                create: { name },
-              },
-            },
+          create: tagRows.map((tag) => ({
+            tag: { connect: { id: tag.id } },
           })),
         },
       },

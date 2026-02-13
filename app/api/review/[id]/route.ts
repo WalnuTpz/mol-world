@@ -8,6 +8,7 @@ import { errorResponse, successResponse } from "@/lib/api";
 import { logAudit } from "@/lib/audit";
 import { generateThumb } from "@/lib/thumbs";
 import { normalizeTagInput, sortTags } from "@/lib/tags";
+import { ensureTagsWithNumId } from "@/lib/numId";
 
 type Payload = {
   title?: string;
@@ -281,6 +282,7 @@ export async function PATCH(
 
   let updated;
   try {
+    const tagRows = body.tags ? await ensureTagsWithNumId(prisma, tags) : [];
     updated = await prisma.meme.update({
       where: { id },
       data: {
@@ -291,13 +293,8 @@ export async function PATCH(
           ? {
               tags: {
                 deleteMany: {},
-                create: tags.map((name) => ({
-                  tag: {
-                    connectOrCreate: {
-                      where: { name },
-                      create: { name },
-                    },
-                  },
+                create: tagRows.map((tag) => ({
+                  tag: { connect: { id: tag.id } },
                 })),
               },
             }

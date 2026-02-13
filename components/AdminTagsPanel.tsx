@@ -8,7 +8,7 @@ import { useToast, useToastConfirm } from "@/components/ToastProvider";
 
 type TagItem = {
   id: string;
-  numId: number;
+  numId: number | null;
   name: string;
   count: number;
 };
@@ -305,7 +305,7 @@ export default function AdminTagsPanel() {
                   item.name
                 )}
               </div>
-              <div className={styles.cell}>{item.numId}</div>
+              <div className={styles.cell}>{item.numId ?? "-"}</div>
               <div className={styles.cell}>{item.count}</div>
               <div className={styles.cell}>
                 {editingId === item.id ? (

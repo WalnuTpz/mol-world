@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db";
 import { errorResponse, successResponse } from "@/lib/api";
 import { logAudit } from "@/lib/audit";
 import { normalizeTagInput, sortTags } from "@/lib/tags";
+import { ensureTagsWithNumId } from "@/lib/numId";
 
 type Payload = {
   title?: string;
@@ -156,6 +157,7 @@ export async function PATCH(
     return successResponse({}, "删除成功");
   }
 
+  const tagRows = tags.length > 0 ? await ensureTagsWithNumId(prisma, tags) : [];
   const updated = await prisma.meme.update({
     where: { id },
     data: {
@@ -165,13 +167,8 @@ export async function PATCH(
         ? {
             tags: {
               deleteMany: {},
-              create: tags.map((name) => ({
-                tag: {
-                  connectOrCreate: {
-                    where: { name },
-                    create: { name },
-                  },
-                },
+              create: tagRows.map((tag) => ({
+                tag: { connect: { id: tag.id } },
               })),
             },
           }

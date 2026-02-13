@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db";
 import { errorResponse, successResponse } from "@/lib/api";
 import { logAudit } from "@/lib/audit";
 import { normalizeTagInput } from "@/lib/tags";
+import { ensureTagsWithNumId, getNextMemeNumId } from "@/lib/numId";
 
 export const runtime = "nodejs";
 
@@ -169,25 +170,28 @@ export async function POST(request: Request) {
   const mediaUrl = `/uploads/${filename}`;
   const type = ext === ".gif" ? "ANIMATED" : "STATIC";
 
-  const created = await prisma.meme.create({
-    data: {
-      title,
-      type,
-      mediaUrl,
-      thumbUrl: mediaUrl,
-      status: "PENDING",
-      tags: {
-        create: tags.map((name) => ({
-          tag: {
-            connectOrCreate: {
-              where: { name },
-              create: { name },
-            },
-          },
-        })),
+  const created = await prisma.$transaction(async (tx) => {
+    const numId = await getNextMemeNumId(tx as typeof prisma);
+    const tagRows = await ensureTagsWithNumId(tx as typeof prisma, tags);
+    return tx.meme.create({
+      data: {
+        numId,
+        title,
+        type,
+        mediaUrl,
+        thumbUrl: mediaUrl,
+        status: "PENDING",
+        tags:
+          tagRows.length > 0
+            ? {
+                create: tagRows.map((tag) => ({
+                  tag: { connect: { id: tag.id } },
+                })),
+              }
+            : undefined,
       },
-    },
-    select: { id: true, title: true },
+      select: { id: true, title: true },
+    });
   });
 
   uploadCooldown.set(clientId, now);

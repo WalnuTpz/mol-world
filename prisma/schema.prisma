@@ -19,7 +19,7 @@ enum MemeStatus {
 
 model Meme {
   id         String     @id @default(cuid())
-  numId      Int        @unique @default(autoincrement())
+  numId      Int?       @unique
   title      String?
   type       MemeType
   mediaUrl   String
@@ -35,7 +35,7 @@ model Meme {
 
 model Tag {
   id    String    @id @default(cuid())
-  numId Int       @unique @default(autoincrement())
+  numId Int?      @unique
   name  String    @unique
   memes MemeTag[]
 }

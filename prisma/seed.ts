@@ -63,6 +63,7 @@ async function loadMemes(): Promise<Prisma.MemeCreateManyInput[]> {
     const createdAt = new Date(start + (order[index] - 1) * DAY_MS);
 
     return {
+      numId: index + 1,
       title: baseName,
       type,
       mediaUrl: `/memes/original/${file}`,
