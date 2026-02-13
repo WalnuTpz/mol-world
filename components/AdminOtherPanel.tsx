@@ -329,6 +329,10 @@ export default function AdminOtherPanel() {
     }
   };
 
+  const handleChangePassword = () => {
+    toast("修改密码功能待完善", "info");
+  };
+
   const handleLogout = () => {
     confirm("确认退出管理员登录吗？").then((ok) => {
       if (!ok) return;
@@ -495,7 +499,7 @@ export default function AdminOtherPanel() {
         </div>
       </div>
       <div className={styles.section}>
-        <div className={styles.sectionTitle}>资源与清零</div>
+        <div className={styles.sectionTitle}>资源维护</div>
         <div className={styles.resourceGrid}>
           <div className={styles.resourceCard}>
             <div className={styles.sectionTitle}>资源检查</div>
@@ -520,24 +524,6 @@ export default function AdminOtherPanel() {
                 清理孤儿文件
               </button>
             </div>
-            <div className={styles.resourceList}>
-              <div className={styles.resourceRow}>
-                <span className={styles.resourceLabel}>缺图（原图/缩略图）</span>
-                <span className={styles.resourceValue}>
-                  {resourceStats
-                    ? `${resourceStats.missing.original} / ${resourceStats.missing.thumb}`
-                    : "-"}
-                </span>
-              </div>
-              <div className={styles.resourceRow}>
-                <span className={styles.resourceLabel}>孤儿文件（原图/缩略图）</span>
-                <span className={styles.resourceValue}>
-                  {resourceStats
-                    ? `${resourceStats.orphans.original} / ${resourceStats.orphans.thumb}`
-                    : "-"}
-                </span>
-              </div>
-            </div>
           </div>
           <div className={styles.resourceCard}>
             <div className={styles.sectionTitle}>热度清零</div>
@@ -555,12 +541,29 @@ export default function AdminOtherPanel() {
               </button>
             </div>
           </div>
+          <div className={styles.resourceCard}>
+            <div className={styles.sectionTitle}>账号与退出</div>
+            <div className={styles.sectionHint}>
+              修改管理员密码或退出当前登录。
+            </div>
+            <div className={styles.resourceActions}>
+              <button
+                type="button"
+                className={styles.resourceButton}
+                onClick={handleChangePassword}
+              >
+                修改密码
+              </button>
+              <button
+                type="button"
+                className={`${styles.resourceButton} ${styles.resourceButtonDanger}`}
+                onClick={handleLogout}
+              >
+                退出登录
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
-      <div className={styles.panelActions}>
-        <button type="button" className={styles.logoutButton} onClick={handleLogout}>
-          退出登录
-        </button>
       </div>
     </section>
   );
