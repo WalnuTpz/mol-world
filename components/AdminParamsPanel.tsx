@@ -437,6 +437,19 @@ export default function AdminParamsPanel() {
           </button>
           <button
             type="button"
+            className={`${styles.cancelButton} ${
+              !dirty || loading || saving ? styles.cancelButtonDisabled : ""
+            }`}
+            onClick={() => {
+              if (!dirty) return;
+              setValues(initialValues);
+            }}
+            disabled={!dirty || loading || saving}
+          >
+            取消修改
+          </button>
+          <button
+            type="button"
             className={`${styles.saveButton} ${!dirty || loading || saving ? styles.saveButtonDisabled : ""
               }`}
             onClick={handleSave}
