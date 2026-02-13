@@ -488,7 +488,10 @@ export default function AdminParamsPanel() {
                       <span className={styles.itemUnit}>{item.unit}</span>
                     ) : null}
                   </div>
-                  <div className={styles.itemHint}>{item.hint}</div>
+                  <div className={styles.itemHintKey}>{item.hint}</div>
+                  <div className={styles.itemHintDefault}>
+                    默认: {APP_CONFIG_DEFAULTS[item.key]}
+                  </div>
                 </div>
               ))}
             </div>
