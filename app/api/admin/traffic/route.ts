@@ -13,13 +13,20 @@ const buildDayKeys = (days: number) => {
   return keys;
 };
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const dayKeys30 = buildDayKeys(30);
-    const dayKeys7 = dayKeys30.slice(-7);
+    const { searchParams } = new URL(request.url);
+    const range = searchParams.get("range") ?? "30d";
+    const rangeDays =
+      range === "1d" ? 1 : range === "7d" ? 7 : range === "30d" ? 30 : null;
+    if (!["1d", "7d", "30d", "all"].includes(range)) {
+      return errorResponse("无效的时间范围", 400, "INVALID_RANGE");
+    }
+
+    let dayKeys = rangeDays ? buildDayKeys(rangeDays) : [];
 
     const stats = await prisma.memeDailyStat.findMany({
-      where: { day: { in: dayKeys30 } },
+      where: rangeDays ? { day: { in: dayKeys } } : undefined,
       select: {
         day: true,
         memeId: true,
@@ -28,21 +35,29 @@ export async function GET() {
       },
     });
 
+    if (!rangeDays) {
+      const unique = new Set<string>();
+      for (const row of stats) {
+        unique.add(row.day);
+      }
+      dayKeys = Array.from(unique).sort();
+    }
+
     const dailyTotals = new Map<string, number>();
     const topMap = new Map<string, number>();
-    const dayKeySet7 = new Set(dayKeys7);
+    const dayKeySet = rangeDays ? new Set(dayKeys) : null;
 
     for (const row of stats) {
       const heat = row.copies + row.downloads;
       dailyTotals.set(row.day, (dailyTotals.get(row.day) ?? 0) + heat);
-      if (dayKeySet7.has(row.day)) {
+      if (!dayKeySet || dayKeySet.has(row.day)) {
         topMap.set(row.memeId, (topMap.get(row.memeId) ?? 0) + heat);
       }
     }
 
     const daily = [];
     let cumulative = 0;
-    for (const day of dayKeys30) {
+    for (const day of dayKeys) {
       const heat = dailyTotals.get(day) ?? 0;
       cumulative += heat;
       daily.push({ day, heat, cumulative });

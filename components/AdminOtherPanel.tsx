@@ -15,18 +15,18 @@ export default function AdminOtherPanel() {
     orphans: { original: number; thumb: number };
   } | null>(null);
   const [trafficLoading, setTrafficLoading] = useState(false);
+  const [trafficRange, setTrafficRange] = useState<"1d" | "7d" | "30d" | "all">(
+    "7d"
+  );
+  const [trafficView, setTrafficView] = useState<
+    "top" | "cumulative" | "daily"
+  >("top");
   const [trafficData, setTrafficData] = useState<{
     top: { id: string; title: string | null; type: string; thumbUrl: string; heat: number }[];
     daily: { day: string; heat: number; cumulative: number }[];
   } | null>(null);
 
   const scripts = [
-    {
-      title: "数据库初始化",
-      desc: "重新写入种子数据（谨慎使用）。",
-      command: "pnpm prisma db seed",
-      danger: true,
-    },
     {
       title: "回填 numId",
       desc: "为表情包/标签补齐 numId 编号。",
@@ -137,24 +137,26 @@ export default function AdminOtherPanel() {
     }
   };
 
-  const loadTraffic = async () => {
+  const loadTraffic = async (range: typeof trafficRange = trafficRange) => {
     if (trafficLoading) return;
     setTrafficLoading(true);
     try {
-      const res = await fetch("/api/admin/traffic", { cache: "no-store" });
+      const res = await fetch(`/api/admin/traffic?range=${range}`, {
+        cache: "no-store",
+      });
       const data = (await res.json().catch(() => null)) as
         | {
-            top?: {
-              id: string;
-              title: string | null;
-              type: string;
-              thumbUrl: string;
-              heat: number;
-            }[];
-            daily?: { day: string; heat: number; cumulative: number }[];
-            error?: string;
-            message?: string;
-          }
+          top?: {
+            id: string;
+            title: string | null;
+            type: string;
+            thumbUrl: string;
+            heat: number;
+          }[];
+          daily?: { day: string; heat: number; cumulative: number }[];
+          error?: string;
+          message?: string;
+        }
         | null;
       if (!res.ok || !data?.daily || !data?.top) {
         throw new Error(data?.error || data?.message || "加载失败");
@@ -169,8 +171,8 @@ export default function AdminOtherPanel() {
   };
 
   useEffect(() => {
-    void loadTraffic();
-  }, []);
+    void loadTraffic(trafficRange);
+  }, [trafficRange]);
 
   const dailyHeat = useMemo(
     () => trafficData?.daily.map((item) => item.heat) ?? [],
@@ -203,6 +205,14 @@ export default function AdminOtherPanel() {
     () => buildSparkline(cumulativeHeat),
     [cumulativeHeat]
   );
+
+  const rangeLabelMap: Record<typeof trafficRange, string> = {
+    "1d": "最近1天",
+    "7d": "最近7天",
+    "30d": "最近30天",
+    all: "全部",
+  };
+  const rangeLabel = rangeLabelMap[trafficRange];
 
   const resetCopies = async () => {
     if (resourceLoading) return;
@@ -322,66 +332,103 @@ export default function AdminOtherPanel() {
         </div>
       </div>
       <div className={styles.section}>
-        <div className={styles.sectionTitle}>流量与热度</div>
-        <div className={styles.sectionHint}>
-          近 7 天热门 Top 10 与近 30 天热度趋势。
-        </div>
-        <div className={styles.resourceActions}>
-          <button
-            type="button"
-            className={styles.resourceButton}
-            onClick={loadTraffic}
-            disabled={trafficLoading}
-          >
-            刷新数据
-          </button>
-        </div>
-        <div className={styles.trafficGrid}>
-          <div className={styles.trafficCard}>
-            <div className={styles.trafficCardTitle}>近 7 天热门 Top 10</div>
-            {trafficData?.top?.length ? (
-              <ol className={styles.trafficList}>
-                {trafficData.top.map((item, index) => (
-                  <li key={item.id} className={styles.trafficItem}>
-                    <span className={styles.trafficRank}>{index + 1}</span>
-                    <span className={styles.trafficName}>
-                      {item.title ?? "未命名"}
-                    </span>
-                    <span className={styles.trafficValue}>
-                      {formatCount(item.heat)}
-                    </span>
-                  </li>
-                ))}
-              </ol>
-            ) : (
-              <div className={styles.trafficEmpty}>暂无数据</div>
-            )}
-          </div>
-          <div className={styles.trafficCard}>
-            <div className={styles.trafficCardTitle}>热度总和曲线（30 天）</div>
-            {cumulativePoints ? (
-              <svg
-                className={styles.trafficChart}
-                viewBox="0 0 320 90"
-                role="img"
-                aria-label="热度总和曲线"
+        <div className={styles.sectionHeader}>
+          <div className={styles.sectionTitle}>流量与热度</div>
+          <div className={styles.trafficControls}>
+            <div className={styles.trafficToggleGroup}>
+              <button
+                type="button"
+                className={`${styles.trafficToggle} ${
+                  trafficView === "top" ? styles.trafficToggleActive : ""
+                }`}
+                onClick={() => setTrafficView("top")}
               >
-                <polyline
-                  points={cumulativePoints}
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                />
-              </svg>
-            ) : (
-              <div className={styles.trafficEmpty}>暂无数据</div>
-            )}
-          </div>
-          <div className={styles.trafficCard}>
-            <div className={styles.trafficCardTitle}>
-              每日新增热度（30 天）
+                热门 Top 10
+              </button>
+              <button
+                type="button"
+                className={`${styles.trafficToggle} ${
+                  trafficView === "cumulative" ? styles.trafficToggleActive : ""
+                }`}
+                onClick={() => setTrafficView("cumulative")}
+              >
+                热度总和
+              </button>
+              <button
+                type="button"
+                className={`${styles.trafficToggle} ${
+                  trafficView === "daily" ? styles.trafficToggleActive : ""
+                }`}
+                onClick={() => setTrafficView("daily")}
+              >
+                每日新增
+              </button>
             </div>
-            {dailyPoints ? (
+            <select
+              className={styles.trafficSelect}
+              value={trafficRange}
+              onChange={(event) =>
+                setTrafficRange(event.target.value as typeof trafficRange)
+              }
+              disabled={trafficLoading}
+            >
+              <option value="1d">最近1天</option>
+              <option value="7d">最近7天</option>
+              <option value="30d">最近30天</option>
+              <option value="all">全部</option>
+            </select>
+            <button
+              type="button"
+              className={styles.resourceButton}
+              onClick={() => loadTraffic(trafficRange)}
+              disabled={trafficLoading}
+            >
+              刷新数据
+            </button>
+          </div>
+        </div>
+        <div className={styles.sectionHint}>
+          展示热门 Top 10 与热度趋势（{rangeLabel}）。
+        </div>
+        <div className={styles.trafficPanel}>
+          <div className={styles.trafficPanelBody}>
+            {trafficView === "top" ? (
+              trafficData?.top?.length ? (
+                <ol className={styles.trafficList}>
+                  {trafficData.top.map((item, index) => (
+                    <li key={item.id} className={styles.trafficItem}>
+                      <span className={styles.trafficRank}>{index + 1}</span>
+                      <span className={styles.trafficName}>
+                        {item.title ?? "未命名"}
+                      </span>
+                      <span className={styles.trafficValue}>
+                        {formatCount(item.heat)}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <div className={styles.trafficEmpty}>暂无数据</div>
+              )
+            ) : trafficView === "cumulative" ? (
+              cumulativePoints ? (
+                <svg
+                  className={styles.trafficChart}
+                  viewBox="0 0 320 90"
+                  role="img"
+                  aria-label="热度总和曲线"
+                >
+                  <polyline
+                    points={cumulativePoints}
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  />
+                </svg>
+              ) : (
+                <div className={styles.trafficEmpty}>暂无数据</div>
+              )
+            ) : dailyPoints ? (
               <svg
                 className={styles.trafficChart}
                 viewBox="0 0 320 90"

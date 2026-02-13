@@ -32,6 +32,7 @@ model Meme {
   updatedAt  DateTime   @updatedAt
   tags       MemeTag[]
   dailyPools DailyPoolItem[]
+  dailyStats MemeDailyStat[]
 }
 
 model Tag {
