@@ -242,7 +242,7 @@ export default function LogPanel({ pageLimit = 20 }: LogPanelProps) {
             </button>
             <div className={styles.searchBox}>
               <input
-                className={styles.searchInput}
+                className={`${styles.searchInput} focus-reset`}
                 value={queryInput}
                 onChange={(event) => {
                   setQueryInput(event.target.value);

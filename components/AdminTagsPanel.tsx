@@ -252,7 +252,7 @@ export default function AdminTagsPanel({ pageLimit = 20 }: AdminTagsPanelProps) 
         </div>
         <div className={styles.searchBox}>
           <input
-            className={styles.searchInput}
+            className={`${styles.searchInput} focus-reset`}
             type="text"
             placeholder="搜索标签"
             value={query}

@@ -1,6 +1,8 @@
 :root {
   --background: #0b0b0b;
   --foreground: #ededed;
+  --focus-ring: rgba(255, 255, 255, 0.35);
+  --focus-border: rgba(255, 255, 255, 0.65);
 }
 
 html,
@@ -30,4 +32,17 @@ a {
 
 html {
   color-scheme: dark;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]):not([type="file"]):focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--focus-border);
+  box-shadow: 0 0 0 2px var(--focus-ring);
+}
+
+.focus-reset:focus {
+  border-color: transparent !important;
+  box-shadow: none !important;
 }

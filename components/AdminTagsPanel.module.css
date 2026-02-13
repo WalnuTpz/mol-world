@@ -39,6 +39,7 @@
   background: rgba(30, 30, 30, 0.9);
   min-width: 220px;
   max-width: 280px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .searchInput {
@@ -48,6 +49,15 @@
   outline: none;
   color: #f0f0f0;
   font-size: 13px;
+}
+
+.searchInput:focus {
+  box-shadow: none;
+}
+
+.searchBox:focus-within {
+  border-color: var(--focus-border);
+  box-shadow: 0 0 0 2px var(--focus-ring);
 }
 
 .searchInput::placeholder {

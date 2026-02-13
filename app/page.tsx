@@ -412,7 +412,7 @@ export default async function Home({
           >
             <input
               name="q"
-              className={styles.searchInput}
+              className={`${styles.searchInput} focus-reset`}
               placeholder="搜索可爱的表情包"
               autoComplete="off"
               defaultValue={q}

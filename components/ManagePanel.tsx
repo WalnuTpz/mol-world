@@ -364,7 +364,7 @@ export default function ManagePanel({ pageLimit = 12 }: ManagePanelProps) {
         </div>
         <div className={styles.searchBox}>
           <input
-            className={styles.searchInput}
+            className={`${styles.searchInput} focus-reset`}
             value={queryInput}
             onChange={(event) => {
               setQueryInput(event.target.value);

@@ -151,7 +151,7 @@ export default function UploadPage() {
           >
             <input
               name="q"
-              className={baseStyles.searchInput}
+              className={`${baseStyles.searchInput} focus-reset`}
               placeholder="搜索可爱的表情包"
               autoComplete="off"
             />
