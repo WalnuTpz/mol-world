@@ -218,8 +218,12 @@ export default function MemeCard({
       toast("操作过于频繁", "error", undefined, "请稍后再试");
       return;
     }
-    lastDownloadAt = now;
     try {
+      const probe = await fetch(mediaUrl, { method: "HEAD" });
+      if (!probe.ok) {
+        throw new Error("下载失败");
+      }
+      lastDownloadAt = now;
       const link = document.createElement("a");
       link.href = mediaUrl;
       link.download = "";
