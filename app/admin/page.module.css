@@ -243,6 +243,77 @@
   font-weight: 600;
 }
 
+.trafficGrid {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.trafficCard {
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.25);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 160px;
+}
+
+.trafficCardTitle {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 600;
+}
+
+.trafficList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.trafficItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.trafficRank {
+  width: 22px;
+  color: rgba(255, 255, 255, 0.6);
+  flex-shrink: 0;
+}
+
+.trafficName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trafficValue {
+  color: rgba(255, 255, 255, 0.95);
+  font-weight: 600;
+}
+
+.trafficChart {
+  width: 100%;
+  height: 90px;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.trafficEmpty {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  padding: 12px 0;
+}
+
 .tagToolbar {
   display: flex;
   align-items: center;

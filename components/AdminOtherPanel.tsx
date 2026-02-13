@@ -1,9 +1,10 @@
 "use client";
 
 import styles from "@/app/admin/page.module.css";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { useToast, useToastConfirm } from "@/components/ToastProvider";
+import { formatCount } from "@/lib/format";
 
 export default function AdminOtherPanel() {
   const toast = useToast();
@@ -12,6 +13,11 @@ export default function AdminOtherPanel() {
   const [resourceStats, setResourceStats] = useState<{
     missing: { original: number; thumb: number };
     orphans: { original: number; thumb: number };
+  } | null>(null);
+  const [trafficLoading, setTrafficLoading] = useState(false);
+  const [trafficData, setTrafficData] = useState<{
+    top: { id: string; title: string | null; type: string; thumbUrl: string; heat: number }[];
+    daily: { day: string; heat: number; cumulative: number }[];
   } | null>(null);
 
   const scripts = [
@@ -131,6 +137,73 @@ export default function AdminOtherPanel() {
     }
   };
 
+  const loadTraffic = async () => {
+    if (trafficLoading) return;
+    setTrafficLoading(true);
+    try {
+      const res = await fetch("/api/admin/traffic", { cache: "no-store" });
+      const data = (await res.json().catch(() => null)) as
+        | {
+            top?: {
+              id: string;
+              title: string | null;
+              type: string;
+              thumbUrl: string;
+              heat: number;
+            }[];
+            daily?: { day: string; heat: number; cumulative: number }[];
+            error?: string;
+            message?: string;
+          }
+        | null;
+      if (!res.ok || !data?.daily || !data?.top) {
+        throw new Error(data?.error || data?.message || "加载失败");
+      }
+      setTrafficData({ top: data.top, daily: data.daily });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "加载失败";
+      toast(message, "error");
+    } finally {
+      setTrafficLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadTraffic();
+  }, []);
+
+  const dailyHeat = useMemo(
+    () => trafficData?.daily.map((item) => item.heat) ?? [],
+    [trafficData]
+  );
+  const cumulativeHeat = useMemo(
+    () => trafficData?.daily.map((item) => item.cumulative) ?? [],
+    [trafficData]
+  );
+
+  const buildSparkline = (values: number[]) => {
+    if (values.length === 0) return "";
+    const max = Math.max(...values, 1);
+    const min = Math.min(...values, 0);
+    const range = Math.max(1, max - min);
+    const width = 320;
+    const height = 90;
+    const step = values.length > 1 ? width / (values.length - 1) : width;
+    return values
+      .map((value, index) => {
+        const x = index * step;
+        const y = height - ((value - min) / range) * height;
+        return `${x.toFixed(2)},${y.toFixed(2)}`;
+      })
+      .join(" ");
+  };
+
+  const dailyPoints = useMemo(() => buildSparkline(dailyHeat), [dailyHeat]);
+  const cumulativePoints = useMemo(
+    () => buildSparkline(cumulativeHeat),
+    [cumulativeHeat]
+  );
+
   const resetCopies = async () => {
     if (resourceLoading) return;
     const ok = await confirm(
@@ -245,6 +318,86 @@ export default function AdminOtherPanel() {
                 ? `${resourceStats.orphans.original} / ${resourceStats.orphans.thumb}`
                 : "-"}
             </span>
+          </div>
+        </div>
+      </div>
+      <div className={styles.section}>
+        <div className={styles.sectionTitle}>流量与热度</div>
+        <div className={styles.sectionHint}>
+          近 7 天热门 Top 10 与近 30 天热度趋势。
+        </div>
+        <div className={styles.resourceActions}>
+          <button
+            type="button"
+            className={styles.resourceButton}
+            onClick={loadTraffic}
+            disabled={trafficLoading}
+          >
+            刷新数据
+          </button>
+        </div>
+        <div className={styles.trafficGrid}>
+          <div className={styles.trafficCard}>
+            <div className={styles.trafficCardTitle}>近 7 天热门 Top 10</div>
+            {trafficData?.top?.length ? (
+              <ol className={styles.trafficList}>
+                {trafficData.top.map((item, index) => (
+                  <li key={item.id} className={styles.trafficItem}>
+                    <span className={styles.trafficRank}>{index + 1}</span>
+                    <span className={styles.trafficName}>
+                      {item.title ?? "未命名"}
+                    </span>
+                    <span className={styles.trafficValue}>
+                      {formatCount(item.heat)}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <div className={styles.trafficEmpty}>暂无数据</div>
+            )}
+          </div>
+          <div className={styles.trafficCard}>
+            <div className={styles.trafficCardTitle}>热度总和曲线（30 天）</div>
+            {cumulativePoints ? (
+              <svg
+                className={styles.trafficChart}
+                viewBox="0 0 320 90"
+                role="img"
+                aria-label="热度总和曲线"
+              >
+                <polyline
+                  points={cumulativePoints}
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                />
+              </svg>
+            ) : (
+              <div className={styles.trafficEmpty}>暂无数据</div>
+            )}
+          </div>
+          <div className={styles.trafficCard}>
+            <div className={styles.trafficCardTitle}>
+              每日新增热度（30 天）
+            </div>
+            {dailyPoints ? (
+              <svg
+                className={styles.trafficChart}
+                viewBox="0 0 320 90"
+                role="img"
+                aria-label="每日新增热度"
+              >
+                <polyline
+                  points={dailyPoints}
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                />
+              </svg>
+            ) : (
+              <div className={styles.trafficEmpty}>暂无数据</div>
+            )}
           </div>
         </div>
       </div>

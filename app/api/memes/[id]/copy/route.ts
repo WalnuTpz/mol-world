@@ -15,7 +15,7 @@ export async function POST(
   const [updated] = await prisma.$transaction([
     prisma.meme.update({
       where: { id },
-      data: { downloads: { increment: 1 } },
+      data: { copies: { increment: 1 } },
       select: {
         id: true,
         copies: true,
@@ -24,10 +24,10 @@ export async function POST(
     }),
     prisma.memeDailyStat.upsert({
       where: { day_memeId: { day, memeId: id } },
-      create: { day, memeId: id, copies: 0, downloads: 1 },
-      update: { downloads: { increment: 1 } },
+      create: { day, memeId: id, copies: 1, downloads: 0 },
+      update: { copies: { increment: 1 } },
     }),
   ]);
 
-  return successResponse({ item: updated }, "已记录下载");
+  return successResponse({ item: updated }, "已记录复制");
 }

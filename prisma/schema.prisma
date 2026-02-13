@@ -25,6 +25,7 @@ model Meme {
   mediaUrl   String
   thumbUrl   String
   copies     Int        @default(0)
+  downloads  Int        @default(0)
   isFeatured Boolean    @default(false)
   status     MemeStatus @default(PUBLISHED)
   createdAt  DateTime   @default(now())
@@ -47,6 +48,18 @@ model MemeTag {
   tag    Tag  @relation(fields: [tagId], references: [id])
 
   @@id([memeId, tagId])
+}
+
+model MemeDailyStat {
+  day       String
+  memeId    String
+  copies    Int    @default(0)
+  downloads Int    @default(0)
+  meme      Meme   @relation(fields: [memeId], references: [id], onDelete: Cascade)
+
+  @@id([day, memeId])
+  @@index([day])
+  @@index([memeId])
 }
 
 model DailyPool {
