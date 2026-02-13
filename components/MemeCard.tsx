@@ -10,7 +10,9 @@ import { formatCount } from "@/lib/format";
 type MemeType = "STATIC" | "ANIMATED";
 
 const DEFAULT_COPY_COOLDOWN_MS = 5000;
+const DEFAULT_DOWNLOAD_COOLDOWN_MS = 10_000;
 let lastCopyAt = 0;
+let lastDownloadAt = 0;
 
 export type MemeCardProps = {
   id: string;
@@ -21,6 +23,7 @@ export type MemeCardProps = {
   copyCount: number;
   tags?: string[];
   copyCooldownMs?: number;
+  downloadCooldownMs?: number;
 };
 
 export default function MemeCard({
@@ -32,6 +35,7 @@ export default function MemeCard({
   copyCount,
   tags = [],
   copyCooldownMs,
+  downloadCooldownMs,
 }: MemeCardProps) {
   const [count, setCount] = useState(copyCount);
   const [selected, setSelected] = useState(false);
@@ -203,6 +207,18 @@ export default function MemeCard({
 
   const handleDownload = async (e: MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
+    const now = Date.now();
+    const cooldown = Math.max(
+      0,
+      Number.isFinite(downloadCooldownMs ?? DEFAULT_DOWNLOAD_COOLDOWN_MS)
+        ? Number(downloadCooldownMs ?? DEFAULT_DOWNLOAD_COOLDOWN_MS)
+        : DEFAULT_DOWNLOAD_COOLDOWN_MS
+    );
+    if (now - lastDownloadAt < cooldown) {
+      toast("操作过于频繁", "error", undefined, "请稍后再试");
+      return;
+    }
+    lastDownloadAt = now;
     try {
       const link = document.createElement("a");
       link.href = mediaUrl;

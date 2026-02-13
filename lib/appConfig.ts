@@ -21,6 +21,7 @@ export const APP_CONFIG_DEFAULTS = {
   maxEnTagLength: 20,
   copyCooldownSeconds: 5,
   randomCooldownSeconds: 5,
+  downloadCooldownSeconds: 10,
   loginCooldownHours: 24,
   adminSessionDays: 7,
 } as const;
@@ -57,6 +58,7 @@ export const APP_CONFIG_RULES: Record<AppConfigKey, AppConfigRule> = {
   maxEnTagLength: { min: 2, max: 30 },
   copyCooldownSeconds: { min: 0, max: 60 },
   randomCooldownSeconds: { min: 0, max: 60 },
+  downloadCooldownSeconds: { min: 0, max: 60 },
   loginCooldownHours: { min: 1, max: 168 },
   adminSessionDays: { min: 1, max: 30 },
 };

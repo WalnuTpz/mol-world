@@ -26,6 +26,7 @@ type ParamKey =
   | "maxEnTagLength"
   | "copyCooldownSeconds"
   | "randomCooldownSeconds"
+  | "downloadCooldownSeconds"
   | "loginCooldownHours"
   | "adminSessionDays";
 
@@ -223,6 +224,14 @@ const sections: { title: string; items: ParamItem[] }[] = [
         key: "randomCooldownSeconds",
         label: "随机冷却",
         hint: "randomCooldownSeconds",
+        unit: "秒",
+        min: 0,
+        max: 60,
+      },
+      {
+        key: "downloadCooldownSeconds",
+        label: "下载冷却",
+        hint: "downloadCooldownSeconds",
         unit: "秒",
         min: 0,
         max: 60,

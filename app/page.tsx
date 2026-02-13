@@ -361,6 +361,7 @@ export default async function Home({
   const encodedQ = encodeURIComponent(q);
   const copyCooldownMs = config.copyCooldownSeconds * 1000;
   const randomCooldownMs = config.randomCooldownSeconds * 1000;
+  const downloadCooldownMs = config.downloadCooldownSeconds * 1000;
   const emptyStateText =
     view === "search"
       ? q
@@ -546,7 +547,11 @@ export default async function Home({
           <div className={styles.emptyState}>{emptyStateText}</div>
         ) : (
           <div className={styles.gridWrap}>
-            <MemeGrid items={items} copyCooldownMs={copyCooldownMs} />
+            <MemeGrid
+              items={items}
+              copyCooldownMs={copyCooldownMs}
+              downloadCooldownMs={downloadCooldownMs}
+            />
           </div>
         )}
 
