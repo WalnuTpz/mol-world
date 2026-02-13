@@ -30,10 +30,19 @@
   align-items: center;
   gap: 14px;
   flex-wrap: wrap;
-  justify-content: space-between;
-  flex: 0 1 520px;
+  justify-content: flex-end;
+  flex: 1 1 520px;
   margin-left: auto;
-  margin-top: 12px;
+  margin-top: 0;
+}
+
+.toolbarRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  width: 100%;
 }
 
 .searchBox {

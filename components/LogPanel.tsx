@@ -38,9 +38,8 @@ export default function LogPanel({ pageLimit = 20 }: LogPanelProps) {
   const [total, setTotal] = useState(0);
   const [jumpValue, setJumpValue] = useState("1");
   const [clearing, setClearing] = useState(false);
-  const [clearRange, setClearRange] = useState<"1d" | "7d" | "30d" | "all">(
-    "7d"
-  );
+  const [range, setRange] = useState<"1d" | "7d" | "30d" | "all">("7d");
+  const [exporting, setExporting] = useState(false);
   const toast = useToast();
   const confirm = useToastConfirm();
 
@@ -154,11 +153,53 @@ export default function LogPanel({ pageLimit = 20 }: LogPanelProps) {
     }
   };
 
-  const rangeLabels: Record<typeof clearRange, string> = {
+  const rangeLabels: Record<typeof range, string> = {
     "1d": "最近1天",
     "7d": "最近7天",
     "30d": "最近30天",
     all: "全部",
+  };
+
+  const exportLogs = async (range: typeof range) => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const params = new URLSearchParams({
+        range,
+        q: query,
+      });
+      const res = await fetch(`/api/admin/logs/export?${params.toString()}`);
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as
+          | { error?: string; message?: string }
+          | null;
+        throw new Error(data?.error || data?.message || "导出失败");
+      }
+      const blob = await res.blob();
+      const disposition = res.headers.get("content-disposition") ?? "";
+      const match = disposition.match(
+        /filename\\*=UTF-8''([^;]+)|filename=\"?([^\";]+)\"?/i
+      );
+      const fallbackName = `audit-logs-${range}-${new Date()
+        .toISOString()
+        .slice(0, 10)
+        .replace(/-/g, "")}.csv`;
+      const filename = decodeURIComponent(match?.[1] || match?.[2] || fallbackName);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast("日志已导出", "success");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "导出失败";
+      toast(message, "error");
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -171,63 +212,67 @@ export default function LogPanel({ pageLimit = 20 }: LogPanelProps) {
           </div>
         </div>
         <div className={styles.headerTools}>
-          <div className={styles.toolbarInline}>
-            <div className={styles.toolbarActions}>
-              <select
-                className={styles.toolbarSelect}
-                value={clearRange}
-                onChange={(event) =>
-                  setClearRange(event.target.value as typeof clearRange)
-                }
-                disabled={clearing}
-              >
-                <option value="1d">最近1天</option>
-                <option value="7d">最近7天</option>
-                <option value="30d">最近30天</option>
-                <option value="all">全部</option>
-              </select>
-              <button
-                type="button"
-                className={`${styles.toolbarButton} ${styles.toolbarButtonDanger}`}
-                onClick={() => clearLogs(clearRange, rangeLabels[clearRange])}
-                disabled={clearing}
-              >
-                清理日志
-              </button>
+          <div className={styles.toolbarRow}>
+            <select
+              className={styles.toolbarSelect}
+              value={range}
+              onChange={(event) => setRange(event.target.value as typeof range)}
+              disabled={clearing || exporting}
+            >
+              <option value="1d">最近1天</option>
+              <option value="7d">最近7天</option>
+              <option value="30d">最近30天</option>
+              <option value="all">全部</option>
+            </select>
+            <button
+              type="button"
+              className={styles.toolbarButton}
+              onClick={() => exportLogs(range)}
+              disabled={exporting}
+            >
+              导出 CSV
+            </button>
+            <button
+              type="button"
+              className={`${styles.toolbarButton} ${styles.toolbarButtonDanger}`}
+              onClick={() => clearLogs(range, rangeLabels[range])}
+              disabled={clearing}
+            >
+              清理日志
+            </button>
+            <div className={styles.searchBox}>
+              <input
+                className={styles.searchInput}
+                value={queryInput}
+                onChange={(event) => {
+                  setQueryInput(event.target.value);
+                  setPage(1);
+                }}
+                placeholder="搜索操作类型/消息/目标 ID"
+                aria-label="搜索操作日志"
+              />
+              <span className={styles.searchIcon} aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="16" height="16">
+                  <circle
+                    cx="11"
+                    cy="11"
+                    r="6.5"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    fill="none"
+                  />
+                  <line
+                    x1="16.2"
+                    y1="16.2"
+                    x2="20.5"
+                    y2="20.5"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </span>
             </div>
-          </div>
-          <div className={styles.searchBox}>
-            <input
-              className={styles.searchInput}
-              value={queryInput}
-              onChange={(event) => {
-                setQueryInput(event.target.value);
-                setPage(1);
-              }}
-              placeholder="搜索操作类型/消息/目标 ID"
-              aria-label="搜索操作日志"
-            />
-            <span className={styles.searchIcon} aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="16" height="16">
-                <circle
-                  cx="11"
-                  cy="11"
-                  r="6.5"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  fill="none"
-                />
-                <line
-                  x1="16.2"
-                  y1="16.2"
-                  x2="20.5"
-                  y2="20.5"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </span>
           </div>
         </div>
       </div>
