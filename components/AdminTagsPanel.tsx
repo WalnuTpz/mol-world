@@ -203,6 +203,10 @@ export default function AdminTagsPanel() {
       const data = (await res.json()) as { message?: string };
       toast(data.message || "已删除", "success");
       const list = await loadList(page, query);
+      if (list.items.length === 0 && page > 1) {
+        setPage(page - 1);
+        return;
+      }
       setItems(list.items);
       setTotal(list.total);
     } catch (err) {
