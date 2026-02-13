@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 
 import styles from "@/components/AdminParamsPanel.module.css";
-import { useToast } from "@/components/ToastProvider";
+import { useToast, useToastConfirm } from "@/components/ToastProvider";
+import { APP_CONFIG_DEFAULTS } from "@/lib/appConfigDefaults";
 
 type ParamKey =
   | "dailyPoolGroups"
@@ -267,6 +268,7 @@ const allKeys = sections.flatMap((section) =>
 
 export default function AdminParamsPanel() {
   const toast = useToast();
+  const confirm = useToastConfirm();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -377,21 +379,66 @@ export default function AdminParamsPanel() {
     }
   };
 
+  const handleReset = async () => {
+    if (saving || loading) return;
+    const ok = await confirm(
+      "确认恢复默认参数吗？",
+      "此操作会覆盖当前配置并立即生效。"
+    );
+    if (!ok) return;
+    setSaving(true);
+    try {
+      const res = await fetch("/api/admin/params", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ updates: APP_CONFIG_DEFAULTS }),
+      });
+      const data = (await res.json().catch(() => null)) as
+        | { config?: Record<string, number>; error?: string; message?: string }
+        | null;
+      if (!res.ok) {
+        throw new Error(data?.error || data?.message || "恢复默认失败");
+      }
+      const nextValues = allKeys.reduce((acc, key) => {
+        const raw = data?.config?.[key] ?? APP_CONFIG_DEFAULTS[key];
+        acc[key] = String(raw);
+        return acc;
+      }, {} as Record<ParamKey, string>);
+      setValues(nextValues);
+      setInitialValues(nextValues);
+      toast("已恢复默认参数", "success");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "恢复默认失败";
+      toast(message, "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className={styles.content}>
       <div className={styles.headerRow}>
         <div className={styles.headerBlock}>
           <h1 className={styles.title}>参数管理</h1>
           <div className={styles.subtitle}>
-            集中查看并调整当前配置项
+            集中查看并调整当前配置参数
           </div>
         </div>
         <div className={styles.headerActions}>
           <button
             type="button"
-            className={`${styles.saveButton} ${
-              !dirty || loading || saving ? styles.saveButtonDisabled : ""
+            className={`${styles.resetButton} ${
+              loading || saving ? styles.resetButtonDisabled : ""
             }`}
+            onClick={handleReset}
+            disabled={loading || saving}
+          >
+            恢复默认
+          </button>
+          <button
+            type="button"
+            className={`${styles.saveButton} ${!dirty || loading || saving ? styles.saveButtonDisabled : ""
+              }`}
             onClick={handleSave}
             disabled={!dirty || loading || saving}
           >
