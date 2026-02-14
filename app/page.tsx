@@ -161,11 +161,6 @@ export default async function Home({
   const limit = parseIntParam(getParam(resolvedParams?.limit), config.listLimit);
   const hotLimit = config.hotLimit;
   const page = parseIntParam(getParam(resolvedParams?.page), 1);
-  const sortParam = getParam(resolvedParams?.sort);
-  const sort =
-    sortParam === "name" || sortParam === "earliest" || sortParam === "latest"
-      ? sortParam
-      : "latest";
   const hotSortParam = getParam(resolvedParams?.hotSort);
   const hotSort =
     hotSortParam === "random" || hotSortParam === "hot"
@@ -177,6 +172,21 @@ export default async function Home({
     view = viewParam;
   }
   if (q) view = "search";
+
+  const sortParam = getParam(resolvedParams?.sort);
+  const sort =
+    view === "search"
+      ? sortParam === "name" ||
+        sortParam === "heat" ||
+        sortParam === "earliest" ||
+        sortParam === "latest"
+        ? sortParam
+        : "latest"
+      : sortParam === "name" ||
+        sortParam === "earliest" ||
+        sortParam === "latest"
+        ? sortParam
+        : "latest";
 
   let items: MemeCardItem[] = [];
   let total = 0;
@@ -339,6 +349,21 @@ export default async function Home({
           if (!b.title) return -1;
           const diff = collator.compare(a.title, b.title);
           if (diff !== 0) return diff;
+          return b.createdAt.getTime() - a.createdAt.getTime();
+        });
+        const normalized = normalizeItems(list as MemeRow[]);
+        total = normalized.length;
+        totalPages = Math.max(1, Math.ceil(total / limit));
+        items = normalized.slice(skip, skip + limit);
+      } else if (sort === "heat") {
+        const list = await prisma.meme.findMany({
+          where,
+          select,
+        });
+        list.sort((a, b) => {
+          const heatDiff =
+            b.copies + b.downloads - (a.copies + a.downloads);
+          if (heatDiff !== 0) return heatDiff;
           return b.createdAt.getTime() - a.createdAt.getTime();
         });
         const normalized = normalizeItems(list as MemeRow[]);
@@ -513,6 +538,13 @@ export default async function Home({
                 href={`/?view=search&q=${encodedQ}&sort=name&page=1&limit=${limit}`}
               >
                 按名称
+              </Link>
+              <Link
+                className={`${styles.filterBtn} ${sort === "heat" ? styles.filterActive : ""
+                  }`}
+                href={`/?view=search&q=${encodedQ}&sort=heat&page=1&limit=${limit}`}
+              >
+                最热
               </Link>
               <Link
                 className={`${styles.filterBtn} ${sort === "latest" ? styles.filterActive : ""
