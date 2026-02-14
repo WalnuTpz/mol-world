@@ -54,9 +54,9 @@ export default function AdminOtherPanel() {
       command: "pnpm tsx prisma/backfill-title-tags.ts",
     },
     {
-      title: "按标题重命名文件（危险）",
-      desc: "将素材文件名改为对应标题。",
-      command: "pnpm tsx prisma/rename-media-by-title.ts",
+      title: "按编号重命名文件（危险）",
+      desc: "将素材文件名改为对应 numId 编号。",
+      command: "pnpm tsx prisma/rename-media-by-numid.ts",
       danger: true,
     },
     {

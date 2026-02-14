@@ -42,20 +42,6 @@ const fileExists = async (filePath: string) => {
   }
 };
 
-const sanitizeTitle = (raw: string) => {
-  let name = raw.trim();
-  name = name.replace(/\.(png|jpg|jpeg|gif|webp)$/i, "");
-  name = name.replace(/[\\/:*?"<>|]/g, "_");
-  name = name.replace(/\s+/g, " ");
-  name = name.replace(/[. ]+$/g, "");
-  name = name.slice(0, 80);
-  if (!name) return "";
-  if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(name)) {
-    name = `_${name}`;
-  }
-  return name;
-};
-
 const computeTarget = async (
   dir: string,
   base: string,
@@ -80,7 +66,7 @@ async function main() {
   const memes = await prisma.meme.findMany({
     select: {
       id: true,
-      title: true,
+      numId: true,
       mediaUrl: true,
       thumbUrl: true,
     },
@@ -93,7 +79,7 @@ async function main() {
   let missing = 0;
 
   for (const meme of memes) {
-    if (!meme.title) {
+    if (!meme.numId) {
       skipped += 1;
       continue;
     }
@@ -102,11 +88,7 @@ async function main() {
       continue;
     }
 
-    const safeTitle = sanitizeTitle(meme.title);
-    if (!safeTitle) {
-      skipped += 1;
-      continue;
-    }
+    const baseName = String(meme.numId);
 
     const mediaPath = toFsPath(meme.mediaUrl);
     if (!(await fileExists(mediaPath))) {
@@ -118,7 +100,7 @@ async function main() {
     const originalDir = path.dirname(mediaPath);
     const mediaTarget = await computeTarget(
       originalDir,
-      safeTitle,
+      baseName,
       mediaExt,
       mediaPath
     );
@@ -141,7 +123,7 @@ async function main() {
         const thumbDir = path.dirname(thumbPath);
         const thumbTarget = await computeTarget(
           thumbDir,
-          safeTitle,
+          baseName,
           thumbExt,
           thumbPath
         );
