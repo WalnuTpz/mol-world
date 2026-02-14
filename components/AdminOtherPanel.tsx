@@ -54,15 +54,15 @@ export default function AdminOtherPanel() {
       command: "pnpm tsx prisma/backfill-title-tags.ts",
     },
     {
-      title: "按编号重命名文件（危险）",
-      desc: "将素材文件名改为对应 numId 编号。",
-      command: "pnpm tsx prisma/rename-media-by-numid.ts",
+      title: "重建随机池（危险）",
+      desc: "按当前已发布表情包重建今日随机池。",
+      command: "pnpm tsx prisma/rebuild-daily-pool.ts",
       danger: true,
     },
     {
-      title: "修正创建时间（危险）",
-      desc: "按顺序调整 createdAt 时间。",
-      command: "pnpm tsx prisma/adjust-created-at.ts",
+      title: "按编号重命名文件（危险）",
+      desc: "将素材文件名改为对应 numId 编号。",
+      command: "pnpm tsx prisma/rename-media-by-numid.ts",
       danger: true,
     },
     {

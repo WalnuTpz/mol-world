@@ -83,8 +83,8 @@ docs/       # 规格与流程文档
 - `prisma/backfill-thumbs.ts`
 - `prisma/backfill-numid.ts`
 - `prisma/backfill-title-tags.ts`
+- `prisma/rebuild-daily-pool.ts`
 - `prisma/rename-media-by-numid.ts`
-- `prisma/adjust-created-at.ts`
 
 ## 配置说明
 
