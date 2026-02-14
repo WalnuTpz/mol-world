@@ -350,29 +350,6 @@ export default function AdminOtherPanel() {
     setPasswordOpen(true);
   };
 
-  const handleViewPassword = async () => {
-    if (passwordLoading) return;
-    setPasswordError("");
-    try {
-      const res = await fetch("/api/admin/password");
-      if (!res.ok) {
-        const data = (await res.json().catch(() => null)) as
-          | { error?: string; message?: string }
-          | null;
-        throw new Error(data?.error || data?.message || "获取失败");
-      }
-      const data = (await res.json().catch(() => null)) as
-        | { user?: string; pass?: string }
-        | null;
-      if (!data?.user || !data?.pass) {
-        throw new Error("账号信息不完整");
-      }
-      toast(`账号：${data.user}`, "info", 3200, `密码：${data.pass}`);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "获取失败";
-      toast(message, "error");
-    }
-  };
 
   const closePasswordDialog = () => {
     if (passwordLoading) return;
@@ -632,13 +609,6 @@ export default function AdminOtherPanel() {
               修改管理员密码或退出当前登录。
             </div>
             <div className={styles.resourceActions}>
-              <button
-                type="button"
-                className={styles.resourceButton}
-                onClick={handleViewPassword}
-              >
-                查看密码
-              </button>
               <button
                 type="button"
                 className={styles.resourceButton}

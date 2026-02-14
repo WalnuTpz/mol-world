@@ -15,28 +15,6 @@ const getCookieValue = (request: Request, name: string) => {
   return match ? decodeURIComponent(match[1]) : null;
 };
 
-export async function GET(request: Request) {
-  const auth = await isAdminSessionValid(
-    getCookieValue(request, getAdminSessionCookieName())
-  );
-  if (!auth) {
-    return errorResponse("未登录", 401, "UNAUTHORIZED");
-  }
-
-  const credential = await getAdminCredential();
-  if (!credential) {
-    return errorResponse("管理员账号未配置", 400, "NO_ADMIN");
-  }
-  if (!credential.passPlain) {
-    return errorResponse("密码未保存，请先修改一次密码", 400, "NO_PASSWORD");
-  }
-
-  return successResponse(
-    { user: credential.user, pass: credential.passPlain },
-    "查询成功"
-  );
-}
-
 export async function POST(request: Request) {
   const token = getCookieValue(request, getAdminSessionCookieName());
   const authed = await isAdminSessionValid(token);

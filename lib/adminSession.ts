@@ -9,7 +9,6 @@ type AdminCredential = {
   user: string;
   passHash: string;
   salt: string;
-  passPlain?: string | null;
   source: "db" | "env";
 };
 
@@ -33,7 +32,6 @@ const buildCredentialFromEnv = () => {
     user,
     passHash,
     salt,
-    passPlain: pass,
     source: "env" as const,
   };
 };
@@ -47,7 +45,7 @@ export const getAdminCredential = async (): Promise<AdminCredential | null> => {
   }).adminCredential;
   if (delegate?.findFirst) {
     const row = await delegate.findFirst({
-      select: { user: true, passHash: true, salt: true, passPlain: true },
+      select: { user: true, passHash: true, salt: true },
       orderBy: { updatedAt: "desc" },
     });
     if (row) {
@@ -97,11 +95,11 @@ export const updateAdminPassword = async (user: string, newPass: string) => {
   const passHash = hashPassword(newPass, salt);
   await delegate.upsert({
     where: { user },
-    create: { user, passHash, salt, passPlain: newPass },
-    update: { passHash, salt, passPlain: newPass },
+    create: { user, passHash, salt },
+    update: { passHash, salt },
   });
   invalidateAdminCredentialCache();
-  return { ok: true as const, credential: { user, passHash, salt, passPlain: newPass } };
+  return { ok: true as const, credential: { user, passHash, salt } };
 };
 
 export const isAdminSessionValid = async (value?: string | null) => {
