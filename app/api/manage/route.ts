@@ -83,7 +83,7 @@ export async function GET(request: Request) {
   const { status, type, tokens } = parseManageQuery(q, tagRules);
 
   const where = {
-    status: status ? status : ({ in: ["PUBLISHED", "HIDDEN"] as const } as const),
+    status: status ? status : { in: ["PUBLISHED", "HIDDEN"] as StatusFilter[] },
     mediaUrl: { not: { startsWith: "/uploads/" } },
     ...(type ? { type } : {}),
     ...(tokens.length

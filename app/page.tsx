@@ -21,6 +21,7 @@ type SearchParams = {
   limit?: string | string[];
   sort?: string | string[];
   hotSort?: string | string[];
+  type?: string | string[];
 };
 
 function getParam(value: string | string[] | undefined) {
@@ -165,7 +166,7 @@ export default async function Home({
   const hotSort =
     hotSortParam === "random" || hotSortParam === "hot"
       ? hotSortParam
-      : "hot";
+      : "random";
 
   let view: "hot" | "all" | "search" = "hot";
   if (viewParam === "all" || viewParam === "search" || viewParam === "hot") {
@@ -335,17 +336,17 @@ export default async function Home({
       const where =
         tokens.length > 0
           ? {
-            status: "PUBLISHED",
-            AND: tokens.map((token) => ({
-              OR: [
-                { title: { contains: token } },
-                { tags: { some: { tag: { name: { contains: token } } } } },
-              ],
-            })),
-          }
+              status: "PUBLISHED" as const,
+              AND: tokens.map((token) => ({
+                OR: [
+                  { title: { contains: token } },
+                  { tags: { some: { tag: { name: { contains: token } } } } },
+                ],
+              })),
+            }
           : {
-            status: "PUBLISHED",
-          };
+              status: "PUBLISHED" as const,
+            };
 
       if (sort === "name") {
         const list = await prisma.meme.findMany({

@@ -79,14 +79,29 @@ export async function POST(request: Request) {
       where: { tagId: fromResolved.id },
       select: { memeId: true },
     });
-    const createResult =
+    const toCreate =
       links.length > 0
+        ? await tx.memeTag
+            .findMany({
+              where: {
+                tagId: toResolved.id,
+                memeId: { in: links.map((link) => link.memeId) },
+              },
+              select: { memeId: true },
+            })
+            .then((existing) => {
+              const existingSet = new Set(existing.map((item) => item.memeId));
+              return links.filter((link) => !existingSet.has(link.memeId));
+            })
+        : [];
+
+    const createResult =
+      toCreate.length > 0
         ? await tx.memeTag.createMany({
-            data: links.map((link) => ({
+            data: toCreate.map((link) => ({
               memeId: link.memeId,
               tagId: toResolved.id,
             })),
-            skipDuplicates: true,
           })
         : { count: 0 };
 
@@ -95,7 +110,12 @@ export async function POST(request: Request) {
 
     const updated = await tx.tag.findUnique({
       where: { id: toResolved.id },
-      select: { id: true, name: true, _count: { select: { memes: true } } },
+      select: {
+        id: true,
+        name: true,
+        numId: true,
+        _count: { select: { memes: true } },
+      },
     });
 
     return {

@@ -37,14 +37,13 @@ export async function GET(request: Request) {
   const skip = (page - 1) * limit;
 
   const where = q ? { name: { contains: q } } : {};
+  const countOrder: "asc" | "desc" = sort === "count_asc" ? "asc" : "desc";
   const orderBy =
     sort === "name_asc"
       ? { name: "asc" as const }
       : sort === "name_desc"
         ? { name: "desc" as const }
-        : {
-            memes: { _count: sort === "count_asc" ? ("asc" as const) : "desc" },
-          };
+        : { memes: { _count: countOrder } };
 
   const [items, total] = await Promise.all([
     prisma.tag.findMany({

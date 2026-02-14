@@ -39,8 +39,8 @@ const pickRandomSubset = <T,>(items: T[], count: number) => {
 };
 
 const loadPoolConfig = async () => {
-  let groups = APP_CONFIG_DEFAULTS.dailyPoolGroups;
-  let size = APP_CONFIG_DEFAULTS.dailyPoolSize;
+  let groups: number = APP_CONFIG_DEFAULTS.dailyPoolGroups;
+  let size: number = APP_CONFIG_DEFAULTS.dailyPoolSize;
   try {
     const rows = await prisma.appConfig.findMany({
       where: {

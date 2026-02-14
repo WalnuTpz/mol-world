@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 
 import baseStyles from "@/app/page.module.css";
@@ -94,12 +93,13 @@ export default function AdminLoginTrigger({
         onClick={openLogin}
         aria-label="管理控制台"
       >
-        <Image
+        <img
           className={iconClassName ?? baseStyles.brandIcon}
           src="/brand-icon.png"
           alt="MolWorld"
           width={36}
           height={36}
+          loading="eager"
         />
       </button>
 

@@ -34,8 +34,9 @@ export const getAppConfig = async (): Promise<AppConfig> => {
   if (cachedConfig && cachedConfig.expiresAt > Date.now()) {
     return cachedConfig.value;
   }
-  const delegate = (prisma as { appConfig?: { findMany: typeof prisma.meme.findMany } })
-    .appConfig;
+  const delegate = (prisma as unknown as {
+    appConfig?: { findMany: typeof prisma.appConfig.findMany };
+  }).appConfig;
   if (!delegate?.findMany) {
     return { ...APP_CONFIG_DEFAULTS };
   }
@@ -57,8 +58,9 @@ export const invalidateAppConfigCache = () => {
 export const updateAppConfig = async (
   updates: Partial<Record<AppConfigKey, number | string>>
 ) => {
-  const delegate = (prisma as { appConfig?: { upsert: typeof prisma.meme.upsert } })
-    .appConfig;
+  const delegate = (prisma as unknown as {
+    appConfig?: { upsert: typeof prisma.appConfig.upsert };
+  }).appConfig;
   if (!delegate?.upsert) {
     return { ok: false as const, error: "参数表未就绪，请先迁移数据库" };
   }

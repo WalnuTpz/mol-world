@@ -12,6 +12,11 @@ type AdminCredential = {
   source: "db" | "env";
 };
 
+type AdminCredentialDelegate = {
+  findFirst: typeof prisma.adminCredential.findFirst;
+  upsert: typeof prisma.adminCredential.upsert;
+};
+
 let cachedCredential: { value: AdminCredential | null; expiresAt: number } | null = null;
 
 export const getAdminSessionCookieName = () => SESSION_COOKIE;
@@ -51,8 +56,8 @@ export const getAdminCredential = async (): Promise<AdminCredential | null> => {
   if (cachedCredential && cachedCredential.expiresAt > Date.now()) {
     return cachedCredential.value;
   }
-  const delegate = (prisma as {
-    adminCredential?: { findFirst: typeof prisma.meme.findFirst };
+  const delegate = (prisma as unknown as {
+    adminCredential?: AdminCredentialDelegate;
   }).adminCredential;
   if (delegate?.findFirst) {
     const row = await delegate.findFirst({
@@ -96,8 +101,8 @@ export const verifyAdminPassword = async (user: string, pass: string) => {
 };
 
 export const updateAdminPassword = async (user: string, newPass: string) => {
-  const delegate = (prisma as {
-    adminCredential?: { upsert: typeof prisma.meme.upsert };
+  const delegate = (prisma as unknown as {
+    adminCredential?: AdminCredentialDelegate;
   }).adminCredential;
   if (!delegate?.upsert) {
     return { ok: false as const, error: "账号表未就绪，请先迁移数据库" };
