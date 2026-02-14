@@ -7,17 +7,25 @@ export async function POST(request: Request) {
   const auth = await requireAdmin(request);
   if (!auth.ok) return auth.response;
   try {
-    const result = await prisma.meme.updateMany({
-      data: { copies: 0, downloads: 0 },
-    });
+    const [memeResult, statResult] = await prisma.$transaction([
+      prisma.meme.updateMany({
+        data: { copies: 0, downloads: 0 },
+      }),
+      prisma.memeDailyStat.updateMany({
+        data: { copies: 0, downloads: 0 },
+      }),
+    ]);
     void logAudit({
       action: "manage:reset-heat",
       status: "success",
       message: "全站热度清零",
-      data: { count: result.count },
+      data: { memes: memeResult.count, stats: statResult.count },
       request,
     });
-    return successResponse({ count: result.count }, "清零成功");
+    return successResponse(
+      { count: memeResult.count, stats: statResult.count },
+      "清零成功"
+    );
   } catch (error) {
     void logAudit({
       action: "manage:reset-heat",

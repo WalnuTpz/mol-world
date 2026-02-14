@@ -329,12 +329,15 @@ export default function AdminOtherPanel() {
     try {
       const res = await fetch("/api/admin/heat/reset", { method: "POST" });
       const data = (await res.json().catch(() => null)) as
-        | { count?: number; error?: string; message?: string }
+        | { count?: number; stats?: number; error?: string; message?: string }
         | null;
       if (!res.ok) {
         throw new Error(data?.error || data?.message || "清零失败");
       }
-      toast(`已清零热度（${data?.count ?? 0}）`, "success");
+      const memeCount = data?.count ?? 0;
+      const statCount = data?.stats ?? 0;
+      toast(`已清零热度（表情包 ${memeCount} / 统计 ${statCount}）`, "success");
+      void loadTraffic(trafficRange);
     } catch (err) {
       const message = err instanceof Error ? err.message : "清零失败";
       toast(message, "error");
