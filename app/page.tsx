@@ -173,6 +173,12 @@ export default async function Home({
   }
   if (q) view = "search";
 
+  const typeParam = getParam(resolvedParams?.type);
+  const allType =
+    view === "all" && (typeParam === "animated" || typeParam === "static")
+      ? typeParam
+      : "all";
+
   const sortParam = getParam(resolvedParams?.sort);
   const sort =
     view === "search"
@@ -268,7 +274,14 @@ export default async function Home({
 
   if (view === "all") {
     const skip = (page - 1) * limit;
-    const where = { status: "PUBLISHED" as const };
+    const where = {
+      status: "PUBLISHED" as const,
+      ...(allType === "animated"
+        ? { type: "ANIMATED" as const }
+        : allType === "static"
+          ? { type: "STATIC" as const }
+          : {}),
+    };
 
     if (sort === "name") {
       const list = await prisma.meme.findMany({ where, select });
@@ -565,23 +578,34 @@ export default async function Home({
           {view === "all" && (
             <div className={styles.filters}>
               <Link
+                className={`${styles.filterBtn} ${styles.filterActive}`}
+                href={`/?view=all&type=${allType === "all" ? "animated" : allType === "animated" ? "static" : "all"
+                  }&sort=${sort}&page=1&limit=${limit}`}
+              >
+                {allType === "all"
+                  ? "全部"
+                  : allType === "animated"
+                    ? "动图"
+                    : "静态"}
+              </Link>
+              <Link
                 className={`${styles.filterBtn} ${sort === "name" ? styles.filterActive : ""
                   }`}
-                href={`/?view=all&sort=name&page=1&limit=${limit}`}
+                href={`/?view=all&type=${allType}&sort=name&page=1&limit=${limit}`}
               >
                 按名称
               </Link>
               <Link
                 className={`${styles.filterBtn} ${sort === "latest" ? styles.filterActive : ""
                   }`}
-                href={`/?view=all&sort=latest&page=1&limit=${limit}`}
+                href={`/?view=all&type=${allType}&sort=latest&page=1&limit=${limit}`}
               >
                 最新
               </Link>
               <Link
                 className={`${styles.filterBtn} ${sort === "earliest" ? styles.filterActive : ""
                   }`}
-                href={`/?view=all&sort=earliest&page=1&limit=${limit}`}
+                href={`/?view=all&type=${allType}&sort=earliest&page=1&limit=${limit}`}
               >
                 最早
               </Link>
@@ -669,7 +693,7 @@ export default async function Home({
                 {hasPrev ? (
                   <Link
                     className={styles.pageNavBtn}
-                    href={`/?view=all&sort=${sort}&page=${page - 1}&limit=${limit}`}
+                    href={`/?view=all&type=${allType}&sort=${sort}&page=${page - 1}&limit=${limit}`}
                   >
                     上一页
                   </Link>
@@ -679,7 +703,7 @@ export default async function Home({
                 {hasNext ? (
                   <Link
                     className={styles.pageNavBtn}
-                    href={`/?view=all&sort=${sort}&page=${page + 1}&limit=${limit}`}
+                    href={`/?view=all&type=${allType}&sort=${sort}&page=${page + 1}&limit=${limit}`}
                   >
                     下一页
                   </Link>
@@ -689,6 +713,7 @@ export default async function Home({
               </div>
               <form className={styles.pageJump} action="/" method="get">
                 <input type="hidden" name="view" value="all" />
+                <input type="hidden" name="type" value={allType} />
                 <input type="hidden" name="sort" value={sort} />
                 <input type="hidden" name="limit" value={limit} />
                 <label className={styles.pageJumpLabel}>
