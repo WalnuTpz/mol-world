@@ -15,6 +15,17 @@ type AdminCredential = {
 let cachedCredential: { value: AdminCredential | null; expiresAt: number } | null = null;
 
 export const getAdminSessionCookieName = () => SESSION_COOKIE;
+const isSecureCookie = () => process.env.NODE_ENV === "production";
+
+export const buildAdminSessionCookie = (token: string, maxAge: number) => {
+  const secure = isSecureCookie() ? "; Secure" : "";
+  return `${SESSION_COOKIE}=${token}; Path=/; Max-Age=${maxAge}; HttpOnly; SameSite=Lax${secure}`;
+};
+
+export const buildAdminClearCookie = () => {
+  const secure = isSecureCookie() ? "; Secure" : "";
+  return `${SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax${secure}`;
+};
 
 const hashPassword = (pass: string, salt: string) =>
   crypto.scryptSync(pass, salt, 32).toString("hex");

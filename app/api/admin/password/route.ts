@@ -1,5 +1,6 @@
 import { errorResponse, successResponse } from "@/lib/api";
 import {
+  buildAdminSessionCookie,
   buildAdminSessionToken,
   getAdminCredential,
   getAdminSessionCookieName,
@@ -61,10 +62,10 @@ export async function POST(request: Request) {
 
   const config = await getAppConfig();
   const maxAge = 60 * 60 * 24 * config.adminSessionDays;
-  const cookie = `${getAdminSessionCookieName()}=${buildAdminSessionToken(
-    result.credential.user,
-    result.credential.passHash
-  )}; Path=/; Max-Age=${maxAge}; HttpOnly; SameSite=Lax`;
+  const cookie = buildAdminSessionCookie(
+    buildAdminSessionToken(result.credential.user, result.credential.passHash),
+    maxAge
+  );
 
   void logAudit({
     action: "admin_change_password",

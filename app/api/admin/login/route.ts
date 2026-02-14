@@ -1,7 +1,7 @@
 import { errorResponse, successResponse } from "@/lib/api";
 import {
+  buildAdminSessionCookie,
   buildAdminSessionToken,
-  getAdminSessionCookieName,
   verifyAdminPassword,
 } from "@/lib/adminSession";
 import { getAppConfig } from "@/lib/appConfig";
@@ -73,9 +73,9 @@ export async function POST(request: Request) {
 
   attempts.delete(clientId);
   const maxAge = 60 * 60 * 24 * config.adminSessionDays;
-  const cookie = `${getAdminSessionCookieName()}=${buildAdminSessionToken(
-    result.credential.user,
-    result.credential.passHash
-  )}; Path=/; Max-Age=${maxAge}; HttpOnly; SameSite=Lax`;
+  const cookie = buildAdminSessionCookie(
+    buildAdminSessionToken(result.credential.user, result.credential.passHash),
+    maxAge
+  );
   return successResponse({}, "登录成功", 200, { "Set-Cookie": cookie });
 }
