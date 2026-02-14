@@ -276,7 +276,10 @@ export default function ReviewPanel({ pageLimit = 12 }: ReviewPanelProps) {
     <>
       <div className={styles.headerRow}>
         <div className={styles.headerBlock}>
-          <h1 className={styles.title}>审核表情包</h1>
+          <h1 className={styles.title}>
+            审核表情包
+            <span className={styles.titleCount}>（{total}）</span>
+          </h1>
           <div className={styles.subtitle}>修改名称与标签后再审核发布</div>
         </div>
       </div>

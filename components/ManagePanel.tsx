@@ -359,7 +359,10 @@ export default function ManagePanel({ pageLimit = 12 }: ManagePanelProps) {
     <>
       <div className={styles.headerRow}>
         <div className={styles.headerBlock}>
-          <h1 className={styles.title}>管理表情包</h1>
+          <h1 className={styles.title}>
+            管理表情包
+            <span className={styles.titleCount}>（{total}）</span>
+          </h1>
           <div className={styles.subtitle}>查看与管理所有表情包的状态</div>
         </div>
         <div className={styles.searchBox}>

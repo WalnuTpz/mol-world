@@ -19,11 +19,13 @@ const STATUS_MAP = new Map<string, StatusFilter>([
 
 const TYPE_MAP = new Map<string, TypeFilter>([
   ["动图", "ANIMATED"],
+  ["动态图", "ANIMATED"],
   ["静态", "STATIC"],
+  ["静态图", "STATIC"],
 ]);
 
 const parseManageQuery = (query: string, tagRules?: Parameters<typeof normalizeSearchTokens>[1]) => {
-  const rawTokens = query.split(/\s+/).filter(Boolean);
+  const rawTokens = query.split(/[\s,，、;；/|]+/).filter(Boolean);
   let status: StatusFilter | undefined;
   let type: TypeFilter | undefined;
   const remaining: string[] = [];
