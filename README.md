@@ -1,70 +1,106 @@
-# MolWorld
+# MolWorld 2.0
 
-一个基于 Next.js + Prisma + SQLite 的表情包网站项目。
-首页整合热门/全部/搜索三种视图，支持复制图片或动图、下载、分页与排序。
+一个轻量但可完整跑通流程的表情包分享网站项目：上传 → 审核 → 管理 → 展示。基于 Next.js 全栈 + Prisma + SQLite，适合个人/小团队维护。
+
+## 版本变化（相对第一版）
+
+- 增加完整内容流：上传 → 审核（PENDING）→ 管理（发布/隐藏/删除）
+- 完善前台体验：分页/排序、卡片放大/高亮、Toast 提示、标签与搜索联动
+- 增加后台控制台：表情包 / 审核 / 日志 / 标签 / 参数 / 其他
+- 增加运营与统计：热度计算（复制+下载）、Top 榜单、趋势曲线
+- 优化网页稳定性：限流/冷却、统一错误结构、文件回滚、审计日志
 
 ## 功能概览
 
-- 首页三合一视图：热门、全部、搜索
-- 热门页面支持：最新 / 最热 / 随机（固定 24 张，随机每次刷新不同）
-- 全部页面支持：按名称 / 最新 / 最早
-- 搜索页面支持：标题关键字
-- 复制统计：复制成功才计数（展示在卡片右下角）
-- 下载：仅下载，不计数
+### 前台
+
+- 首页三视图：热门 / 全部 / 搜索
+- 热门：最热 / 随机（每日随机池）
+- 全部与搜索：分页 + 排序（名称/最热/最新/最早）
+- MemeCard：复制/下载、热度展示、标签展示与跳转
+- 首次进入欢迎提示
+
+### 后台控制台（/admin）
+
+- 表情包管理：编辑、删除、批量操作
+- 标签管理：重命名/合并/删除/解除、排序、分页
+- 参数管理：运营参数可视化配置
+- 表情包审核：保存/通过/删除、批量处理
+- 操作日志：搜索、分页、清理、导出 CSV
+- 其他内容：流量与热度图表、脚本入口、资源维护、账号与退出
 
 ## 技术栈
 
-- Next.js App Router
+- Next.js（App Router）
 - Prisma + SQLite
 - CSS Modules
-- 静态资源：`public/memes`
+- public 静态资源
 
-## 目录结构（简化）
+## 快速开始
 
-```bash
-app/
-  page.tsx             # 首页三合一
-  api/                 # API 路由
-components/            # MemeGrid / MemeCard
-lib/                   # Prisma client 单例
-prisma/                # schema + seed
-public/memes/          # 资源文件
-docs/                  # 项目文档
-```
+### 环境要求
 
-## 本地运行
+- Node.js 22 LTS
+- pnpm
 
-环境配置：
-
-- Node.js（建议 LTS 版本）与 pnpm
-- 确保 `.env` 中存在 `DATABASE_URL="file:./prisma/dev.db"`
+### 安装依赖
 
 ```bash
 pnpm install
-pnpm dev
 ```
 
-访问：`http://localhost:3000`
-
-## 初始化数据库
+### 初始化数据库
 
 ```bash
-pnpm prisma migrate dev --name init
+pnpm prisma migrate dev
 pnpm prisma db seed
 ```
 
-## 资源文件规则
+### 启动开发
 
-- 原图/动图：`public/memes/original/`
-- 缩略图：`public/memes/thumb/`
-- 动图缩略图使用同名 `.jpg` 静态封面
+```bash
+pnpm dev
+```
 
-## 复制与计数
+浏览器打开：`http://localhost:3000`
 
-- 点击卡片执行复制：
-  - 静态图：复制图片内容
-  - 动图：优先复制 GIF，失败复制封面图
+## 目录结构
+
+```bash
+app/        # 页面与 API
+components/ # UI 组件与面板
+lib/        # 工具与业务逻辑
+prisma/     # schema、迁移与脚本
+public/     # 素材与上传文件
+docs/       # 规格与流程文档
+```
+
+## 数据与脚本
+
+常用脚本：
+
+- `prisma/seed.ts`
+- `prisma/backfill-thumbs.ts`
+- `prisma/backfill-numid.ts`
+- `prisma/backfill-title-tags.ts`
+- `prisma/rename-media-by-numid.ts`
+- `prisma/adjust-created-at.ts`
+
+## 配置说明
+
+- `.env`：`DATABASE_URL` 与管理员相关配置
+- 控制台参数页：可在线调整随机池/缓存/节流等运营参数
+
+## 注意事项
+
+- `pnpm prisma db seed` 会重建数据并重置计数
+- Windows 下若脚本报 `.ts` 扩展名错误，改用 `pnpm tsx`
+- better-sqlite3 构建失败时先确认 Node 版本
 
 ## 致谢
 
-感谢 pighub 网站为项目提供的灵感来源和某神秘拜谢 QQ 群为项目提供的素材支持。
+感谢 [PigHub](https://pighub.top/) 网站为项目提供的灵感来源和某神秘拜谢 QQ 群为项目提供的素材支持。
+
+## 许可证
+
+本项目根据 GNU General Public License v3.0 许可证授权。请参阅 [LICENSE](LICENSE) 文件了解详情。
