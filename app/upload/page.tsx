@@ -123,6 +123,7 @@ export default function UploadPage() {
       if (fileRef.current) {
         fileRef.current.value = "";
       }
+      setStatus("idle");
     } catch (err) {
       setStatus("error");
       toast(err instanceof Error ? err.message : "上传失败，请重试", "error");
@@ -254,7 +255,7 @@ export default function UploadPage() {
                 />
               </svg>
             </div>
-            {selectedFile || status === "success" ? (
+            {selectedFile ? (
               <>
                 <div className={styles.dropTitle}>已上传图片</div>
                 <div className={styles.dropHint}>可以继续更换图片</div>
