@@ -31,6 +31,12 @@ export default function UploadPage() {
   const normalizeTagInput = (value: string) =>
     value.replace(/[，,、;；]+/g, " ");
 
+  useEffect(() => {
+    if (document.activeElement instanceof HTMLInputElement) {
+      document.activeElement.blur();
+    }
+  }, []);
+
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null;
     if (file && !isValidFile(file)) {
