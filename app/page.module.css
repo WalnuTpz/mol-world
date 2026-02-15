@@ -465,7 +465,7 @@
 
 @media (max-width: 760px) {
   .page {
-    --header-height: 146px;
+    --header-height: 194px;
   }
 
   .headerInner {
@@ -491,7 +491,7 @@
 
 @media (max-width: 600px) {
   .page {
-    --header-height: 150px;
+    --header-height: 198px;
   }
 
   .content {
