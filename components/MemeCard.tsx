@@ -13,6 +13,7 @@ const DEFAULT_COPY_COOLDOWN_MS = 5000;
 const DEFAULT_DOWNLOAD_COOLDOWN_MS = 10_000;
 let lastCopyAt = 0;
 let lastDownloadAt = 0;
+const COPY_FAIL_MESSAGE = "尝试右键/长按保存图片或更新浏览器";
 
 export type MemeCardProps = {
   id: string;
@@ -171,7 +172,7 @@ export default function MemeCard({
           toast("已复制图片（文本形式）", "success");
           return;
         }
-        toast("复制失败", "error");
+        toast(COPY_FAIL_MESSAGE, "error");
         return;
       }
 
@@ -198,10 +199,10 @@ export default function MemeCard({
         );
         return;
       }
-      toast("复制失败", "error");
+      toast(COPY_FAIL_MESSAGE, "error");
     } catch (error) {
       console.error(error);
-      toast("复制失败", "error");
+      toast(COPY_FAIL_MESSAGE, "error");
     }
   };
 
