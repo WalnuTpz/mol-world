@@ -38,6 +38,11 @@
 
 ## 快速开始
 
+### 环境要求
+
+- Node.js 22 LTS
+- pnpm
+
 ### 开箱步骤（首次运行）
 
 1. 复制环境变量模板
@@ -46,13 +51,13 @@
 cp .env.example .env
 ```
 
-2. 按需修改 `.env`（至少确认管理员账号密码）
+1. 按需修改 `.env`（至少确认管理员账号密码）
 
 - `REVIEW_USER`：管理员账号
 - `REVIEW_PASS`：管理员密码
 - `DATABASE_URL`：本地默认可直接使用 `file:./prisma/dev.db`
 
-3. 安装依赖、初始化数据库并启动开发服务器
+1. 安装依赖、初始化数据库并启动开发服务器
 
 ```bash
 pnpm install
@@ -61,33 +66,25 @@ pnpm prisma db seed
 pnpm dev
 ```
 
-4. 打开浏览器访问 `http://localhost:3000`
+1. 打开浏览器访问 `http://localhost:3000`
 
-### 环境要求
+## 配置说明
 
-- Node.js 22 LTS
-- pnpm
+- 推荐先执行：`cp .env.example .env`
+- `.env`：`DATABASE_URL` 与管理员相关配置（`REVIEW_USER` / `REVIEW_PASS`）
+- 控制台参数页：可在线调整随机池/缓存/节流等运营参数
 
-### 安装依赖
+## 素材策略（开源仓库不含素材）
 
-```bash
-pnpm install
-```
-
-### 初始化数据库
-
-```bash
-pnpm prisma migrate dev
-pnpm prisma db seed
-```
-
-### 启动开发
-
-```bash
-pnpm dev
-```
-
-浏览器打开：`http://localhost:3000`
+- 仓库默认不提交以下运行期/媒体目录（体积与版权原因）：
+  - `public/memes/original/`
+  - `public/memes/thumb/`
+  - `public/uploads/`
+- 因此 clone 后页面可能没有可展示内容，属于正常现象。
+- 本地体验方式：
+  - 准备少量示例图片后放入 `public/memes/original/`，再执行 `pnpm prisma db seed`
+  - 或直接使用 `/upload` 上传图片，进入审核/发布流程生成数据
+- 若用于公开部署，建议自行准备素材并确认使用权限。
 
 ## 目录结构
 
@@ -111,13 +108,37 @@ docs/       # 规格与流程文档
 - `prisma/rebuild-daily-pool.ts`
 - `prisma/rename-media-by-numid.ts`
 
-## 配置说明
+## 部署注意事项
 
-- 推荐先执行：`cp .env.example .env`
-- `.env`：`DATABASE_URL` 与管理员相关配置（`REVIEW_USER` / `REVIEW_PASS`）
-- 控制台参数页：可在线调整随机池/缓存/节流等运营参数
+### 持久化目录
 
-## 注意事项
+- 生产部署时请确保以下目录可写、可持久化（重启/发布后不丢失）：
+  - `prisma/`（SQLite 数据库）
+  - `public/uploads/`（待审核上传文件）
+  - `public/memes/original/`（已发布原图）
+  - `public/memes/thumb/`（缩略图）
+
+### Cloudflare 缓存与图片更新
+
+- 上传、审核发布、批量清理后，如果前台/管理台图片显示异常，先检查是否是缓存问题。
+- 建议操作：
+  - Cloudflare `Purge Cache`（必要时 `Purge Everything`）
+  - 浏览器 DevTools 勾选 `Disable cache` 后强刷页面
+
+### 图片链路排查
+
+- 若页面显示不出图，先看 Network：
+  - `/_next/image?...` 返回 `400` 时，不一定是上传失败，通常是上游图片 URL 不可访问
+- 建议按顺序排查：
+  1. 直接打开原图/缩略图 URL（如 `/uploads/...`、`/memes/thumb/...`）
+  2. 再检查 `/_next/image?...` 的状态码
+  3. 在服务器本机用 `curl -I http://127.0.0.1:3000/...` 对比域名 `curl -I https://your-domain/...`
+- 常见原因：
+  - Cloudflare 缓存旧的 404/错误响应
+  - 反代/静态文件路由配置问题
+  - 数据库中的文件名与磁盘文件名大小写不一致（Linux 区分大小写）
+
+## 开发补充说明
 
 - `pnpm prisma db seed` 会重建数据并重置计数
 - Windows 下若脚本报 `.ts` 扩展名错误，改用 `pnpm tsx`
