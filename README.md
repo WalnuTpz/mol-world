@@ -38,6 +38,31 @@
 
 ## 快速开始
 
+### 开箱步骤（首次运行）
+
+1. 复制环境变量模板
+
+```bash
+cp .env.example .env
+```
+
+2. 按需修改 `.env`（至少确认管理员账号密码）
+
+- `REVIEW_USER`：管理员账号
+- `REVIEW_PASS`：管理员密码
+- `DATABASE_URL`：本地默认可直接使用 `file:./prisma/dev.db`
+
+3. 安装依赖、初始化数据库并启动开发服务器
+
+```bash
+pnpm install
+pnpm prisma migrate dev
+pnpm prisma db seed
+pnpm dev
+```
+
+4. 打开浏览器访问 `http://localhost:3000`
+
 ### 环境要求
 
 - Node.js 22 LTS
@@ -88,7 +113,8 @@ docs/       # 规格与流程文档
 
 ## 配置说明
 
-- `.env`：`DATABASE_URL` 与管理员相关配置
+- 推荐先执行：`cp .env.example .env`
+- `.env`：`DATABASE_URL` 与管理员相关配置（`REVIEW_USER` / `REVIEW_PASS`）
 - 控制台参数页：可在线调整随机池/缓存/节流等运营参数
 
 ## 注意事项
