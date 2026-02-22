@@ -47,26 +47,26 @@
 
 1. 复制环境变量模板
 
-```bash
-cp .env.example .env
-```
+   ```bash
+   cp .env.example .env
+   ```
 
-1. 按需修改 `.env`（至少确认管理员账号密码）
+2. 按需修改 `.env`（至少确认管理员账号密码）
 
-- `REVIEW_USER`：管理员账号
-- `REVIEW_PASS`：管理员密码
-- `DATABASE_URL`：本地默认可直接使用 `file:./prisma/dev.db`
+   - `REVIEW_USER`：管理员账号
+   - `REVIEW_PASS`：管理员密码
+   - `DATABASE_URL`：本地默认可直接使用 `file:./prisma/dev.db`
 
-1. 安装依赖、初始化数据库并启动开发服务器
+3. 安装依赖、初始化数据库并启动开发服务器
 
-```bash
-pnpm install
-pnpm prisma migrate dev
-pnpm prisma db seed
-pnpm dev
-```
+   ```bash
+   pnpm install
+   pnpm prisma migrate dev
+   pnpm prisma db seed
+   pnpm dev
+   ```
 
-1. 打开浏览器访问 `http://localhost:3000`
+4. 打开浏览器访问 `http://localhost:3000`
 
 ## 配置说明
 
@@ -101,12 +101,12 @@ docs/       # 规格与流程文档
 
 常用脚本：
 
-- `prisma/seed.ts`
-- `prisma/backfill-thumbs.ts`
-- `prisma/backfill-numid.ts`
-- `prisma/backfill-title-tags.ts`
-- `prisma/rebuild-daily-pool.ts`
-- `prisma/rename-media-by-numid.ts`
+- `prisma/seed.ts`：扫描素材并初始化示例数据
+- `prisma/backfill-thumbs.ts`：补生成缩略图并回填数据库
+- `prisma/backfill-numid.ts`：回填表情包/标签数字 ID
+- `prisma/backfill-title-tags.ts`：回填历史标题与标签数据
+- `prisma/rebuild-daily-pool.ts`：重建每日随机池数据
+- `prisma/rename-media-by-numid.ts`：按数字 ID 重命名媒体文件
 
 ## 部署注意事项
 
@@ -138,7 +138,7 @@ docs/       # 规格与流程文档
   - 反代/静态文件路由配置问题
   - 数据库中的文件名与磁盘文件名大小写不一致（Linux 区分大小写）
 
-## 开发补充说明
+### 补充说明
 
 - `pnpm prisma db seed` 会重建数据并重置计数
 - Windows 下若脚本报 `.ts` 扩展名错误，改用 `pnpm tsx`
