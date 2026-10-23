@@ -20,7 +20,7 @@ function runScript(name: string) {
     process.execPath,
     [
       path.join(root, "node_modules/tsx/dist/cli.mjs"),
-      path.join(root, "prisma", name),
+      path.join(root, "scripts", name),
     ],
     { cwd: fixture, env: process.env, encoding: "utf8" },
   );
@@ -87,7 +87,7 @@ test("thumbnail database failure removes the newly generated file", async () => 
 });
 
 test("an installation without DATABASE_URL retains its original database default", async () => {
-  const { resolveDatabaseUrl } = await import("../lib/databaseUrl");
+  const { resolveDatabaseUrl } = await import("../src/lib/databaseUrl");
   const saved = process.env.DATABASE_URL;
   delete process.env.DATABASE_URL;
   try {
@@ -101,8 +101,8 @@ test("an installation without DATABASE_URL retains its original database default
 });
 
 test("a password request cannot change credentials after its session is revoked while reading the body", async () => {
-  const password = await import("../app/api/admin/password/route");
-  const sessions = await import("../lib/adminSession");
+  const password = await import("../src/app/api/admin/password/route");
+  const sessions = await import("../src/lib/adminSession");
   let body!: ReadableStreamDefaultController<Uint8Array>;
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
@@ -141,7 +141,7 @@ test("a password request cannot change credentials after its session is revoked 
 
 test("startup refuses legacy public media that would bypass private file authorization", async () => {
   const { assertPrivateMediaStorage } = await import(
-    "../lib/storageLayout"
+    "../src/lib/storageLayout"
   );
   const { mkdir, rm } = await import("node:fs/promises");
   await mkdir("public/uploads", { recursive: true });
@@ -165,10 +165,10 @@ test("special imported filenames survive API serialization and media authorizati
   await writeFile(path.join("data/memes/original", name), image);
   const expected = `/memes/original/${encodeURIComponent(name)}`;
   for (const endpoint of [
-    await import("../app/api/memes/route"),
-    await import("../app/api/memes/hot/route"),
-    await import("../app/api/manage/route"),
-    await import("../app/api/search/route"),
+    await import("../src/app/api/memes/route"),
+    await import("../src/app/api/memes/hot/route"),
+    await import("../src/app/api/manage/route"),
+    await import("../src/app/api/search/route"),
   ]) {
     const response = await endpoint.GET(
       new Request("http://localhost/api/test?q=Original", {
@@ -179,7 +179,7 @@ test("special imported filenames survive API serialization and media authorizati
     assert.equal(json.items[0].mediaUrl, expected);
     assert.equal(json.items[0].thumbUrl, expected);
   }
-  const { mediaResponse } = await import("../lib/mediaResponse");
+  const { mediaResponse } = await import("../src/lib/mediaResponse");
   const response = await mediaResponse(
     new Request(`http://localhost${expected}`),
     "original",
@@ -192,10 +192,10 @@ test("special imported filenames survive API serialization and media authorizati
 });
 
 test("a media mutation queued behind another worker rechecks a revoked session", async () => {
-  const { withMediaWrite } = await import("../lib/mediaFiles");
+  const { withMediaWrite } = await import("../src/lib/mediaFiles");
   const { revokeAdminSession, createAdminSession, getAdminCredential } =
-    await import("../lib/adminSession");
-  const manage = await import("../app/api/manage/[id]/route");
+    await import("../src/lib/adminSession");
+  const manage = await import("../src/app/api/manage/[id]/route");
   await meme("queued");
   let release!: () => void;
   let arrived!: () => void;

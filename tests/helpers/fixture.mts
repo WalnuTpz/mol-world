@@ -23,13 +23,13 @@ const migration = spawnSync(
 );
 assert.equal(migration.status, 0, migration.stderr);
 
-const { prisma } = await import("../../lib/db");
-const login = await import("../../app/api/admin/login/route");
-const upload = await import("../../app/api/upload/route");
-const review = await import("../../app/api/review/[id]/route");
-const manage = await import("../../app/api/manage/[id]/route");
-const batch = await import("../../app/api/manage/batch/route");
-const { ensureDailyPools } = await import("../../lib/dailyPool");
+const { prisma } = await import("../../src/lib/db");
+const login = await import("../../src/app/api/admin/login/route");
+const upload = await import("../../src/app/api/upload/route");
+const review = await import("../../src/app/api/review/[id]/route");
+const manage = await import("../../src/app/api/manage/[id]/route");
+const batch = await import("../../src/app/api/manage/batch/route");
+const { ensureDailyPools } = await import("../../src/lib/dailyPool");
 let cookie: string;
 const image = await sharp({
   create: { width: 4, height: 4, channels: 3, background: "red" },

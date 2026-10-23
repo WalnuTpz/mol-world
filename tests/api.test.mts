@@ -89,10 +89,10 @@ test("batch heat reset clears matching daily totals and leaves other memes intac
 });
 
 test("invalid external JSON types receive client errors across admin mutations", async () => {
-  const params = await import("../app/api/admin/params/route");
-  const password = await import("../app/api/admin/password/route");
-  const tag = await import("../app/api/admin/tags/[id]/route");
-  const merge = await import("../app/api/admin/tags/merge/route");
+  const params = await import("../src/app/api/admin/params/route");
+  const password = await import("../src/app/api/admin/password/route");
+  const tag = await import("../src/app/api/admin/tags/[id]/route");
+  const merge = await import("../src/app/api/admin/tags/merge/route");
   const responses = [
     await login.POST(request({ user: 12, pass: [] }, "POST")),
     await review.PATCH(request(null), { params: Promise.resolve({ id: "x" }) }),
@@ -115,7 +115,7 @@ test("invalid external JSON types receive client errors across admin mutations",
 });
 
 test("search preserves emoji and punctuation instead of returning every meme", async () => {
-  const search = await import("../app/api/search/route");
+  const search = await import("../src/app/api/search/route");
   await meme("a");
   await meme("b");
   await prisma.meme.update({
@@ -135,12 +135,12 @@ test("search preserves emoji and punctuation instead of returning every meme", a
 
 test("all list endpoints accept malformed and overflowing pagination without database errors", async () => {
   const routes = await Promise.all([
-    import("../app/api/memes/route"),
-    import("../app/api/search/route"),
-    import("../app/api/manage/route"),
-    import("../app/api/review/route"),
-    import("../app/api/admin/tags/route"),
-    import("../app/api/admin/logs/route"),
+    import("../src/app/api/memes/route"),
+    import("../src/app/api/search/route"),
+    import("../src/app/api/manage/route"),
+    import("../src/app/api/review/route"),
+    import("../src/app/api/admin/tags/route"),
+    import("../src/app/api/admin/logs/route"),
   ]);
   for (const route of routes) {
     for (const page of ["999999999999999999999", "2147483647", "-3", "1abc"]) {
@@ -158,9 +158,9 @@ test("all list endpoints accept malformed and overflowing pagination without dat
 });
 
 test("tag rename, merge, unlink and numeric aliases keep associations consistent", async () => {
-  const rename = await import("../app/api/admin/tags/[id]/route");
-  const merge = await import("../app/api/admin/tags/merge/route");
-  const remove = await import("../app/api/admin/tags/[id]/delete/route");
+  const rename = await import("../src/app/api/admin/tags/[id]/route");
+  const merge = await import("../src/app/api/admin/tags/merge/route");
+  const remove = await import("../src/app/api/admin/tags/[id]/delete/route");
   await meme("tagged");
   await prisma.tag.createMany({
     data: [
@@ -209,7 +209,7 @@ test("tag rename, merge, unlink and numeric aliases keep associations consistent
 
 test("configuration changes validate atomically and refresh the cache", async () => {
   const { getAppConfig, updateAppConfig } = await import(
-    "../lib/appConfig"
+    "../src/lib/appConfig"
   );
   const original = await getAppConfig();
   try {
@@ -227,7 +227,7 @@ test("configuration changes validate atomically and refresh the cache", async ()
 
 test("heat queries exclude hidden rows, retain ordering, and use the heat index", async () => {
   const { getPopularMemes, getSortedMemePage } = await import(
-    "../lib/memeQueries"
+    "../src/lib/memeQueries"
   );
   await meme("low");
   await meme("high");
@@ -256,8 +256,8 @@ test("heat queries exclude hidden rows, retain ordering, and use the heat index"
 });
 
 test("log ranges filter listing and export escapes spreadsheet formulas", async () => {
-  const logs = await import("../app/api/admin/logs/route");
-  const csv = await import("../app/api/admin/logs/export/route");
+  const logs = await import("../src/app/api/admin/logs/route");
+  const csv = await import("../src/app/api/admin/logs/export/route");
   await prisma.auditLog.deleteMany();
   await prisma.auditLog.createMany({
     data: [
@@ -286,7 +286,7 @@ test("log ranges filter listing and export escapes spreadsheet formulas", async 
 });
 
 test("CSV export streams more than one page without duplicates", async () => {
-  const csv = await import("../app/api/admin/logs/export/route");
+  const csv = await import("../src/app/api/admin/logs/export/route");
   await prisma.auditLog.deleteMany();
   await prisma.auditLog.createMany({
     data: Array.from({ length: 1007 }, (_, i) => ({

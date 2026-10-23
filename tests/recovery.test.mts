@@ -85,7 +85,7 @@ for (const phase of ["prepared", "committed", "retired"] as const) {
         };
         syncBuiltinESMExports();
       }
-      const media = require(${JSON.stringify(path.join(root, "lib/mediaFiles.ts"))});
+      const media = require(${JSON.stringify(path.join(root, "src/lib/mediaFiles.ts"))});
       media.withMediaWrite(() => media.withMediaMutation(["/memes/original/new.png"], ["/memes/original/old.png"], async () => {
         await fs.copyFile("data/memes/original/old.png", "data/memes/original/new.png");
         if (${JSON.stringify(phase)} === "prepared") await pause();
@@ -94,7 +94,7 @@ for (const phase of ["prepared", "committed", "retired"] as const) {
     const child = worker(code);
     await waitFor(child, "READY");
     await kill(child);
-    const { recoverMediaOperations } = await import("../lib/mediaFiles");
+    const { recoverMediaOperations } = await import("../src/lib/mediaFiles");
     await recoverMediaOperations();
     await recoverMediaOperations();
     const row = await prisma.meme.findUniqueOrThrow({
@@ -115,7 +115,7 @@ for (const phase of ["prepared", "committed", "retired"] as const) {
 }
 
 test("another process cannot enter the media lock until a killed owner releases it", async () => {
-  const modulePath = JSON.stringify(path.join(root, "lib/mediaFiles.ts"));
+  const modulePath = JSON.stringify(path.join(root, "src/lib/mediaFiles.ts"));
   const first = worker(
     `const { withMediaWrite } = require(${modulePath}); withMediaWrite(async () => { console.log("FIRST"); await new Promise(() => { setInterval(() => {}, 1000); }); });`,
   );

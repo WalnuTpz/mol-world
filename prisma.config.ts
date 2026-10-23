@@ -1,9 +1,9 @@
-import "./prisma/env";
+import "./scripts/env";
 import { defineConfig } from "prisma/config";
-import { resolveDatabaseUrl } from "./lib/databaseUrl";
+import { resolveDatabaseUrl } from "./src/lib/databaseUrl";
 
 export default defineConfig({
   schema: "prisma/schema.prisma",
-  migrations: { path: "prisma/migrations", seed: "tsx prisma/seed.ts" },
+  migrations: { path: "prisma/migrations", seed: "tsx scripts/seed.ts" },
   datasource: { url: resolveDatabaseUrl() },
 });

@@ -73,7 +73,7 @@ test("seed with no source directory preserves existing records", async () => {
     process.execPath,
     [
       path.join(root, "node_modules/tsx/dist/cli.mjs"),
-      path.join(root, "prisma/seed.ts"),
+      path.join(root, "scripts/seed.ts"),
     ],
     { cwd: dir, env: process.env, encoding: "utf8" },
   );
@@ -83,7 +83,7 @@ test("seed with no source directory preserves existing records", async () => {
 test("concurrent review and cleanup preserve the one published original and preview", async () => {
   await upload.POST(uploadRequest());
   const item = await prisma.meme.findFirstOrThrow();
-  const resources = await import("../app/api/admin/resources/route");
+  const resources = await import("../src/app/api/admin/resources/route");
   const responses = await Promise.all([
     review.PATCH(request({ status: "PUBLISHED" }), {
       params: Promise.resolve({ id: item.id }),
@@ -156,9 +156,9 @@ test("a disguised non-image upload is rejected before writing anything", async (
 });
 
 test("public counts reject hidden or missing memes and update both published totals", async () => {
-  const copy = await import("../app/api/memes/[id]/copy/route");
-  const download = await import("../app/api/memes/[id]/download/route");
-  const { createVisitor, VISITOR_COOKIE } = await import("../lib/visitors");
+  const copy = await import("../src/app/api/memes/[id]/copy/route");
+  const download = await import("../src/app/api/memes/[id]/download/route");
+  const { createVisitor, VISITOR_COOKIE } = await import("../src/lib/visitors");
   const visitor = await createVisitor();
   const headers = {
     cookie: `${cookie}; ${VISITOR_COOKIE}=${visitor}`,
@@ -228,7 +228,7 @@ test("renaming by numeric ID updates a preview that shares the original", async 
     process.execPath,
     [
       path.join(root, "node_modules/tsx/dist/cli.mjs"),
-      path.join(root, "prisma/rename-media-by-numid.ts"),
+      path.join(root, "scripts/rename-media-by-numid.ts"),
     ],
     { cwd: fixture, env: process.env, encoding: "utf8" },
   );
@@ -242,7 +242,7 @@ test("renaming by numeric ID updates a preview that shares the original", async 
 });
 
 test("animated previews preserve unequal frame delays and finite loop count", async () => {
-  const { generateAnimatedThumb } = await import("../lib/thumbs");
+  const { generateAnimatedThumb } = await import("../src/lib/thumbs");
   const source = path.join(fixture, "animation.gif");
   const output = path.join(fixture, "preview.gif");
   await sharp(Buffer.from([255, 0, 0, 0, 255, 0]), {
@@ -286,7 +286,7 @@ test("deleting one record preserves files referenced by another record", async (
 });
 
 test("media enforces visibility before conditional requests and HEAD streams no body", async () => {
-  const { mediaResponse } = await import("../lib/mediaResponse");
+  const { mediaResponse } = await import("../src/lib/mediaResponse");
   await meme("visible");
   await writeFile("data/memes/original/visible.png", image);
   const url = "http://localhost/memes/original/visible.png";
@@ -373,7 +373,7 @@ test("thumbnail backfill handles same-base files and animated WebP", async () =>
     process.execPath,
     [
       path.join(root, "node_modules/tsx/dist/cli.mjs"),
-      path.join(root, "prisma/backfill-thumbs.ts"),
+      path.join(root, "scripts/backfill-thumbs.ts"),
     ],
     { cwd: fixture, env: process.env, encoding: "utf8" },
   );
@@ -394,7 +394,7 @@ test("thumbnail backfill handles same-base files and animated WebP", async () =>
 
 test("title tag backfill obeys the configured maximum", async () => {
   const { updateAppConfig, getAppConfig } = await import(
-    "../lib/appConfig"
+    "../src/lib/appConfig"
   );
   const original = await getAppConfig();
   await meme("title-tags");
@@ -408,7 +408,7 @@ test("title tag backfill obeys the configured maximum", async () => {
       process.execPath,
       [
         path.join(root, "node_modules/tsx/dist/cli.mjs"),
-        path.join(root, "prisma/backfill-title-tags.ts"),
+        path.join(root, "scripts/backfill-title-tags.ts"),
       ],
       { cwd: fixture, env: process.env, encoding: "utf8" },
     );
@@ -420,7 +420,7 @@ test("title tag backfill obeys the configured maximum", async () => {
 });
 
 test("imported filenames with consecutive dots remain readable and deletable", async () => {
-  const { mediaResponse } = await import("../lib/mediaResponse");
+  const { mediaResponse } = await import("../src/lib/mediaResponse");
   await meme("dots");
   const url = "/memes/original/hello..world.png";
   await prisma.meme.update({
@@ -464,7 +464,7 @@ test("import rejects corrupt image pixels before replacing existing records", as
     process.execPath,
     [
       path.join(root, "node_modules/tsx/dist/cli.mjs"),
-      path.join(root, "prisma/seed.ts"),
+      path.join(root, "scripts/seed.ts"),
     ],
     { cwd: fixture, env: process.env, encoding: "utf8" },
   );

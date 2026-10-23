@@ -10,9 +10,9 @@ import {
   request,
 } from "./helpers/fixture.mts";
 const { createVisitor, VISITOR_COOKIE, tokenDigest, recordVisit } =
-  await import("../lib/visitors");
-const copy = await import("../app/api/memes/[id]/copy/route");
-const download = await import("../app/api/memes/[id]/download/route");
+  await import("../src/lib/visitors");
+const copy = await import("../src/app/api/memes/[id]/copy/route");
+const download = await import("../src/app/api/memes/[id]/download/route");
 let visitor: string;
 before(async () => {
   visitor = await createVisitor();
@@ -172,7 +172,7 @@ test("canceled downloads do not count and deleting images retains historical act
     200,
   );
   assert.equal((await prisma.memeDailyStat.findFirstOrThrow()).copies, 1);
-  const traffic = await import("../app/api/admin/traffic/route");
+  const traffic = await import("../src/app/api/admin/traffic/route");
   const report = await (
     await traffic.GET(
       new Request("http://localhost/api/admin/traffic?range=all", {

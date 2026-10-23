@@ -5,8 +5,8 @@ import { test } from "node:test";
 import { assert, prisma, cookie, setCookie } from "./helpers/fixture.mts";
 
 test("sessions use random tokens, enforce server expiry, and revoke on logout", async () => {
-  const sessions = await import("../lib/adminSession");
-  const logout = await import("../app/api/admin/logout/route");
+  const sessions = await import("../src/lib/adminSession");
+  const logout = await import("../src/app/api/admin/logout/route");
   const credential = (await sessions.getAdminCredential())!;
   const first = await sessions.createAdminSession(credential, 60);
   const second = await sessions.createAdminSession(credential, 60);
@@ -45,7 +45,7 @@ test("sessions use random tokens, enforce server expiry, and revoke on logout", 
 });
 
 test("malformed cookies are unauthorized and cookies without spaces still parse", async () => {
-  const { requireAdmin } = await import("../lib/adminAuth");
+  const { requireAdmin } = await import("../src/lib/adminAuth");
   const bad = await requireAdmin(
     new Request("http://localhost", {
       headers: { cookie: "admin_session=%E0%A4%A" },
@@ -65,7 +65,7 @@ test("malformed cookies are unauthorized and cookies without spaces still parse"
 });
 
 test("a forged cookie cannot bypass API limits and cross-site writes are rejected", async () => {
-  const { proxy } = await import("../proxy");
+  const { proxy } = await import("../src/proxy");
   const { NextRequest } = await import("next/server");
   let response: Response | undefined;
   for (let i = 0; i < 121; i++) {
@@ -89,7 +89,7 @@ test("a forged cookie cannot bypass API limits and cross-site writes are rejecte
 });
 
 test("changing a password revokes every existing session", async () => {
-  const sessions = await import("../lib/adminSession");
+  const sessions = await import("../src/lib/adminSession");
   const credential = (await sessions.getAdminCredential())!;
   const token = await sessions.createAdminSession(credential, 60);
   try {
@@ -122,9 +122,9 @@ test("changing a password revokes every existing session", async () => {
 });
 
 test("credentials changed by another process are visible to session validation immediately", async () => {
-  const sessions = await import("../lib/adminSession");
+  const sessions = await import("../src/lib/adminSession");
   await sessions.getAdminCredential();
-  const program = `const sessions = require(${JSON.stringify(path.join(root, "lib/adminSession.ts"))});
+  const program = `const sessions = require(${JSON.stringify(path.join(root, "src/lib/adminSession.ts"))});
     (async () => { const changed = await sessions.updateAdminPassword(${JSON.stringify(cookie.split("=")[1])}, "external-test-password", 60);
     console.log(changed.token); })().catch(error => { console.error(error); process.exitCode = 1; });`;
   try {
@@ -148,7 +148,7 @@ test("credentials changed by another process are visible to session validation i
 });
 
 test("simultaneous password changes allow one winner and a stale login cannot create a session", async () => {
-  const sessions = await import("../lib/adminSession");
+  const sessions = await import("../src/lib/adminSession");
   const credential = (await sessions.getAdminCredential())!;
   const token = await sessions.createAdminSession(credential, 60);
   try {
@@ -171,7 +171,7 @@ test("simultaneous password changes allow one winner and a stale login cannot cr
 });
 
 test("homepage prefetch and forged visitor headers do not produce visits", async () => {
-  const { proxy } = await import("../proxy");
+  const { proxy } = await import("../src/proxy");
   const { NextRequest } = await import("next/server");
   for (const header of [
     "next-router-prefetch",

@@ -1,10 +1,10 @@
 import { test } from "node:test";
 import { assert, prisma, meme } from "./helpers/fixture.mts";
 const { rebuildNameOrder, updateNameOrder } = await import(
-  "../lib/nameOrder"
+  "../src/lib/nameOrder"
 );
 const { getSortedMemePage, getRandomMemes } = await import(
-  "../lib/memeQueries"
+  "../src/lib/memeQueries"
 );
 
 test("indexed name pages preserve Chinese and numeric collation after insert and rename", async () => {

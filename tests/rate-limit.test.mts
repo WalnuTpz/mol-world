@@ -10,7 +10,7 @@ import {
 } from "./helpers/fixture.mts";
 
 test("rate limits survive worker restarts", async () => {
-  const modulePath = JSON.stringify(path.join(root, "lib/rateLimit.ts"));
+  const modulePath = JSON.stringify(path.join(root, "src/lib/rateLimit.ts"));
   const program = `const { consumeRateLimits } = require(${modulePath}); consumeRateLimits([{ key: "restart", maximum: 1, windowMs: 60000 }]).then(() => console.log("allowed"), error => console.log("denied:" + error.retryAfter));`;
   const run = () =>
     spawnSync(
@@ -32,7 +32,7 @@ test("rate limits survive worker restarts", async () => {
 });
 
 test("competing processes consume one shared limit without lost updates", async () => {
-  const modulePath = JSON.stringify(path.join(root, "lib/rateLimit.ts"));
+  const modulePath = JSON.stringify(path.join(root, "src/lib/rateLimit.ts"));
   const program = `const { consumeRateLimits, RateLimitError } = require(${modulePath}); (async () => { let allowed=0; for(let i=0;i<4;i++) { try { await consumeRateLimits([{ key: "concurrent", maximum: 5, windowMs: 60000 }]); allowed++; } catch(e) { if(!(e instanceof RateLimitError)) throw e; } } console.log(allowed); })().catch(e=>{ console.error(e); process.exitCode=1; });`;
   const results = await Promise.all(
     Array.from(

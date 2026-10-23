@@ -39,11 +39,8 @@ test("a populated legacy installation upgrades in place, preserves data and can 
     });
   try {
     for (const name of [
-      "app",
-      "lib",
-      "components",
-      "proxy.ts",
-      "instrumentation.ts",
+      "src",
+      "scripts",
       "prisma",
       "prisma.config.ts",
       "tsconfig.json",
@@ -166,7 +163,7 @@ test("a populated legacy installation upgrades in place, preserves data and can 
     const command = [
       "--import",
       path.join(root, "node_modules/tsx/dist/loader.mjs"),
-      path.join(dir, "prisma/migrate.ts"),
+      path.join(dir, "scripts/migrate.ts"),
     ];
     result = run(command);
     assert.notEqual(result.status, 0);
@@ -229,17 +226,17 @@ test("a populated legacy installation upgrades in place, preserves data and can 
       image,
     );
     assert.ok(!(await readdir(dir)).includes("wrong.db"));
-    const probe = `require('./prisma/env'); const assert = require('node:assert/strict'); (async () => {
-      const s = require('./lib/adminSession'); const {mediaResponse} = require('./lib/mediaResponse');
+    const probe = `require('./scripts/env'); const assert = require('node:assert/strict'); (async () => {
+      const s = require('./src/lib/adminSession'); const {mediaResponse} = require('./src/lib/mediaResponse');
       assert.equal(await s.isAdminSessionValid(Buffer.from('stored-admin:${hash}').toString('base64')),false);
-      const login = require('./app/api/admin/login/route');
+      const login = require('./src/app/api/admin/login/route');
       const response = await login.POST(new Request('http://localhost/api/admin/login',{method:'POST',body:JSON.stringify({user:'stored-admin',pass:'stored-password'})}));
       assert.equal(response.status,200); const cookie=response.headers.get('set-cookie').split(';')[0];
       assert.equal((await mediaResponse(new Request('http://localhost'), 'original','hidden.png')).status,404);
       const hidden=await mediaResponse(new Request('http://localhost',{headers:{cookie}}),'original','hidden.png'); assert.equal(hidden.status,200); await hidden.arrayBuffer();
       const body=new FormData();body.append('file',new File([require('node:fs').readFileSync('data/memes/original/hidden.png')],'new.png',{type:'image/png'}));
-      const uploaded=await require('./app/api/upload/route').POST(new Request('http://localhost/api/upload',{method:'POST',headers:{cookie},body}));assert.equal(uploaded.status,200);
-      await require('./lib/db').prisma.$disconnect();
+      const uploaded=await require('./src/app/api/upload/route').POST(new Request('http://localhost/api/upload',{method:'POST',headers:{cookie},body}));assert.equal(uploaded.status,200);
+      await require('./src/lib/db').prisma.$disconnect();
     })().catch(e=>{console.error(e);process.exitCode=1;});`;
     result = run([
       "--import",
@@ -251,7 +248,7 @@ test("a populated legacy installation upgrades in place, preserves data and can 
     result = run([
       "--import",
       path.join(root, "node_modules/tsx/dist/loader.mjs"),
-      path.join(dir, "prisma/seed.ts"),
+      path.join(dir, "scripts/seed.ts"),
     ]);
     assert.equal(result.status, 0, result.stderr + result.stdout);
     db = new DatabaseSync(path.join(dir, "prisma/legacy.db"));

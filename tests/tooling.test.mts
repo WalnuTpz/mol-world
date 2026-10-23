@@ -66,7 +66,7 @@ test("production maintenance loads the same environment precedence as Next", asy
         "--import",
         path.join(root, "node_modules/tsx/dist/loader.mjs"),
         "--eval",
-        `require(${JSON.stringify(path.join(root, "prisma/env.ts"))}); console.log(process.env.DATABASE_URL);`,
+        `require(${JSON.stringify(path.join(root, "scripts/env.ts"))}); console.log(process.env.DATABASE_URL);`,
       ],
       { cwd: dir, env, encoding: "utf8" },
     );
