@@ -23,14 +23,22 @@ export async function POST(request: Request) {
     return errorResponse("未登录管理员账号", 401, "UNAUTHORIZED");
   }
 
-  const body = (await request.json().catch(() => null)) as
-    | { newPass?: string; confirmPass?: string }
-    | null;
+  const body = (await request.json().catch(() => null)) as {
+    newPass?: string;
+    confirmPass?: string;
+  } | null;
   const allowedKeys = new Set(["newPass", "confirmPass"]);
-  const extraKeys = Object.keys(body ?? {}).filter((key) => !allowedKeys.has(key));
+  const extraKeys = Object.keys(body ?? {}).filter(
+    (key) => !allowedKeys.has(key),
+  );
   if (extraKeys.length > 0) {
     return errorResponse("请求参数不合法", 400, "INVALID_FIELDS");
   }
+  if (
+    typeof body?.newPass !== "string" ||
+    typeof body?.confirmPass !== "string"
+  )
+    return errorResponse("请求参数格式错误", 400, "INVALID_BODY");
   const newPass = body?.newPass ?? "";
   const confirmPass = body?.confirmPass ?? "";
 
@@ -64,7 +72,7 @@ export async function POST(request: Request) {
   const maxAge = 60 * 60 * 24 * config.adminSessionDays;
   const cookie = buildAdminSessionCookie(
     buildAdminSessionToken(result.credential.user, result.credential.passHash),
-    maxAge
+    maxAge,
   );
 
   void logAudit({

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 
 import baseStyles from "@/app/page.module.css";
@@ -79,9 +79,10 @@ export default function ManagePanel({ pageLimit = 12 }: ManagePanelProps) {
   const allowRemove = useClickGuard();
 
   const limit = Math.max(1, Math.round(pageLimit));
+  const requestVersion = useRef(0);
   const loadPage = useCallback(
     async (targetPage: number, keyword: string) => {
-      let cancelled = false;
+      const version = ++requestVersion.current;
       setLoading(true);
       setError("");
       try {
@@ -99,7 +100,7 @@ export default function ManagePanel({ pageLimit = 12 }: ManagePanelProps) {
           total: number;
           q?: string;
         };
-        if (cancelled) return;
+        if (version !== requestVersion.current) return;
         const totalPages = Math.max(1, Math.ceil(data.total / data.limit));
         if (targetPage > totalPages) {
           setPage(totalPages);
@@ -118,20 +119,17 @@ export default function ManagePanel({ pageLimit = 12 }: ManagePanelProps) {
                 editing: false,
                 saving: false,
               },
-            ])
-          )
+            ]),
+          ),
         );
       } catch (err) {
-        if (cancelled) return;
+        if (version !== requestVersion.current) return;
         setError(err instanceof Error ? err.message : "加载失败");
       } finally {
-        if (!cancelled) setLoading(false);
+        if (version === requestVersion.current) setLoading(false);
       }
-      return () => {
-        cancelled = true;
-      };
     },
-    [limit]
+    [limit],
   );
 
   useEffect(() => {
@@ -142,7 +140,10 @@ export default function ManagePanel({ pageLimit = 12 }: ManagePanelProps) {
   }, [queryInput]);
 
   useEffect(() => {
-    loadPage(page, query);
+    void loadPage(page, query);
+    return () => {
+      requestVersion.current += 1;
+    };
   }, [loadPage, page, query]);
 
   useEffect(() => {
@@ -227,7 +228,7 @@ export default function ManagePanel({ pageLimit = 12 }: ManagePanelProps) {
       }
       const data = (await res.json()) as { item: ManageItem };
       setItems((prev) =>
-        prev.map((meme) => (meme.id === item.id ? data.item : meme))
+        prev.map((meme) => (meme.id === item.id ? data.item : meme)),
       );
       updateDraft(item.id, {
         title: data.item.title ?? "",
@@ -298,7 +299,9 @@ export default function ManagePanel({ pageLimit = 12 }: ManagePanelProps) {
     });
   };
 
-  const batchAction = async (action: "publish" | "hide" | "delete" | "reset") => {
+  const batchAction = async (
+    action: "publish" | "hide" | "delete" | "reset",
+  ) => {
     if (batching || selectedCount === 0) return;
     const label =
       action === "publish"
@@ -310,7 +313,7 @@ export default function ManagePanel({ pageLimit = 12 }: ManagePanelProps) {
             : "批量删除";
     const ok = await confirm(
       `确认${label}选中的 ${selectedCount} 条吗？`,
-      action === "delete" ? "此操作不可撤销。" : undefined
+      action === "delete" ? "此操作不可撤销。" : undefined,
     );
     if (!ok) return;
     setBatching(true);
@@ -324,22 +327,20 @@ export default function ManagePanel({ pageLimit = 12 }: ManagePanelProps) {
         }),
       });
       if (!res.ok) {
-        const data = (await res.json().catch(() => null)) as
-          | { error?: string; message?: string }
-          | null;
+        const data = (await res.json().catch(() => null)) as {
+          error?: string;
+          message?: string;
+        } | null;
         throw new Error(data?.error || data?.message || "批量操作失败");
       }
-      const data = (await res.json().catch(() => null)) as
-        | {
-            success?: number;
-            failed?: number;
-            failedIds?: string[];
-            count?: number;
-          }
-        | null;
+      const data = (await res.json().catch(() => null)) as {
+        success?: number;
+        failed?: number;
+        failedIds?: string[];
+        count?: number;
+      } | null;
       const successCount = data?.success ?? data?.count ?? 0;
-      const failedCount =
-        data?.failed ?? data?.failedIds?.length ?? 0;
+      const failedCount = data?.failed ?? data?.failedIds?.length ?? 0;
       if (failedCount > 0) {
         toast(`成功 ${successCount} / 失败 ${failedCount}`, "error");
       } else {
@@ -458,7 +459,9 @@ export default function ManagePanel({ pageLimit = 12 }: ManagePanelProps) {
         <div className={baseStyles.emptyState}>{emptyText}</div>
       ) : (
         <div className={styles.list}>
-          {loading ? <div className={baseStyles.emptyState}>加载中...</div> : null}
+          {loading ? (
+            <div className={baseStyles.emptyState}>加载中...</div>
+          ) : null}
           {items.map((item) => {
             const draft = drafts[item.id];
             const editing = draft?.editing ?? false;
@@ -506,7 +509,9 @@ export default function ManagePanel({ pageLimit = 12 }: ManagePanelProps) {
                     <input
                       className={styles.input}
                       value={draft?.title ?? ""}
-                      onChange={(e) => updateDraft(item.id, { title: e.target.value })}
+                      onChange={(e) =>
+                        updateDraft(item.id, { title: e.target.value })
+                      }
                       placeholder="输入名称"
                       disabled={!editing}
                       data-no-toggle="true"
@@ -517,7 +522,9 @@ export default function ManagePanel({ pageLimit = 12 }: ManagePanelProps) {
                     <input
                       className={styles.input}
                       value={draft?.tags ?? ""}
-                      onChange={(e) => updateDraft(item.id, { tags: e.target.value })}
+                      onChange={(e) =>
+                        updateDraft(item.id, { tags: e.target.value })
+                      }
                       placeholder="多个标签用空格分隔"
                       disabled={!editing}
                       data-no-toggle="true"
@@ -540,7 +547,9 @@ export default function ManagePanel({ pageLimit = 12 }: ManagePanelProps) {
                         <option value="HIDDEN">已隐藏</option>
                       </select>
                     ) : (
-                      <span className={`${styles.statusBadge} ${styles[`status${item.status}`]}`}>
+                      <span
+                        className={`${styles.statusBadge} ${styles[`status${item.status}`]}`}
+                      >
                         {statusLabel(item.status)}
                       </span>
                     )}
@@ -607,7 +616,9 @@ export default function ManagePanel({ pageLimit = 12 }: ManagePanelProps) {
           <div className={baseStyles.pageNav}>
             <button
               type="button"
-              className={hasPrev ? baseStyles.pageNavBtn : baseStyles.pageNavBtnDisabled}
+              className={
+                hasPrev ? baseStyles.pageNavBtn : baseStyles.pageNavBtnDisabled
+              }
               onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
               disabled={!hasPrev}
             >
@@ -615,7 +626,9 @@ export default function ManagePanel({ pageLimit = 12 }: ManagePanelProps) {
             </button>
             <button
               type="button"
-              className={hasNext ? baseStyles.pageNavBtn : baseStyles.pageNavBtnDisabled}
+              className={
+                hasNext ? baseStyles.pageNavBtn : baseStyles.pageNavBtnDisabled
+              }
               onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
               disabled={!hasNext}
             >

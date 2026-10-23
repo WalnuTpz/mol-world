@@ -1,6 +1,5 @@
-import path from "node:path";
-import { mkdir, rename } from "node:fs/promises";
-
+import type { Prisma } from "@prisma/client";
+import { withTrashedMedia, withMediaWrite } from "@/lib/mediaFiles";
 import { prisma } from "@/lib/db";
 import { errorResponse, successResponse } from "@/lib/api";
 import { requireAdmin } from "@/lib/adminAuth";
@@ -13,65 +12,24 @@ type Payload = {
 
 const MAX_BATCH = 50;
 
-const resolveDeletePath = (url: string) => {
-  const normalized = url.trim();
-  if (normalized.startsWith("/memes/original/")) {
-    const name = path.basename(normalized);
-    if (!name) return null;
-    return path.join(process.cwd(), "public", "memes", "original", name);
-  }
-  if (normalized.startsWith("/memes/thumb/")) {
-    const name = path.basename(normalized);
-    if (!name) return null;
-    return path.join(process.cwd(), "public", "memes", "thumb", name);
-  }
-  if (normalized.startsWith("/uploads/")) {
-    const name = path.basename(normalized);
-    if (!name) return null;
-    return path.join(process.cwd(), "public", "uploads", name);
-  }
-  return null;
-};
-
-const moveToTrash = async (url: string, id: string, timestamp: number) => {
-  const sourcePath = resolveDeletePath(url);
-  if (!sourcePath) return null;
-  const filename = path.basename(sourcePath);
-  if (!filename) return null;
-  const trashDir = path.join(process.cwd(), "public", "trash");
-  await mkdir(trashDir, { recursive: true });
-  const trashPath = path.join(trashDir, `${id}-${timestamp}-${filename}`);
-  try {
-    await rename(sourcePath, trashPath);
-    return { trashPath, sourcePath };
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-      return null;
-    }
-    throw error;
-  }
-};
-
-const restoreFromTrash = async (entry: { trashPath: string; sourcePath: string }) => {
-  try {
-    await rename(entry.trashPath, entry.sourcePath);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
-      throw error;
-    }
-  }
-};
-
-export async function POST(request: Request) {
+async function post(request: Request) {
   const auth = await requireAdmin(request);
   if (!auth.ok) return auth.response;
   const body = (await request.json().catch(() => null)) as Payload | null;
   const allowedKeys = new Set(["ids", "action"]);
-  const extraKeys = Object.keys(body ?? {}).filter((key) => !allowedKeys.has(key));
+  const extraKeys = Object.keys(body ?? {}).filter(
+    (key) => !allowedKeys.has(key),
+  );
   if (extraKeys.length > 0) {
     return errorResponse("请求参数不合法", 400, "INVALID_FIELDS");
   }
-  const ids = Array.isArray(body?.ids) ? body?.ids.filter(Boolean) : [];
+  if (
+    !Array.isArray(body?.ids) ||
+    !body.ids.every((id) => typeof id === "string" && id.length > 0)
+  ) {
+    return errorResponse("资源列表格式不合法", 400, "INVALID_IDS");
+  }
+  const ids = body.ids;
   const uniqueIds = Array.from(new Set(ids));
   const action = body?.action;
 
@@ -85,7 +43,7 @@ export async function POST(request: Request) {
     return errorResponse(
       `批量数量过多（最多${MAX_BATCH}条）`,
       400,
-      "TOO_MANY_IDS"
+      "TOO_MANY_IDS",
     );
   }
   const total = uniqueIds.length;
@@ -110,17 +68,21 @@ export async function POST(request: Request) {
     });
     return successResponse(
       { success, failed, total, count: success },
-      "批量更新成功"
+      "批量更新成功",
     );
   }
 
   if (action === "reset") {
-    const result = await prisma.meme.updateMany({
-      where: {
+    const result = await prisma.$transaction(async (tx) => {
+      const where: Prisma.MemeWhereInput = {
         id: { in: uniqueIds },
         status: { in: ["PUBLISHED", "HIDDEN"] as const },
-      },
-      data: { copies: 0, downloads: 0 },
+      };
+      await tx.memeDailyStat.updateMany({
+        where: { meme: where },
+        data: { copies: 0, downloads: 0 },
+      });
+      return tx.meme.updateMany({ where, data: { copies: 0, downloads: 0 } });
     });
     const success = result.count;
     const failed = total - success;
@@ -133,7 +95,7 @@ export async function POST(request: Request) {
     });
     return successResponse(
       { success, failed, total, count: success },
-      "批量清零成功"
+      "批量清零成功",
     );
   }
 
@@ -161,18 +123,13 @@ export async function POST(request: Request) {
       continue;
     }
 
-    const timestamp = Date.now();
-    const moved: { trashPath: string; sourcePath: string }[] = [];
     try {
-      const mediaMoved = await moveToTrash(current.mediaUrl, current.id, timestamp);
-      if (mediaMoved) moved.push(mediaMoved);
-      const thumbMoved = await moveToTrash(current.thumbUrl, current.id, timestamp);
-      if (thumbMoved) moved.push(thumbMoved);
-
-      await prisma.$transaction([
-        prisma.memeTag.deleteMany({ where: { memeId: id } }),
-        prisma.meme.delete({ where: { id } }),
-      ]);
+      await withTrashedMedia([current.mediaUrl, current.thumbUrl], () =>
+        prisma.$transaction([
+          prisma.memeTag.deleteMany({ where: { memeId: id } }),
+          prisma.meme.delete({ where: { id } }),
+        ]),
+      );
       deleted += 1;
       void logAudit({
         action: "manage:delete",
@@ -182,14 +139,8 @@ export async function POST(request: Request) {
         message: "批量删除成功",
         request,
       });
-    } catch {
-      for (const entry of moved) {
-        try {
-          await restoreFromTrash(entry);
-        } catch {
-          // ignore
-        }
-      }
+    } catch (error) {
+      console.error(error);
       failed.push(id);
       void logAudit({
         action: "manage:delete",
@@ -210,6 +161,9 @@ export async function POST(request: Request) {
       failedIds: failed,
       count: deleted,
     },
-    failed.length ? "部分删除失败" : "删除成功"
+    failed.length ? "部分删除失败" : "删除成功",
   );
 }
+
+export const POST = (...args: Parameters<typeof post>) =>
+  withMediaWrite(() => post(...args));

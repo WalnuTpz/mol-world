@@ -17,7 +17,7 @@ export async function PATCH(request: Request) {
     | { updates?: Record<string, unknown> }
     | null;
 
-  if (!body) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
     return errorResponse("请求参数不完整", 400, "MISSING_PARAMS");
   }
 
@@ -26,6 +26,8 @@ export async function PATCH(request: Request) {
       ? (body.updates as Record<string, unknown>)
       : (body as Record<string, unknown>);
 
+  if (Array.isArray(updates))
+    return errorResponse("参数格式错误", 400, "INVALID_CONFIG");
   const result = await updateAppConfig(updates);
   if (!result.ok) {
     return errorResponse(result.error, 400, "INVALID_CONFIG");

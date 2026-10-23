@@ -20,8 +20,7 @@ const isAllowedKind = (value: string): value is "original" | "thumb" =>
 
 const resolveParams = async (
   params:
-    | { kind: string; file: string }
-    | Promise<{ kind: string; file: string }>
+    Promise<{ kind: string; file: string }>
 ) => Promise.resolve(params);
 
 const loadFile = async (kind: string, file: string) => {
@@ -71,8 +70,7 @@ export async function GET(
   _request: Request,
   context: {
     params:
-      | { kind: string; file: string }
-      | Promise<{ kind: string; file: string }>;
+      Promise<{ kind: string; file: string }>;
   }
 ) {
   const { kind, file } = await resolveParams(context.params);
@@ -90,8 +88,7 @@ export async function HEAD(
   _request: Request,
   context: {
     params:
-      | { kind: string; file: string }
-      | Promise<{ kind: string; file: string }>;
+      Promise<{ kind: string; file: string }>;
   }
 ) {
   const { kind, file } = await resolveParams(context.params);

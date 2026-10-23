@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 
 import baseStyles from "@/app/page.module.css";
@@ -47,54 +47,58 @@ export default function ReviewPanel({ pageLimit = 12 }: ReviewPanelProps) {
   const allowRemove = useClickGuard();
 
   const limit = Math.max(1, Math.round(pageLimit));
-  const loadPage = useCallback(async (targetPage: number) => {
-    let cancelled = false;
-    setLoading(true);
-    setError("");
-    try {
-      const res = await fetch(
-        `/api/review?page=${targetPage}&limit=${limit}`
-      );
-      if (!res.ok) throw new Error("加载失败");
-      const data = (await res.json()) as {
-        items: ReviewItem[];
-        page: number;
-        limit: number;
-        total: number;
-      };
-      if (cancelled) return;
-      const totalPages = Math.max(1, Math.ceil(data.total / data.limit));
-      if (targetPage > totalPages) {
-        setPage(totalPages);
-        return;
+  const requestVersion = useRef(0);
+  const loadPage = useCallback(
+    async (targetPage: number) => {
+      const version = ++requestVersion.current;
+      setLoading(true);
+      setError("");
+      try {
+        const res = await fetch(
+          `/api/review?page=${targetPage}&limit=${limit}`,
+        );
+        if (!res.ok) throw new Error("加载失败");
+        const data = (await res.json()) as {
+          items: ReviewItem[];
+          page: number;
+          limit: number;
+          total: number;
+        };
+        if (version !== requestVersion.current) return;
+        const totalPages = Math.max(1, Math.ceil(data.total / data.limit));
+        if (targetPage > totalPages) {
+          setPage(totalPages);
+          return;
+        }
+        setItems(data.items);
+        setTotal(data.total);
+        setDrafts(
+          Object.fromEntries(
+            data.items.map((item) => [
+              item.id,
+              {
+                title: item.title ?? "",
+                tags: item.tags.join(" "),
+                saving: false,
+              },
+            ]),
+          ),
+        );
+      } catch (err) {
+        if (version !== requestVersion.current) return;
+        setError(err instanceof Error ? err.message : "加载失败");
+      } finally {
+        if (version === requestVersion.current) setLoading(false);
       }
-      setItems(data.items);
-      setTotal(data.total);
-      setDrafts(
-        Object.fromEntries(
-          data.items.map((item) => [
-            item.id,
-            {
-              title: item.title ?? "",
-              tags: item.tags.join(" "),
-              saving: false,
-            },
-          ])
-        )
-      );
-    } catch (err) {
-      if (cancelled) return;
-      setError(err instanceof Error ? err.message : "加载失败");
-    } finally {
-      if (!cancelled) setLoading(false);
-    }
-    return () => {
-      cancelled = true;
-    };
-  }, [limit]);
+    },
+    [limit],
+  );
 
   useEffect(() => {
-    loadPage(page);
+    void loadPage(page);
+    return () => {
+      requestVersion.current += 1;
+    };
   }, [loadPage, page]);
 
   useEffect(() => {
@@ -235,7 +239,7 @@ export default function ReviewPanel({ pageLimit = 12 }: ReviewPanelProps) {
           : "批量删除";
     const ok = await confirm(
       `确认${label}选中的 ${selectedCount} 条吗？`,
-      action === "delete" ? "此操作不可撤销。" : undefined
+      action === "delete" ? "此操作不可撤销。" : undefined,
     );
     if (!ok) return;
     setBatching(true);
@@ -270,7 +274,6 @@ export default function ReviewPanel({ pageLimit = 12 }: ReviewPanelProps) {
     await loadPage(page);
     setBatching(false);
   };
-
 
   return (
     <>
@@ -334,7 +337,9 @@ export default function ReviewPanel({ pageLimit = 12 }: ReviewPanelProps) {
         <div className={baseStyles.emptyState}>{emptyText}</div>
       ) : (
         <div className={styles.list}>
-          {loading ? <div className={baseStyles.emptyState}>加载中...</div> : null}
+          {loading ? (
+            <div className={baseStyles.emptyState}>加载中...</div>
+          ) : null}
           {items.map((item) => {
             const draft = drafts[item.id];
             const isSelected = selected.has(item.id);
@@ -357,7 +362,7 @@ export default function ReviewPanel({ pageLimit = 12 }: ReviewPanelProps) {
                     alt={item.title ?? "meme"}
                     fill
                     sizes="(max-width: 720px) 100vw, 180px"
-                    unoptimized={item.thumbUrl.toLowerCase().endsWith(".gif")}
+                    unoptimized
                   />
                 </div>
                 <div className={styles.fields}>
@@ -424,7 +429,9 @@ export default function ReviewPanel({ pageLimit = 12 }: ReviewPanelProps) {
           <div className={baseStyles.pageNav}>
             <button
               type="button"
-              className={hasPrev ? baseStyles.pageNavBtn : baseStyles.pageNavBtnDisabled}
+              className={
+                hasPrev ? baseStyles.pageNavBtn : baseStyles.pageNavBtnDisabled
+              }
               onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
               disabled={!hasPrev}
             >
@@ -432,7 +439,9 @@ export default function ReviewPanel({ pageLimit = 12 }: ReviewPanelProps) {
             </button>
             <button
               type="button"
-              className={hasNext ? baseStyles.pageNavBtn : baseStyles.pageNavBtnDisabled}
+              className={
+                hasNext ? baseStyles.pageNavBtn : baseStyles.pageNavBtnDisabled
+              }
               onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
               disabled={!hasNext}
             >

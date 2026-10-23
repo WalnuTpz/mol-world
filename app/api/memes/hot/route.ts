@@ -21,7 +21,10 @@ export async function GET(request: Request) {
   const config = await getAppConfig();
   const { searchParams } = new URL(request.url);
   const mode = searchParams.get("mode") ?? "latest";
-  const limit = parseIntParam(searchParams.get("limit"), config.hotLimit);
+  const limit = Math.min(
+    parseIntParam(searchParams.get("limit"), config.hotLimit),
+    config.hotLimit,
+  );
 
   const baseWhere = {
     isFeatured: true,
@@ -54,12 +57,9 @@ export async function GET(request: Request) {
         ...item,
         tags: sortTags(item.tags.map((t) => t.tag.name)),
       }));
-    return successResponse(
-      { items, mode, limit },
-      "查询成功",
-      200,
-      { "Cache-Control": "no-store" }
-    );
+    return successResponse({ items, mode, limit }, "查询成功", 200, {
+      "Cache-Control": "no-store",
+    });
   }
 
   if (mode === "hot") {
@@ -86,8 +86,7 @@ export async function GET(request: Request) {
     const sorted = all
       .slice()
       .sort((a, b) => {
-        const heatDiff =
-          b.copies + b.downloads - (a.copies + a.downloads);
+        const heatDiff = b.copies + b.downloads - (a.copies + a.downloads);
         if (heatDiff !== 0) return heatDiff;
         return b.createdAt.getTime() - a.createdAt.getTime();
       })
@@ -97,12 +96,9 @@ export async function GET(request: Request) {
         tags: sortTags(item.tags.map((t) => t.tag.name)),
       }));
 
-    return successResponse(
-      { items: sorted, mode, limit },
-      "查询成功",
-      200,
-      { "Cache-Control": buildCacheControl(config.cacheHotSeconds) }
-    );
+    return successResponse({ items: sorted, mode, limit }, "查询成功", 200, {
+      "Cache-Control": buildCacheControl(config.cacheHotSeconds),
+    });
   }
 
   const items = await prisma.meme.findMany({
@@ -132,10 +128,7 @@ export async function GET(request: Request) {
     tags: sortTags(item.tags.map((t) => t.tag.name)),
   }));
 
-  return successResponse(
-    { items: normalized, mode, limit },
-    "查询成功",
-    200,
-    { "Cache-Control": buildCacheControl(config.cacheHotSeconds) }
-  );
+  return successResponse({ items: normalized, mode, limit }, "查询成功", 200, {
+    "Cache-Control": buildCacheControl(config.cacheHotSeconds),
+  });
 }

@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type MouseEvent,
+} from "react";
 import NextImage from "next/image";
 
 import styles from "./MemeCard.module.css";
@@ -79,9 +85,7 @@ export default function MemeCard({
     if (!navigator.clipboard?.write || typeof ClipboardItem === "undefined") {
       return "fail" as const;
     }
-    await navigator.clipboard.write([
-      new ClipboardItem({ [blob.type]: blob }),
-    ]);
+    await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
     return "clipboard" as const;
   };
 
@@ -103,7 +107,7 @@ export default function MemeCard({
     if (!ctx) return "fail" as const;
     ctx.drawImage(img, 0, 0);
     const pngBlob = await new Promise<Blob | null>((resolve) =>
-      canvas.toBlob(resolve, "image/png")
+      canvas.toBlob(resolve, "image/png"),
     );
     if (!pngBlob) return "fail" as const;
 
@@ -152,7 +156,7 @@ export default function MemeCard({
       0,
       Number.isFinite(copyCooldownMs ?? DEFAULT_COPY_COOLDOWN_MS)
         ? Number(copyCooldownMs ?? DEFAULT_COPY_COOLDOWN_MS)
-        : DEFAULT_COPY_COOLDOWN_MS
+        : DEFAULT_COPY_COOLDOWN_MS,
     );
     if (now - lastCopyAt < cooldown) {
       toast("操作过于频繁", "error", undefined, "请稍后再试");
@@ -186,7 +190,12 @@ export default function MemeCard({
       const thumbResult = await copyPngFromUrl(thumbUrl);
       if (thumbResult === "clipboard") {
         await incrementCopy();
-        toast("已复制封面图", "success", undefined, "（可通过下载获取完整动图）");
+        toast(
+          "已复制封面图",
+          "success",
+          undefined,
+          "（可通过下载获取完整动图）",
+        );
         return;
       }
       if (thumbResult === "text") {
@@ -195,7 +204,7 @@ export default function MemeCard({
           "已复制封面图（文本形式）",
           "success",
           undefined,
-          "（可通过下载获取完整动图）"
+          "（可通过下载获取完整动图）",
         );
         return;
       }
@@ -213,18 +222,18 @@ export default function MemeCard({
       0,
       Number.isFinite(downloadCooldownMs ?? DEFAULT_DOWNLOAD_COOLDOWN_MS)
         ? Number(downloadCooldownMs ?? DEFAULT_DOWNLOAD_COOLDOWN_MS)
-        : DEFAULT_DOWNLOAD_COOLDOWN_MS
+        : DEFAULT_DOWNLOAD_COOLDOWN_MS,
     );
     if (now - lastDownloadAt < cooldown) {
       toast("操作过于频繁", "error", undefined, "请稍后再试");
       return;
     }
+    lastDownloadAt = now;
     try {
       const probe = await fetch(mediaUrl, { method: "HEAD" });
       if (!probe.ok) {
         throw new Error("下载失败");
       }
-      lastDownloadAt = now;
       const link = document.createElement("a");
       link.href = mediaUrl;
       link.download = "";
@@ -239,6 +248,7 @@ export default function MemeCard({
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.target !== event.currentTarget) return;
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       void handleCopy();

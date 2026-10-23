@@ -1,3 +1,4 @@
+import { withMediaWrite } from "@/lib/mediaFiles";
 import path from "node:path";
 import { promises as fs } from "node:fs";
 
@@ -14,7 +15,8 @@ const THUMB_DIR = path.join(PUBLIC_DIR, "memes", "thumb");
 
 const IGNORED_FILES = new Set([".gitkeep", ".DS_Store"]);
 
-const isIgnored = (name: string) => name.startsWith(".") || IGNORED_FILES.has(name);
+const isIgnored = (name: string) =>
+  name.startsWith(".") || IGNORED_FILES.has(name);
 
 const listFiles = async (dir: string) => {
   try {
@@ -23,7 +25,8 @@ const listFiles = async (dir: string) => {
       .filter((entry) => entry.isFile())
       .map((entry) => entry.name)
       .filter((name) => !isIgnored(name));
-  } catch {
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
     return [];
   }
 };
@@ -62,24 +65,26 @@ const scanResources = async (): Promise<{
   let missingThumb = 0;
 
   for (const meme of memes) {
-    if (meme.mediaUrl?.startsWith(ORIGINAL_PREFIX)) {
-      const name = path.posix.basename(meme.mediaUrl);
-      referencedOriginal.add(name);
-      if (!originalSet.has(name)) {
-        missingOriginal += 1;
+    for (const [kind, url] of [
+      ["original", meme.mediaUrl],
+      ["thumb", meme.thumbUrl],
+    ] as const) {
+      const name = path.posix.basename(url);
+      let exists = true;
+      if (url.startsWith(ORIGINAL_PREFIX)) {
+        referencedOriginal.add(name);
+        exists = originalSet.has(name);
+      } else if (url.startsWith(THUMB_PREFIX)) {
+        referencedThumb.add(name);
+        exists = thumbSet.has(name);
       }
-    }
-    if (meme.thumbUrl?.startsWith(THUMB_PREFIX)) {
-      const name = path.posix.basename(meme.thumbUrl);
-      referencedThumb.add(name);
-      if (!thumbSet.has(name)) {
-        missingThumb += 1;
-      }
+      if (!exists && kind === "original") missingOriginal += 1;
+      if (!exists && kind === "thumb") missingThumb += 1;
     }
   }
 
   const orphanOriginal = originalFiles.filter(
-    (name) => !referencedOriginal.has(name)
+    (name) => !referencedOriginal.has(name),
   );
   const orphanThumb = thumbFiles.filter((name) => !referencedThumb.has(name));
 
@@ -104,12 +109,14 @@ export async function GET(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
+async function post(request: Request) {
   const auth = await requireAdmin(request);
   if (!auth.ok) return auth.response;
   let payload: { action?: string } | null = null;
   try {
-    payload = (await request.json().catch(() => null)) as { action?: string } | null;
+    payload = (await request.json().catch(() => null)) as {
+      action?: string;
+    } | null;
   } catch {
     payload = null;
   }
@@ -129,8 +136,8 @@ export async function POST(request: Request) {
       try {
         await fs.unlink(target);
         removedOriginal += 1;
-      } catch {
-        // ignore removal failures
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
       }
     }
 
@@ -140,8 +147,8 @@ export async function POST(request: Request) {
       try {
         await fs.unlink(target);
         removedThumb += 1;
-      } catch {
-        // ignore removal failures
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
       }
     }
 
@@ -151,10 +158,13 @@ export async function POST(request: Request) {
         removed: { original: removedOriginal, thumb: removedThumb },
         stats,
       },
-      "清理完成"
+      "清理完成",
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : "清理失败";
     return errorResponse(message, 500);
   }
 }
+
+export const POST = (...args: Parameters<typeof post>) =>
+  withMediaWrite(() => post(...args));

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import Link from "next/link";
 
 import { useToast } from "./ToastProvider";
 
@@ -52,13 +51,15 @@ export default function RandomLink({
     0,
     Number.isFinite(cooldownMs ?? COOLDOWN_MS)
       ? Number(cooldownMs ?? COOLDOWN_MS)
-      : COOLDOWN_MS
+      : COOLDOWN_MS,
   );
 
   useEffect(() => {
     try {
       const last = Number(localStorage.getItem(STORAGE_KEY) ?? "0");
       if (Number.isFinite(last) && last > 0) {
+        // Restore persisted cooldown after hydration.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         startCooldown(last + resolvedCooldown);
       }
     } catch {
@@ -94,12 +95,10 @@ export default function RandomLink({
   ]
     .filter(Boolean)
     .join(" ");
-  const mergedStyle = coolingDown
-    ? { ...style, ...disabledStyle }
-    : style;
+  const mergedStyle = coolingDown ? { ...style, ...disabledStyle } : style;
 
   return (
-    <Link
+    <a
       href={href}
       className={mergedClassName}
       style={mergedStyle}
@@ -107,6 +106,6 @@ export default function RandomLink({
       onClick={handleClick}
     >
       {children}
-    </Link>
+    </a>
   );
 }

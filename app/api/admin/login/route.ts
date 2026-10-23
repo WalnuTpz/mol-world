@@ -15,7 +15,8 @@ const attempts = new Map<string, AttemptState>();
 
 const getClientId = (request: Request) => {
   const forwarded = request.headers.get("x-forwarded-for");
-  const ip = forwarded?.split(",")[0]?.trim() || request.headers.get("x-real-ip");
+  const ip =
+    forwarded?.split(",")[0]?.trim() || request.headers.get("x-real-ip");
   return ip ?? "unknown";
 };
 
@@ -29,7 +30,7 @@ const buildCooldownError = (remainingMs: number) =>
     `多次输入错误，请在 ${formatRemaining(remainingMs)} 后再试`,
     429,
     "LOGIN_COOLDOWN",
-    { "Retry-After": String(Math.ceil(remainingMs / 1000)) }
+    { "Retry-After": String(Math.ceil(remainingMs / 1000)) },
   );
 
 export async function POST(request: Request) {
@@ -42,10 +43,13 @@ export async function POST(request: Request) {
     return buildCooldownError(current.cooldownUntil - now);
   }
 
-  const body = (await request.json().catch(() => null)) as
-    | { user?: string; pass?: string }
-    | null;
+  const body = (await request.json().catch(() => null)) as {
+    user?: string;
+    pass?: string;
+  } | null;
 
+  if (typeof body?.user !== "string" || typeof body?.pass !== "string")
+    return errorResponse("请求参数格式错误", 400, "INVALID_BODY");
   const user = body?.user?.trim() ?? "";
   const pass = body?.pass ?? "";
   if (!user || !pass) {
@@ -68,14 +72,18 @@ export async function POST(request: Request) {
     if (nextState.cooldownUntil > now) {
       return buildCooldownError(nextState.cooldownUntil - now);
     }
-    return errorResponse(result.error || "账号或密码错误", 401, "INVALID_CREDENTIALS");
+    return errorResponse(
+      result.error || "账号或密码错误",
+      401,
+      "INVALID_CREDENTIALS",
+    );
   }
 
   attempts.delete(clientId);
   const maxAge = 60 * 60 * 24 * config.adminSessionDays;
   const cookie = buildAdminSessionCookie(
     buildAdminSessionToken(result.credential.user, result.credential.passHash),
-    maxAge
+    maxAge,
   );
   return successResponse({}, "登录成功", 200, { "Set-Cookie": cookie });
 }

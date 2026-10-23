@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import baseStyles from "@/app/page.module.css";
 import styles from "@/components/LogPanel.module.css";
@@ -46,9 +46,10 @@ export default function LogPanel({ pageLimit = 20 }: LogPanelProps) {
   const confirm = useToastConfirm();
 
   const limit = Math.max(1, Math.round(pageLimit));
+  const requestVersion = useRef(0);
   const loadPage = useCallback(
     async (targetPage: number, keyword: string) => {
-      let cancelled = false;
+      const version = ++requestVersion.current;
       setLoading(true);
       setError("");
       try {
@@ -56,6 +57,7 @@ export default function LogPanel({ pageLimit = 20 }: LogPanelProps) {
           page: String(targetPage),
           limit: String(limit),
           q: keyword,
+          range,
         });
         const res = await fetch(`/api/admin/logs?${params.toString()}`);
         if (!res.ok) throw new Error("加载失败");
@@ -65,7 +67,7 @@ export default function LogPanel({ pageLimit = 20 }: LogPanelProps) {
           limit: number;
           total: number;
         };
-        if (cancelled) return;
+        if (version !== requestVersion.current) return;
         const totalPages = Math.max(1, Math.ceil(data.total / data.limit));
         if (targetPage > totalPages) {
           setPage(totalPages);
@@ -74,16 +76,13 @@ export default function LogPanel({ pageLimit = 20 }: LogPanelProps) {
         setItems(data.items);
         setTotal(data.total);
       } catch (err) {
-        if (cancelled) return;
+        if (version !== requestVersion.current) return;
         setError(err instanceof Error ? err.message : "加载失败");
       } finally {
-        if (!cancelled) setLoading(false);
+        if (version === requestVersion.current) setLoading(false);
       }
-      return () => {
-        cancelled = true;
-      };
     },
-    [limit]
+    [limit, range],
   );
 
   useEffect(() => {
@@ -94,7 +93,10 @@ export default function LogPanel({ pageLimit = 20 }: LogPanelProps) {
   }, [queryInput]);
 
   useEffect(() => {
-    loadPage(page, query);
+    void loadPage(page, query);
+    return () => {
+      requestVersion.current += 1;
+    };
   }, [loadPage, page, query]);
 
   useEffect(() => {
@@ -135,14 +137,15 @@ export default function LogPanel({ pageLimit = 20 }: LogPanelProps) {
         body: JSON.stringify({ range }),
       });
       if (!res.ok) {
-        const data = (await res.json().catch(() => null)) as
-          | { error?: string; message?: string }
-          | null;
+        const data = (await res.json().catch(() => null)) as {
+          error?: string;
+          message?: string;
+        } | null;
         throw new Error(data?.error || data?.message || "删除失败");
       }
-      const data = (await res.json().catch(() => null)) as
-        | { count?: number }
-        | null;
+      const data = (await res.json().catch(() => null)) as {
+        count?: number;
+      } | null;
       toast(`已删除日志（${data?.count ?? 0}）`, "success");
       await loadPage(1, query);
       setPage(1);
@@ -172,21 +175,24 @@ export default function LogPanel({ pageLimit = 20 }: LogPanelProps) {
       });
       const res = await fetch(`/api/admin/logs/export?${params.toString()}`);
       if (!res.ok) {
-        const data = (await res.json().catch(() => null)) as
-          | { error?: string; message?: string }
-          | null;
+        const data = (await res.json().catch(() => null)) as {
+          error?: string;
+          message?: string;
+        } | null;
         throw new Error(data?.error || data?.message || "导出失败");
       }
       const blob = await res.blob();
       const disposition = res.headers.get("content-disposition") ?? "";
       const match = disposition.match(
-        /filename\\*=UTF-8''([^;]+)|filename=\"?([^\";]+)\"?/i
+        /filename\*=UTF-8''([^;]+)|filename=\"?([^\";]+)\"?/i,
       );
       const fallbackName = `audit-logs-${range}-${new Date()
         .toISOString()
         .slice(0, 10)
         .replace(/-/g, "")}.csv`;
-      const filename = decodeURIComponent(match?.[1] || match?.[2] || fallbackName);
+      const filename = decodeURIComponent(
+        match?.[1] || match?.[2] || fallbackName,
+      );
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -283,7 +289,9 @@ export default function LogPanel({ pageLimit = 20 }: LogPanelProps) {
         <div className={baseStyles.emptyState}>{emptyText}</div>
       ) : (
         <div className={styles.list}>
-          {loading ? <div className={baseStyles.emptyState}>加载中...</div> : null}
+          {loading ? (
+            <div className={baseStyles.emptyState}>加载中...</div>
+          ) : null}
           {items.map((item) => {
             const target = item.targetType
               ? `${item.targetType}${item.targetId ? `：${item.targetId}` : ""}`
@@ -321,7 +329,9 @@ export default function LogPanel({ pageLimit = 20 }: LogPanelProps) {
           <div className={baseStyles.pageNav}>
             <button
               type="button"
-              className={hasPrev ? baseStyles.pageNavBtn : baseStyles.pageNavBtnDisabled}
+              className={
+                hasPrev ? baseStyles.pageNavBtn : baseStyles.pageNavBtnDisabled
+              }
               onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
               disabled={!hasPrev}
             >
@@ -329,7 +339,9 @@ export default function LogPanel({ pageLimit = 20 }: LogPanelProps) {
             </button>
             <button
               type="button"
-              className={hasNext ? baseStyles.pageNavBtn : baseStyles.pageNavBtnDisabled}
+              className={
+                hasNext ? baseStyles.pageNavBtn : baseStyles.pageNavBtnDisabled
+              }
               onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
               disabled={!hasNext}
             >

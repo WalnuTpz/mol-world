@@ -1,17 +1,17 @@
-import type { PrismaClient } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 
 type TagRow = { id: string; name: string; numId: number | null };
 
 const toUniqueList = (values: string[]) => Array.from(new Set(values));
 
-export const getNextMemeNumId = async (client: PrismaClient) => {
+export const getNextMemeNumId = async (client: Prisma.TransactionClient) => {
   const max = await client.meme.aggregate({ _max: { numId: true } });
   return (max._max.numId ?? 0) + 1;
 };
 
 export const ensureTagsWithNumId = async (
-  client: PrismaClient,
-  names: string[]
+  client: Prisma.TransactionClient,
+  names: string[],
 ): Promise<TagRow[]> => {
   const uniqueNames = toUniqueList(names);
   if (uniqueNames.length === 0) return [];
@@ -27,26 +27,14 @@ export const ensureTagsWithNumId = async (
     const max = await client.tag.aggregate({ _max: { numId: true } });
     let next = (max._max.numId ?? 0) + 1;
     for (const name of missing) {
-      try {
-        const created = await client.tag.create({
-          data: { name, numId: next },
-          select: { id: true, name: true, numId: true },
-        });
-        map.set(name, created);
-        next += 1;
-      } catch {
-        const fallback = await client.tag.findUnique({
-          where: { name },
-          select: { id: true, name: true, numId: true },
-        });
-        if (fallback) {
-          map.set(name, fallback);
-        } else {
-          throw new Error("创建标签失败");
-        }
-      }
+      const created = await client.tag.create({
+        data: { name, numId: next },
+        select: { id: true, name: true, numId: true },
+      });
+      map.set(name, created);
+      next += 1;
     }
   }
 
-  return uniqueNames.map((name) => map.get(name)).filter(Boolean) as TagRow[];
+  return uniqueNames.map((name) => map.get(name)!);
 };

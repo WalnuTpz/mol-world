@@ -33,7 +33,8 @@ const fileExists = async (filePath: string) => {
   try {
     await access(filePath);
     return true;
-  } catch {
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
     return false;
   }
 };
@@ -42,7 +43,7 @@ async function main() {
   const originalDir = path.join(process.cwd(), "public", "memes", "original");
   const thumbDir = path.join(process.cwd(), "public", "memes", "thumb");
   const files = (await readdir(originalDir)).filter((file) =>
-    ALLOWED_EXT.has(path.extname(file).toLowerCase())
+    ALLOWED_EXT.has(path.extname(file).toLowerCase()),
   );
 
   let generated = 0;
@@ -50,7 +51,7 @@ async function main() {
 
   for (const file of files) {
     const ext = path.extname(file).toLowerCase();
-    const base = path.basename(file, ext);
+    const base = path.basename(file, path.extname(file));
     const animated = ext === ".gif";
     const thumbName = `${base}.${animated ? "gif" : "jpg"}`;
     const inputPath = path.join(originalDir, file);

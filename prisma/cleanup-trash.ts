@@ -1,27 +1,27 @@
 import path from "node:path";
-import { promises as fs } from "node:fs";
+import { readdir, unlink } from "node:fs/promises";
 
-const TRASH_DIR = path.join(process.cwd(), "public", "trash");
-
-const main = async () => {
-  try {
-    const entries = await fs.readdir(TRASH_DIR, { withFileTypes: true });
-    let removed = 0;
+async function main() {
+  let removed = 0;
+  // Include the previous pending-upload trash directory when upgrading.
+  for (const relative of ["trash", "uploads/trash"]) {
+    const dir = path.join(process.cwd(), "public", relative);
+    let entries;
+    try {
+      entries = await readdir(dir, { withFileTypes: true });
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") continue;
+      throw error;
+    }
     for (const entry of entries) {
       if (!entry.isFile()) continue;
-      const target = path.join(TRASH_DIR, entry.name);
-      await fs.unlink(target);
+      await unlink(path.join(dir, entry.name));
       removed += 1;
     }
-    console.log(`已清理 trash 文件：${removed}`);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-      console.log("trash 目录不存在，无需清理");
-      return;
-    }
-    console.error("清理 trash 失败", error);
-    process.exit(1);
   }
-};
-
-void main();
+  console.log(`已清理 trash 文件：${removed}`);
+}
+main().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});

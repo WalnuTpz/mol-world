@@ -12,6 +12,8 @@ export default function WelcomeModal() {
   useEffect(() => {
     try {
       if (!localStorage.getItem(STORAGE_KEY)) {
+        // Browser storage is unavailable during server rendering.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setOpen(true);
       }
     } catch {

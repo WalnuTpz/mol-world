@@ -12,7 +12,10 @@ export async function GET(request: Request) {
   const config = await getAppConfig();
   const { searchParams } = new URL(request.url);
   const page = parseIntParam(searchParams.get("page"), 1);
-  const limit = parseIntParam(searchParams.get("limit"), config.listLimit);
+  const limit = Math.min(
+    parseIntParam(searchParams.get("limit"), config.listLimit),
+    config.listLimit,
+  );
   const skip = (page - 1) * limit;
 
   const where = {
@@ -54,6 +57,6 @@ export async function GET(request: Request) {
     { items: normalized, page, limit, total },
     "查询成功",
     200,
-    { "Cache-Control": buildCacheControl(config.cacheListSeconds) }
+    { "Cache-Control": buildCacheControl(config.cacheListSeconds) },
   );
 }

@@ -23,13 +23,10 @@ type ToastFn = (
   message: string,
   tone?: ToastTone,
   durationMs?: number,
-  detail?: string
+  detail?: string,
 ) => void;
 
-type ConfirmFn = (
-  message: string,
-  detail?: string
-) => Promise<boolean>;
+type ConfirmFn = (message: string, detail?: string) => Promise<boolean>;
 
 type ToastAction = {
   label: string;
@@ -84,14 +81,18 @@ export default function ToastProvider({
   const show = useCallback<ToastFn>(
     (message, tone = "info", durationMs = 2200, detail) => {
       const id = createId();
-      setToasts((prev) => [...prev, { id, message, tone, detail }].slice(-3));
+      setToasts((prev) => [
+        ...prev.filter((item) => item.persist),
+        ...prev.filter((item) => !item.persist).slice(-2),
+        { id, message, tone, detail },
+      ]);
       if (durationMs > 0) {
         window.setTimeout(() => {
           removeToast(id);
         }, durationMs);
       }
     },
-    [removeToast]
+    [removeToast],
   );
 
   const confirm = useCallback<ConfirmFn>(
@@ -113,9 +114,9 @@ export default function ToastProvider({
             { label: "确认", variant: "primary", onClick: () => handle(true) },
           ],
         };
-        setToasts((prev) => [...prev, item].slice(-3));
+        setToasts((prev) => [...prev, item]);
       }),
-    [removeToast]
+    [removeToast],
   );
 
   const value = useMemo(() => ({ toast: show, confirm }), [show, confirm]);

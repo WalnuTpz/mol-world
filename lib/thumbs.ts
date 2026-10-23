@@ -7,14 +7,12 @@ export type ThumbOptions = {
   maxSize?: number;
   staticQuality?: number;
   gifColors?: number;
-  gifDelayMs?: number;
 };
 
 const DEFAULTS: Required<ThumbOptions> = {
   maxSize: 360,
   staticQuality: 82,
   gifColors: 128,
-  gifDelayMs: 80,
 };
 
 const ensureDirForFile = async (filePath: string) => {
@@ -24,7 +22,7 @@ const ensureDirForFile = async (filePath: string) => {
 export async function generateStaticThumb(
   inputPath: string,
   outputPath: string,
-  options: ThumbOptions = {}
+  options: ThumbOptions = {},
 ) {
   const { maxSize, staticQuality } = { ...DEFAULTS, ...options };
   await ensureDirForFile(outputPath);
@@ -38,17 +36,15 @@ export async function generateStaticThumb(
 export async function generateAnimatedThumb(
   inputPath: string,
   outputPath: string,
-  options: ThumbOptions = {}
+  options: ThumbOptions = {},
 ) {
-  const { maxSize, gifColors, gifDelayMs } = { ...DEFAULTS, ...options };
+  const { maxSize, gifColors } = { ...DEFAULTS, ...options };
   await ensureDirForFile(outputPath);
 
   await sharp(inputPath, { animated: true })
     .resize({ width: maxSize, height: maxSize, fit: "inside" })
     .gif({
       colours: gifColors,
-      delay: gifDelayMs,
-      loop: 0,
     })
     .toFile(outputPath);
 }
@@ -57,7 +53,7 @@ export async function generateThumb(
   inputPath: string,
   outputPath: string,
   animated: boolean,
-  options: ThumbOptions = {}
+  options: ThumbOptions = {},
 ) {
   if (animated) {
     await generateAnimatedThumb(inputPath, outputPath, options);

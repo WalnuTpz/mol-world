@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db";
 import { successResponse } from "@/lib/api";
 import { requireAdmin } from "@/lib/adminAuth";
 import { normalizeSearchTokens, sortTags } from "@/lib/tags";
-import { getAppConfig, getTagRulesFromConfig } from "@/lib/appConfig";
+import { getAppConfig } from "@/lib/appConfig";
 
 function parseIntParam(value: string | null, fallback: number) {
   const parsed = Number.parseInt(value ?? "", 10);
@@ -24,7 +24,7 @@ const TYPE_MAP = new Map<string, TypeFilter>([
   ["静态图", "STATIC"],
 ]);
 
-const parseManageQuery = (query: string, tagRules?: Parameters<typeof normalizeSearchTokens>[1]) => {
+const parseManageQuery = (query: string) => {
   const rawTokens = query.split(/[\s,，、;；/|]+/).filter(Boolean);
   let status: StatusFilter | undefined;
   let type: TypeFilter | undefined;
@@ -62,7 +62,7 @@ const parseManageQuery = (query: string, tagRules?: Parameters<typeof normalizeS
   return {
     status,
     type,
-    tokens: normalizeSearchTokens(remaining.join(" "), tagRules),
+    tokens: normalizeSearchTokens(remaining.join(" ")),
   };
 };
 
@@ -70,17 +70,16 @@ export async function GET(request: Request) {
   const auth = await requireAdmin(request);
   if (!auth.ok) return auth.response;
   const config = await getAppConfig();
-  const tagRules = getTagRulesFromConfig(config);
   const { searchParams } = new URL(request.url);
   const page = parseIntParam(searchParams.get("page"), 1);
   const limit = Math.min(
     parseIntParam(searchParams.get("limit"), config.managePageLimit),
-    config.managePageLimit
+    config.managePageLimit,
   );
   const q = (searchParams.get("q") ?? "").trim();
   const skip = (page - 1) * limit;
 
-  const { status, type, tokens } = parseManageQuery(q, tagRules);
+  const { status, type, tokens } = parseManageQuery(q);
 
   const where = {
     status: status ? status : { in: ["PUBLISHED", "HIDDEN"] as StatusFilter[] },
@@ -132,6 +131,6 @@ export async function GET(request: Request) {
 
   return successResponse(
     { items: normalized, page, limit, total, q },
-    "查询成功"
+    "查询成功",
   );
 }

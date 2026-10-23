@@ -43,7 +43,7 @@ const viewDescriptions = {
 export default async function AdminPage({
   searchParams,
 }: {
-  searchParams?: SearchParams | Promise<SearchParams>;
+  searchParams?: Promise<SearchParams>;
 }) {
   const resolvedParams = (await Promise.resolve(searchParams)) ?? {};
   const viewParam = getParam(resolvedParams.view);

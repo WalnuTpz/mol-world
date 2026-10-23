@@ -1,5 +1,6 @@
+import { withTrashedMedia, withMediaWrite } from "@/lib/mediaFiles";
 import path from "node:path";
-import { copyFile, mkdir, rename, unlink } from "node:fs/promises";
+import { mkdir, rename, unlink } from "node:fs/promises";
 
 import { prisma } from "@/lib/db";
 import { errorResponse, successResponse } from "@/lib/api";
@@ -35,7 +36,7 @@ const getUploadSource = (mediaUrl: string) => {
 const moveToLibrary = async (
   id: string,
   mediaUrl: string,
-  animated: boolean
+  animated: boolean,
 ) => {
   const source = getUploadSource(mediaUrl);
   if (!source) {
@@ -53,10 +54,13 @@ const moveToLibrary = async (
 
   const thumbName = `${id}.${animated ? "gif" : "jpg"}`;
   const thumbPath = path.join(thumbDir, thumbName);
+  let moved = false;
   try {
     await rename(source.sourcePath, targetPath);
+    moved = true;
     await generateThumb(targetPath, thumbPath, animated);
   } catch (error) {
+    if (!moved) throw error;
     try {
       await rename(targetPath, source.sourcePath);
     } catch (err) {
@@ -96,21 +100,9 @@ const moveToLibrary = async (
   };
 };
 
-const removeFromUploads = async (mediaUrl: string) => {
-  const source = getUploadSource(mediaUrl);
-  if (!source) return;
-  try {
-    await unlink(source.sourcePath);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
-      throw error;
-    }
-  }
-};
-
-export async function PATCH(
+async function patch(
   request: Request,
-  context: { params: { id: string } | Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> },
 ) {
   const auth = await requireAdmin(request);
   if (!auth.ok) return auth.response;
@@ -153,8 +145,13 @@ export async function PATCH(
     });
     return errorResponse("请求参数格式错误", 400, "INVALID_BODY");
   }
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return errorResponse("请求参数格式错误", 400, "INVALID_BODY");
+  }
   const allowedKeys = new Set(["title", "tags", "status", "action"]);
-  const extraKeys = Object.keys(body ?? {}).filter((key) => !allowedKeys.has(key));
+  const extraKeys = Object.keys(body ?? {}).filter(
+    (key) => !allowedKeys.has(key),
+  );
   if (extraKeys.length > 0) {
     void logAudit({
       action: "review:update",
@@ -167,24 +164,30 @@ export async function PATCH(
     });
     return errorResponse("请求参数不合法", 400, "INVALID_FIELDS");
   }
-  const title = body.title?.trim() ?? null;
   const status = body.status;
   if (typeof body.title !== "undefined" && typeof body.title !== "string") {
     return errorResponse("标题格式不合法", 400, "INVALID_TITLE");
   }
   if (
     typeof body.tags !== "undefined" &&
-    !(typeof body.tags === "string" || Array.isArray(body.tags))
+    !(
+      typeof body.tags === "string" ||
+      (Array.isArray(body.tags) &&
+        body.tags.every((tag) => typeof tag === "string"))
+    )
   ) {
     return errorResponse("标签格式不合法", 400, "INVALID_TAGS");
   }
-  if (status && status !== "PUBLISHED" && status !== "HIDDEN") {
+  if (status !== undefined && status !== "PUBLISHED" && status !== "HIDDEN") {
     return errorResponse("状态不合法", 400, "INVALID_STATUS");
   }
-  if (body.action && body.action !== "delete") {
+  if (body.action !== undefined && body.action !== "delete") {
     return errorResponse("操作不合法", 400, "INVALID_ACTION");
   }
-  const tags = body.tags ? normalizeTagInput(body.tags, tagRules) : [];
+  const title =
+    body.title === undefined ? undefined : body.title.trim() || null;
+  const tags =
+    body.tags !== undefined ? normalizeTagInput(body.tags, tagRules) : [];
 
   if (body.action === "delete") {
     const current = await prisma.meme.findUnique({
@@ -226,34 +229,13 @@ export async function PATCH(
       return errorResponse("当前状态不可审核", 400, "INVALID_STATE");
     }
 
-    let backup: { media?: string; thumb?: string } | null = null;
-    const backupDir = path.join(process.cwd(), "public", "uploads", "trash");
     try {
-      await ensureDir(backupDir);
-      const mediaSource = getUploadSource(current.mediaUrl);
-      const thumbSource = getUploadSource(current.thumbUrl);
-      const timestamp = Date.now();
-      if (mediaSource) {
-        const mediaBackup = path.join(
-          backupDir,
-          `${id}-${timestamp}-${mediaSource.filename}`
-        );
-        await rename(mediaSource.sourcePath, mediaBackup);
-        backup = { ...(backup ?? {}), media: mediaBackup };
-      }
-      if (thumbSource) {
-        const thumbBackup = path.join(
-          backupDir,
-          `${id}-${timestamp}-${thumbSource.filename}`
-        );
-        await rename(thumbSource.sourcePath, thumbBackup);
-        backup = { ...(backup ?? {}), thumb: thumbBackup };
-      }
-
-      await prisma.$transaction([
-        prisma.memeTag.deleteMany({ where: { memeId: id } }),
-        prisma.meme.delete({ where: { id } }),
-      ]);
+      await withTrashedMedia([current.mediaUrl, current.thumbUrl], () =>
+        prisma.$transaction([
+          prisma.memeTag.deleteMany({ where: { memeId: id } }),
+          prisma.meme.delete({ where: { id } }),
+        ]),
+      );
       void logAudit({
         action: "review:delete",
         status: "success",
@@ -263,26 +245,7 @@ export async function PATCH(
         request,
       });
     } catch (error) {
-      if (backup?.media) {
-        try {
-          const restorePath = getUploadSource(current.mediaUrl)?.sourcePath;
-          if (restorePath) {
-            await rename(backup.media, restorePath);
-          }
-        } catch {
-          // ignore
-        }
-      }
-      if (backup?.thumb) {
-        try {
-          const restorePath = getUploadSource(current.thumbUrl)?.sourcePath;
-          if (restorePath) {
-            await rename(backup.thumb, restorePath);
-          }
-        } catch {
-          // ignore
-        }
-      }
+      console.error(error);
       void logAudit({
         action: "review:delete",
         status: "error",
@@ -317,7 +280,10 @@ export async function PATCH(
     });
     return errorResponse("资源不存在", 404, "NOT_FOUND");
   }
-  if (current.status !== "PENDING" || !current.mediaUrl.startsWith("/uploads/")) {
+  if (
+    current.status !== "PENDING" ||
+    !current.mediaUrl.startsWith("/uploads/")
+  ) {
     void logAudit({
       action: "review:update",
       status: "error",
@@ -335,7 +301,7 @@ export async function PATCH(
       moved = await moveToLibrary(
         current.id,
         current.mediaUrl,
-        current.type === "ANIMATED"
+        current.type === "ANIMATED",
       );
     } catch {
       void logAudit({
@@ -352,45 +318,51 @@ export async function PATCH(
 
   let updated;
   try {
-    const tagRows = body.tags ? await ensureTagsWithNumId(prisma, tags) : [];
-    updated = await prisma.meme.update({
-      where: { id },
-      data: {
-        title,
-        ...(moved ? { mediaUrl: moved.mediaUrl, thumbUrl: moved.thumbUrl } : {}),
-        ...(status ? { status } : {}),
-        ...(body.tags
-          ? {
-              tags: {
-                deleteMany: {},
-                create: tagRows.map((tag) => ({
-                  tag: { connect: { id: tag.id } },
-                })),
-              },
-            }
-          : {}),
-      },
-      select: {
-        id: true,
-        title: true,
-        type: true,
-        mediaUrl: true,
-        thumbUrl: true,
-        status: true,
-        createdAt: true,
-        tags: {
-          select: {
-            tag: { select: { name: true } },
+    const result = await prisma.$transaction(async (tx) => {
+      const tagRows =
+        body.tags !== undefined ? await ensureTagsWithNumId(tx, tags) : [];
+      return tx.meme.update({
+        where: { id },
+        data: {
+          title,
+          ...(moved
+            ? { mediaUrl: moved.mediaUrl, thumbUrl: moved.thumbUrl }
+            : {}),
+          ...(status ? { status } : {}),
+          ...(body.tags !== undefined
+            ? {
+                tags: {
+                  deleteMany: {},
+                  create: tagRows.map((tag) => ({
+                    tag: { connect: { id: tag.id } },
+                  })),
+                },
+              }
+            : {}),
+        },
+        select: {
+          id: true,
+          title: true,
+          type: true,
+          mediaUrl: true,
+          thumbUrl: true,
+          status: true,
+          createdAt: true,
+          tags: {
+            select: {
+              tag: { select: { name: true } },
+            },
           },
         },
-      },
+      });
     });
+    updated = result;
   } catch {
     if (moved?.rollback) {
       try {
         await moved.rollback();
-      } catch {
-        // ignore rollback failures
+      } catch (rollbackError) {
+        console.error("Review rollback failed", rollbackError);
       }
     }
     void logAudit({
@@ -421,6 +393,9 @@ export async function PATCH(
         tags: sortTags(updated.tags.map((t) => t.tag.name)),
       },
     },
-    "保存成功"
+    "保存成功",
   );
 }
+
+export const PATCH = (...args: Parameters<typeof patch>) =>
+  withMediaWrite(() => patch(...args));

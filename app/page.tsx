@@ -7,9 +7,13 @@ import WelcomeModal from "@/components/WelcomeModal";
 import RandomLink from "@/components/RandomLink";
 import AdminLoginTrigger from "@/components/AdminLoginTrigger";
 import { prisma } from "@/lib/db";
-import { getAdminSessionCookieName, isAdminSessionValid } from "@/lib/adminSession";
+import { ensureDailyPools, pickRandomSubset } from "@/lib/dailyPool";
+import {
+  getAdminSessionCookieName,
+  isAdminSessionValid,
+} from "@/lib/adminSession";
 import { normalizeSearchTokens, sortTags } from "@/lib/tags";
-import { getAppConfig, getTagRulesFromConfig } from "@/lib/appConfig";
+import { getAppConfig } from "@/lib/appConfig";
 import styles from "./page.module.css";
 
 export const dynamic = "force-dynamic";
@@ -33,72 +37,7 @@ function parseIntParam(value: string | undefined, fallback: number) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
-function shuffle<T>(items: T[]) {
-  const arr = items.slice();
-  for (let i = arr.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
-}
-
 const getDayKey = () => new Date().toISOString().slice(0, 10);
-
-const pickRandomSubset = <T,>(items: T[], count: number) => {
-  if (items.length <= count) return items.slice();
-  const arr = items.slice();
-  for (let i = arr.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr.slice(0, count);
-};
-
-const ensureDailyPools = async (
-  day: string,
-  memeIds: string[],
-  groupCount: number,
-  groupSize: number
-) => {
-  if (memeIds.length === 0) return [];
-
-  const existing = await prisma.dailyPool.findMany({
-    where: { day },
-    include: { _count: { select: { items: true } } },
-  });
-
-  const shouldRebuild =
-    existing.length !== groupCount ||
-    existing.some((group) => group._count.items < groupSize);
-
-  if (shouldRebuild) {
-    await prisma.dailyPoolItem.deleteMany({ where: { pool: { day } } });
-    await prisma.dailyPool.deleteMany({ where: { day } });
-
-    for (let i = 0; i < groupCount; i += 1) {
-      const ids = pickRandomSubset(memeIds, groupSize);
-      await prisma.dailyPool.create({
-        data: {
-          day,
-          groupIndex: i,
-          items: {
-            create: ids.map((id) => ({
-              meme: { connect: { id } },
-            })),
-          },
-        },
-      });
-    }
-  }
-
-  return prisma.dailyPool.findMany({
-    where: { day },
-    select: {
-      groupIndex: true,
-      items: { select: { memeId: true } },
-    },
-  });
-};
 
 const select = {
   id: true,
@@ -141,11 +80,11 @@ const normalizeItems = (list: MemeRow[]): MemeCardItem[] =>
 export default async function Home({
   searchParams,
 }: {
-  searchParams: SearchParams | Promise<SearchParams>;
+  searchParams: Promise<SearchParams>;
 }) {
   const cookieStore = await cookies();
   const authed = await isAdminSessionValid(
-    cookieStore.get(getAdminSessionCookieName())?.value
+    cookieStore.get(getAdminSessionCookieName())?.value,
   );
   const today = getDayKey();
   await prisma.siteDailyStat.upsert({
@@ -154,12 +93,14 @@ export default async function Home({
     update: { visits: { increment: 1 } },
   });
   const config = await getAppConfig();
-  const tagRules = getTagRulesFromConfig(config);
   const resolvedParams =
     (await Promise.resolve(searchParams)) ?? ({} as SearchParams);
   const viewParam = getParam(resolvedParams?.view);
   const q = (getParam(resolvedParams?.q) ?? "").trim();
-  const limit = parseIntParam(getParam(resolvedParams?.limit), config.listLimit);
+  const limit = Math.min(
+    parseIntParam(getParam(resolvedParams?.limit), config.listLimit),
+    config.listLimit,
+  );
   const hotLimit = config.hotLimit;
   const page = parseIntParam(getParam(resolvedParams?.page), 1);
   const hotSortParam = getParam(resolvedParams?.hotSort);
@@ -190,8 +131,8 @@ export default async function Home({
         ? sortParam
         : "latest"
       : sortParam === "name" ||
-        sortParam === "earliest" ||
-        sortParam === "latest"
+          sortParam === "earliest" ||
+          sortParam === "latest"
         ? sortParam
         : "latest";
 
@@ -211,10 +152,10 @@ export default async function Home({
         getDayKey(),
         memeIds,
         config.dailyPoolGroups,
-        config.dailyPoolSize
+        config.dailyPoolSize,
       );
       if (pools.length > 0) {
-        const group = pools[Math.floor(Math.random() * pools.length)];
+        const group = pickRandomSubset(pools, 1)[0];
         const groupIds = group.items.map((item) => item.memeId);
         if (groupIds.length > 0) {
           const list = await prisma.meme.findMany({
@@ -248,7 +189,7 @@ export default async function Home({
               filled = ordered.concat(fillers);
             }
           }
-          items = normalizeItems(filled);
+          items = normalizeItems(filled.slice(0, hotLimit));
         } else {
           items = [];
         }
@@ -263,8 +204,7 @@ export default async function Home({
       const sorted = list
         .slice()
         .sort((a, b) => {
-          const heatDiff =
-            b.copies + b.downloads - (a.copies + a.downloads);
+          const heatDiff = b.copies + b.downloads - (a.copies + a.downloads);
           if (heatDiff !== 0) return heatDiff;
           return b.createdAt.getTime() - a.createdAt.getTime();
         })
@@ -332,7 +272,7 @@ export default async function Home({
       totalPages = 1;
     } else {
       const skip = (page - 1) * limit;
-      const tokens = normalizeSearchTokens(q, tagRules);
+      const tokens = normalizeSearchTokens(q);
       const where =
         tokens.length > 0
           ? {
@@ -375,8 +315,7 @@ export default async function Home({
           select,
         });
         list.sort((a, b) => {
-          const heatDiff =
-            b.copies + b.downloads - (a.copies + a.downloads);
+          const heatDiff = b.copies + b.downloads - (a.copies + a.downloads);
           if (heatDiff !== 0) return heatDiff;
           return b.createdAt.getTime() - a.createdAt.getTime();
         });
@@ -425,8 +364,9 @@ export default async function Home({
         : "暂无热门表情包，请先在管理页设置精选内容。";
   return (
     <div
-      className={`${styles.page} ${view === "all" || view === "search" ? styles.pageWithPagination : ""
-        }`}
+      className={`${styles.page} ${
+        view === "all" || view === "search" ? styles.pageWithPagination : ""
+      }`}
     >
       <WelcomeModal />
       <header className={styles.header}>
@@ -527,15 +467,17 @@ export default async function Home({
           {view === "hot" && (
             <div className={styles.filters}>
               <Link
-                className={`${styles.filterBtn} ${hotSort === "hot" ? styles.filterActive : ""
-                  }`}
+                className={`${styles.filterBtn} ${
+                  hotSort === "hot" ? styles.filterActive : ""
+                }`}
                 href="/?view=hot&hotSort=hot"
               >
                 最热
               </Link>
               <RandomLink
-                className={`${styles.filterBtn} ${hotSort === "random" ? styles.filterActive : ""
-                  }`}
+                className={`${styles.filterBtn} ${
+                  hotSort === "random" ? styles.filterActive : ""
+                }`}
                 disabledClassName={styles.filterDisabled}
                 href="/?view=hot&hotSort=random"
                 cooldownMs={randomCooldownMs}
@@ -547,29 +489,33 @@ export default async function Home({
           {view === "search" && (
             <div className={styles.filters}>
               <Link
-                className={`${styles.filterBtn} ${sort === "name" ? styles.filterActive : ""
-                  }`}
+                className={`${styles.filterBtn} ${
+                  sort === "name" ? styles.filterActive : ""
+                }`}
                 href={`/?view=search&q=${encodedQ}&sort=name&page=1&limit=${limit}`}
               >
                 按名称
               </Link>
               <Link
-                className={`${styles.filterBtn} ${sort === "heat" ? styles.filterActive : ""
-                  }`}
+                className={`${styles.filterBtn} ${
+                  sort === "heat" ? styles.filterActive : ""
+                }`}
                 href={`/?view=search&q=${encodedQ}&sort=heat&page=1&limit=${limit}`}
               >
                 最热
               </Link>
               <Link
-                className={`${styles.filterBtn} ${sort === "latest" ? styles.filterActive : ""
-                  }`}
+                className={`${styles.filterBtn} ${
+                  sort === "latest" ? styles.filterActive : ""
+                }`}
                 href={`/?view=search&q=${encodedQ}&sort=latest&page=1&limit=${limit}`}
               >
                 最新
               </Link>
               <Link
-                className={`${styles.filterBtn} ${sort === "earliest" ? styles.filterActive : ""
-                  }`}
+                className={`${styles.filterBtn} ${
+                  sort === "earliest" ? styles.filterActive : ""
+                }`}
                 href={`/?view=search&q=${encodedQ}&sort=earliest&page=1&limit=${limit}`}
               >
                 最早
@@ -580,8 +526,13 @@ export default async function Home({
             <div className={styles.filters}>
               <Link
                 className={`${styles.filterBtn} ${styles.filterActive}`}
-                href={`/?view=all&type=${allType === "all" ? "animated" : allType === "animated" ? "static" : "all"
-                  }&sort=${sort}&page=1&limit=${limit}`}
+                href={`/?view=all&type=${
+                  allType === "all"
+                    ? "animated"
+                    : allType === "animated"
+                      ? "static"
+                      : "all"
+                }&sort=${sort}&page=1&limit=${limit}`}
               >
                 {allType === "all"
                   ? "全部"
@@ -590,22 +541,25 @@ export default async function Home({
                     : "静态"}
               </Link>
               <Link
-                className={`${styles.filterBtn} ${sort === "name" ? styles.filterActive : ""
-                  }`}
+                className={`${styles.filterBtn} ${
+                  sort === "name" ? styles.filterActive : ""
+                }`}
                 href={`/?view=all&type=${allType}&sort=name&page=1&limit=${limit}`}
               >
                 按名称
               </Link>
               <Link
-                className={`${styles.filterBtn} ${sort === "latest" ? styles.filterActive : ""
-                  }`}
+                className={`${styles.filterBtn} ${
+                  sort === "latest" ? styles.filterActive : ""
+                }`}
                 href={`/?view=all&type=${allType}&sort=latest&page=1&limit=${limit}`}
               >
                 最新
               </Link>
               <Link
-                className={`${styles.filterBtn} ${sort === "earliest" ? styles.filterActive : ""
-                  }`}
+                className={`${styles.filterBtn} ${
+                  sort === "earliest" ? styles.filterActive : ""
+                }`}
                 href={`/?view=all&type=${allType}&sort=earliest&page=1&limit=${limit}`}
               >
                 最早

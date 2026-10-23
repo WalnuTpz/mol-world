@@ -17,7 +17,7 @@ const resolveTagByParam = async (value: string) => {
 
 export async function DELETE(
   request: Request,
-  context: { params: { id: string } | Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   const auth = await requireAdmin(request);
   if (!auth.ok) return auth.response;

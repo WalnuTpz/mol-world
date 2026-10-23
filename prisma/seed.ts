@@ -58,7 +58,7 @@ async function loadMemes(): Promise<Prisma.MemeCreateManyInput[]> {
     const baseName = path.basename(file, ext);
     const type: "ANIMATED" | "STATIC" =
       ext.toLowerCase() === ".gif" ? "ANIMATED" : "STATIC";
-    const thumbName = `${baseName}.jpg`;
+    const thumbName = `${baseName}.${type === "ANIMATED" ? "gif" : "jpg"}`;
     const hasThumb = thumbSet.has(thumbName);
     const createdAt = new Date(start + (order[index] - 1) * DAY_MS);
 
@@ -77,13 +77,15 @@ async function loadMemes(): Promise<Prisma.MemeCreateManyInput[]> {
 }
 
 async function main() {
-  await prisma.memeTag.deleteMany();
-  await prisma.tag.deleteMany();
-  await prisma.meme.deleteMany();
-
   const memes = await loadMemes();
-
-  await prisma.meme.createMany({ data: memes });
+  if (memes.length === 0)
+    throw new Error("No source images found; existing records were preserved.");
+  await prisma.$transaction(async (tx) => {
+    await tx.memeTag.deleteMany();
+    await tx.tag.deleteMany();
+    await tx.meme.deleteMany();
+    await tx.meme.createMany({ data: memes });
+  });
 
   console.log(`Seeded ${memes.length} memes.`);
 }

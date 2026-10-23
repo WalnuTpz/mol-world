@@ -9,12 +9,15 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "tsx --test --test-concurrency=1 tests/*.test.mts",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@prisma/adapter-better-sqlite3": "^7.3.0",
     "@prisma/client": "^7.3.0",
     "chart.js": "^4.5.1",
+    "dotenv": "16.6.1",
     "next": "16.1.6",
     "prisma": "^7.3.0",
     "react": "19.2.3",

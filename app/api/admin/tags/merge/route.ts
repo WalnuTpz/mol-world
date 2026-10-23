@@ -11,7 +11,7 @@ type Payload = {
 
 const resolveTagByIdOrName = async (
   value: string,
-  tagRules: Parameters<typeof normalizeTagInput>[1]
+  tagRules: Parameters<typeof normalizeTagInput>[1],
 ) => {
   if (/^\d+$/.test(value)) {
     const byNum = await prisma.tag.findUnique({
@@ -27,7 +27,9 @@ const resolveTagByIdOrName = async (
   if (byId) return byId;
   const normalized = normalizeTagInput(value, tagRules);
   if (normalized.length !== 1) {
-    return { error: normalized.length === 0 ? "INVALID_TAG" : "MULTI_TAG" } as const;
+    return {
+      error: normalized.length === 0 ? "INVALID_TAG" : "MULTI_TAG",
+    } as const;
   }
   const name = normalized[0];
   const byName = await prisma.tag.findUnique({
@@ -44,10 +46,14 @@ export async function POST(request: Request) {
   const tagRules = getTagRulesFromConfig(config);
   const body = (await request.json().catch(() => null)) as Payload | null;
   const allowedKeys = new Set(["from", "to"]);
-  const extraKeys = Object.keys(body ?? {}).filter((key) => !allowedKeys.has(key));
+  const extraKeys = Object.keys(body ?? {}).filter(
+    (key) => !allowedKeys.has(key),
+  );
   if (extraKeys.length > 0) {
     return errorResponse("请求参数不合法", 400, "INVALID_FIELDS");
   }
+  if (typeof body?.from !== "string" || typeof body?.to !== "string")
+    return errorResponse("请求参数格式错误", 400, "INVALID_BODY");
   const fromRaw = body?.from?.trim() ?? "";
   const toRaw = body?.to?.trim() ?? "";
   if (!fromRaw || !toRaw) {
@@ -55,7 +61,10 @@ export async function POST(request: Request) {
   }
 
   const fromResolved = await resolveTagByIdOrName(fromRaw, tagRules);
-  if (!fromResolved || ("error" in fromResolved && fromResolved.error === "INVALID_TAG")) {
+  if (
+    !fromResolved ||
+    ("error" in fromResolved && fromResolved.error === "INVALID_TAG")
+  ) {
     return errorResponse("标签不存在", 404, "TAG_NOT_FOUND");
   }
   if ("error" in fromResolved) {
@@ -63,7 +72,10 @@ export async function POST(request: Request) {
   }
 
   const toResolved = await resolveTagByIdOrName(toRaw, tagRules);
-  if (!toResolved || ("error" in toResolved && toResolved.error === "INVALID_TAG")) {
+  if (
+    !toResolved ||
+    ("error" in toResolved && toResolved.error === "INVALID_TAG")
+  ) {
     return errorResponse("标签不存在", 404, "TAG_NOT_FOUND");
   }
   if ("error" in toResolved) {

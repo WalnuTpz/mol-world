@@ -23,7 +23,7 @@ const resolveTagByParam = async (value: string) => {
 
 export async function PATCH(
   request: Request,
-  context: { params: { id: string } | Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> },
 ) {
   const auth = await requireAdmin(request);
   if (!auth.ok) return auth.response;
@@ -36,10 +36,14 @@ export async function PATCH(
 
   const body = (await request.json().catch(() => null)) as Payload | null;
   const allowedKeys = new Set(["name"]);
-  const extraKeys = Object.keys(body ?? {}).filter((key) => !allowedKeys.has(key));
+  const extraKeys = Object.keys(body ?? {}).filter(
+    (key) => !allowedKeys.has(key),
+  );
   if (extraKeys.length > 0) {
     return errorResponse("请求参数不合法", 400, "INVALID_FIELDS");
   }
+  if (typeof body?.name !== "string")
+    return errorResponse("请求参数格式错误", 400, "INVALID_BODY");
   const rawName = body?.name ?? "";
   const normalized = normalizeTagInput(rawName, tagRules);
   if (normalized.length === 0) {
@@ -68,10 +72,15 @@ export async function PATCH(
     return successResponse(
       {
         item: item
-          ? { id: item.id, numId: item.numId, name: item.name, count: item._count.memes }
+          ? {
+              id: item.id,
+              numId: item.numId,
+              name: item.name,
+              count: item._count.memes,
+            }
           : { id: current.id, numId: current.numId, name: nextName, count: 0 },
       },
-      "已更新"
+      "已更新",
     );
   }
 
@@ -103,6 +112,6 @@ export async function PATCH(
         count: updated._count.memes,
       },
     },
-    "已更新"
+    "已更新",
   );
 }

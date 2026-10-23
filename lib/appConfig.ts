@@ -11,6 +11,8 @@ let cachedConfig: { value: AppConfig; expiresAt: number } | null = null;
 
 const sanitizeValue = (key: AppConfigKey, raw: unknown) => {
   const rule = APP_CONFIG_RULES[key];
+  if ((typeof raw !== "number" && typeof raw !== "string") || raw === "")
+    return null;
   const num = Number(raw);
   if (!Number.isFinite(num)) return null;
   const value = Math.round(num);
@@ -21,7 +23,7 @@ const sanitizeValue = (key: AppConfigKey, raw: unknown) => {
 const buildConfig = (rows: { key: string; value: string }[]): AppConfig => {
   const config: AppConfig = { ...APP_CONFIG_DEFAULTS };
   for (const row of rows) {
-    if (!(row.key in config)) continue;
+    if (!Object.hasOwn(config, row.key)) continue;
     const key = row.key as AppConfigKey;
     const value = sanitizeValue(key, row.value);
     if (value === null) continue;
@@ -34,9 +36,11 @@ export const getAppConfig = async (): Promise<AppConfig> => {
   if (cachedConfig && cachedConfig.expiresAt > Date.now()) {
     return cachedConfig.value;
   }
-  const delegate = (prisma as unknown as {
-    appConfig?: { findMany: typeof prisma.appConfig.findMany };
-  }).appConfig;
+  const delegate = (
+    prisma as unknown as {
+      appConfig?: { findMany: typeof prisma.appConfig.findMany };
+    }
+  ).appConfig;
   if (!delegate?.findMany) {
     return { ...APP_CONFIG_DEFAULTS };
   }
@@ -56,11 +60,13 @@ export const invalidateAppConfigCache = () => {
 };
 
 export const updateAppConfig = async (
-  updates: Partial<Record<AppConfigKey, number | string>>
+  updates: Partial<Record<AppConfigKey, number | string>>,
 ) => {
-  const delegate = (prisma as unknown as {
-    appConfig?: { upsert: typeof prisma.appConfig.upsert };
-  }).appConfig;
+  const delegate = (
+    prisma as unknown as {
+      appConfig?: { upsert: typeof prisma.appConfig.upsert };
+    }
+  ).appConfig;
   if (!delegate?.upsert) {
     return { ok: false as const, error: "参数表未就绪，请先迁移数据库" };
   }
@@ -71,7 +77,7 @@ export const updateAppConfig = async (
 
   const normalized: Partial<AppConfig> = {};
   for (const [key, raw] of entries) {
-    if (!(key in APP_CONFIG_DEFAULTS)) {
+    if (!Object.hasOwn(APP_CONFIG_DEFAULTS, key)) {
       return { ok: false as const, error: `未知参数：${key}` };
     }
     const typedKey = key as AppConfigKey;
@@ -92,8 +98,8 @@ export const updateAppConfig = async (
         where: { key },
         create: { key, value: String(value) },
         update: { value: String(value) },
-      })
-    )
+      }),
+    ),
   );
 
   invalidateAppConfigCache();

@@ -37,7 +37,8 @@ const fileExists = async (filePath: string) => {
   try {
     await access(filePath);
     return true;
-  } catch {
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
     return false;
   }
 };
@@ -46,7 +47,7 @@ const computeTarget = async (
   dir: string,
   base: string,
   ext: string,
-  currentPath: string
+  currentPath: string,
 ) => {
   let filename = `${base}${ext}`;
   let targetPath = path.join(dir, filename);
@@ -102,47 +103,48 @@ async function main() {
       originalDir,
       baseName,
       mediaExt,
-      mediaPath
+      mediaPath,
     );
 
     let newMediaUrl = meme.mediaUrl;
     let newThumbUrl = meme.thumbUrl;
     const renames: Array<{ from: string; to: string }> = [];
 
-    if (mediaTarget.changed) {
-      await rename(mediaPath, mediaTarget.targetPath);
-      newMediaUrl = `${ORIGINAL_PREFIX}${mediaTarget.filename}`;
-      renames.push({ from: mediaTarget.targetPath, to: mediaPath });
-      renamedMedia += 1;
-    }
-
-    if (meme.thumbUrl.startsWith(THUMB_PREFIX)) {
-      const thumbPath = toFsPath(meme.thumbUrl);
-      if (await fileExists(thumbPath)) {
-        const thumbExt = path.extname(thumbPath);
-        const thumbDir = path.dirname(thumbPath);
-        const thumbTarget = await computeTarget(
-          thumbDir,
-          baseName,
-          thumbExt,
-          thumbPath
-        );
-        if (thumbTarget.changed) {
-          await rename(thumbPath, thumbTarget.targetPath);
-          newThumbUrl = `${THUMB_PREFIX}${thumbTarget.filename}`;
-          renames.push({ from: thumbTarget.targetPath, to: thumbPath });
-          renamedThumb += 1;
-        }
-      } else {
-        missing += 1;
-      }
-    }
-
-    if (newMediaUrl === meme.mediaUrl && newThumbUrl === meme.thumbUrl) {
-      continue;
-    }
-
     try {
+      if (mediaTarget.changed) {
+        await rename(mediaPath, mediaTarget.targetPath);
+        newMediaUrl = `${ORIGINAL_PREFIX}${mediaTarget.filename}`;
+        renames.push({ from: mediaTarget.targetPath, to: mediaPath });
+        renamedMedia += 1;
+      }
+
+      if (meme.thumbUrl === meme.mediaUrl) newThumbUrl = newMediaUrl;
+      if (meme.thumbUrl.startsWith(THUMB_PREFIX)) {
+        const thumbPath = toFsPath(meme.thumbUrl);
+        if (await fileExists(thumbPath)) {
+          const thumbExt = path.extname(thumbPath);
+          const thumbDir = path.dirname(thumbPath);
+          const thumbTarget = await computeTarget(
+            thumbDir,
+            baseName,
+            thumbExt,
+            thumbPath,
+          );
+          if (thumbTarget.changed) {
+            await rename(thumbPath, thumbTarget.targetPath);
+            newThumbUrl = `${THUMB_PREFIX}${thumbTarget.filename}`;
+            renames.push({ from: thumbTarget.targetPath, to: thumbPath });
+            renamedThumb += 1;
+          }
+        } else {
+          missing += 1;
+        }
+      }
+
+      if (newMediaUrl === meme.mediaUrl && newThumbUrl === meme.thumbUrl) {
+        continue;
+      }
+
       await prisma.meme.update({
         where: { id: meme.id },
         data: {
@@ -153,7 +155,7 @@ async function main() {
       updated += 1;
     } catch (error) {
       console.error(`Update failed for ${meme.id}`, error);
-      for (const entry of renames) {
+      for (const entry of renames.reverse()) {
         try {
           if (await fileExists(entry.from)) {
             await rename(entry.from, entry.to);
@@ -162,6 +164,7 @@ async function main() {
           console.error(`Revert failed for ${entry.from}`, revertError);
         }
       }
+      throw error;
     }
   }
 
@@ -172,7 +175,7 @@ async function main() {
       `renamedThumb=${renamedThumb}`,
       `missing=${missing}`,
       `skipped=${skipped}`,
-    ].join(" ")
+    ].join(" "),
   );
 }
 

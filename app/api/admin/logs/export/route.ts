@@ -4,12 +4,11 @@ import { prisma } from "@/lib/db";
 import { errorResponse } from "@/lib/api";
 import { requireAdmin } from "@/lib/adminAuth";
 import { normalizeSearchTokens } from "@/lib/tags";
-import { getAppConfig, getTagRulesFromConfig } from "@/lib/appConfig";
 
 const escapeCsv = (value: string | null | undefined) => {
   const raw = value ?? "";
   const needsQuote = /[",\n]/.test(raw);
-  const escaped = raw.replace(/"/g, "\"\"");
+  const escaped = raw.replace(/"/g, '""');
   return needsQuote ? `"${escaped}"` : escaped;
 };
 
@@ -29,8 +28,6 @@ const resolveSince = (range: string) => {
 export async function GET(request: Request) {
   const auth = await requireAdmin(request);
   if (!auth.ok) return auth.response;
-  const config = await getAppConfig();
-  const tagRules = getTagRulesFromConfig(config);
   const { searchParams } = new URL(request.url);
   const range = searchParams.get("range") ?? "7d";
   const q = (searchParams.get("q") ?? "").trim();
@@ -40,7 +37,7 @@ export async function GET(request: Request) {
   }
 
   const since = resolveSince(range);
-  const tokens = q ? normalizeSearchTokens(q, tagRules) : [];
+  const tokens = q ? normalizeSearchTokens(q) : [];
   const timeFilter = since ? { createdAt: { gte: since } } : {};
   const where =
     tokens.length > 0
@@ -73,14 +70,7 @@ export async function GET(request: Request) {
       },
     });
 
-    const header = [
-      "时间",
-      "动作",
-      "状态",
-      "目标类型",
-      "目标ID",
-      "消息",
-    ];
+    const header = ["时间", "动作", "状态", "目标类型", "目标ID", "消息"];
     const rows = items.map((item) => [
       formatTime(item.createdAt),
       item.action,

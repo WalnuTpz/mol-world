@@ -37,16 +37,13 @@ const normalizeTag = (raw: string, rules?: TagRules) => {
 export const normalizeTags = (
   tags: string[],
   limitOrRules: number | TagRules = MAX_TAGS,
-  rulesOverride?: TagRules
+  rulesOverride?: TagRules,
 ) => {
   const rules =
     typeof limitOrRules === "number"
       ? resolveRules(rulesOverride)
       : resolveRules(limitOrRules);
-  const limit =
-    typeof limitOrRules === "number"
-      ? limitOrRules
-      : rules.maxTags;
+  const limit = typeof limitOrRules === "number" ? limitOrRules : rules.maxTags;
   const result: string[] = [];
   const seen = new Set<string>();
 
@@ -65,21 +62,21 @@ export const sortTags = (tags: string[]) =>
   [...tags].sort((a, b) => tagCollator.compare(a, b));
 
 export const splitTagInput = (input: string) =>
-  input.split(TAG_SPLIT_RE).map((tag) => tag.trim()).filter(Boolean);
+  input
+    .split(TAG_SPLIT_RE)
+    .map((tag) => tag.trim())
+    .filter(Boolean);
 
 export const normalizeTagInput = (
   input: string | string[],
   limitOrRules: number | TagRules = MAX_TAGS,
-  rulesOverride?: TagRules
+  rulesOverride?: TagRules,
 ) =>
   normalizeTags(
     Array.isArray(input) ? input : splitTagInput(input),
     limitOrRules,
-    rulesOverride
+    rulesOverride,
   );
 
-export const normalizeSearchTokens = (query: string, rules?: TagRules) =>
-  query
-    .split(/\s+/)
-    .map((token) => normalizeTag(token, rules))
-    .filter(Boolean);
+export const normalizeSearchTokens = (query: string) =>
+  query.trim().split(/\s+/).filter(Boolean);

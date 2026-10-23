@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db";
 import { errorResponse, successResponse } from "@/lib/api";
 import { requireAdmin } from "@/lib/adminAuth";
 import { normalizeSearchTokens } from "@/lib/tags";
-import { getAppConfig, getTagRulesFromConfig } from "@/lib/appConfig";
+import { getAppConfig } from "@/lib/appConfig";
 
 function parseIntParam(value: string | null, fallback: number) {
   const parsed = Number.parseInt(value ?? "", 10);
@@ -13,34 +13,37 @@ export async function GET(request: Request) {
   const auth = await requireAdmin(request);
   if (!auth.ok) return auth.response;
   const config = await getAppConfig();
-  const tagRules = getTagRulesFromConfig(config);
   const { searchParams } = new URL(request.url);
   const page = parseIntParam(searchParams.get("page"), 1);
   const limit = Math.min(
     parseIntParam(searchParams.get("limit"), config.logPageLimit),
-    config.logPageLimit
+    config.logPageLimit,
   );
   const q = (searchParams.get("q") ?? "").trim();
   const skip = (page - 1) * limit;
-  const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const range = searchParams.get("range") ?? "7d";
+  if (!["3d", "7d", "30d", "all"].includes(range))
+    return errorResponse("无效的时间范围", 400, "INVALID_RANGE");
+  const days = range === "3d" ? 3 : range === "30d" ? 30 : 7;
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
-  const tokens = q ? normalizeSearchTokens(q, tagRules) : [];
-  const timeFilter = { createdAt: { gte: since } };
+  const tokens = q ? normalizeSearchTokens(q) : [];
+  const timeFilter = range === "all" ? {} : { createdAt: { gte: since } };
   const where =
     tokens.length > 0
       ? {
-        AND: [
-          timeFilter,
-          ...tokens.map((token) => ({
-            OR: [
-              { action: { contains: token } },
-              { message: { contains: token } },
-              { targetId: { contains: token } },
-              { targetType: { contains: token } },
-            ],
-          })),
-        ],
-      }
+          AND: [
+            timeFilter,
+            ...tokens.map((token) => ({
+              OR: [
+                { action: { contains: token } },
+                { message: { contains: token } },
+                { targetId: { contains: token } },
+                { targetType: { contains: token } },
+              ],
+            })),
+          ],
+        }
       : timeFilter;
 
   const [items, total] = await Promise.all([
@@ -70,16 +73,16 @@ export async function GET(request: Request) {
       total,
       q,
     },
-    "查询成功"
+    "查询成功",
   );
 }
 
 export async function POST(request: Request) {
   const auth = await requireAdmin(request);
   if (!auth.ok) return auth.response;
-  const body = (await request.json().catch(() => null)) as
-    | { range?: string }
-    | null;
+  const body = (await request.json().catch(() => null)) as {
+    range?: string;
+  } | null;
   const range = body?.range ?? "";
   const now = Date.now();
   const since =
@@ -98,8 +101,5 @@ export async function POST(request: Request) {
   const where = since ? { createdAt: { gte: since } } : {};
   const result = await prisma.auditLog.deleteMany({ where });
 
-  return successResponse(
-    { count: result.count },
-    "删除成功"
-  );
+  return successResponse({ count: result.count }, "删除成功");
 }

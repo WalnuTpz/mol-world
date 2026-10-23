@@ -19,13 +19,19 @@ export default function AdminOtherPanel() {
   } | null>(null);
   const [trafficLoading, setTrafficLoading] = useState(false);
   const [trafficRange, setTrafficRange] = useState<"3d" | "7d" | "30d" | "all">(
-    "7d"
+    "7d",
   );
   const [trafficView, setTrafficView] = useState<
     "visits" | "top" | "cumulative" | "daily"
   >("top");
   const [trafficData, setTrafficData] = useState<{
-    top: { id: string; title: string | null; type: string; thumbUrl: string; heat: number }[];
+    top: {
+      id: string;
+      title: string | null;
+      type: string;
+      thumbUrl: string;
+      heat: number;
+    }[];
     daily: { day: string; heat: number; cumulative: number; visits: number }[];
   } | null>(null);
   const [passwordOpen, setPasswordOpen] = useState(false);
@@ -87,16 +93,14 @@ export default function AdminOtherPanel() {
     setResourceLoading(true);
     try {
       const res = await fetch("/api/admin/resources", { cache: "no-store" });
-      const data = (await res.json().catch(() => null)) as
-        | {
-          stats?: {
-            missing: { original: number; thumb: number };
-            orphans: { original: number; thumb: number };
-          };
-          error?: string;
-          message?: string;
-        }
-        | null;
+      const data = (await res.json().catch(() => null)) as {
+        stats?: {
+          missing: { original: number; thumb: number };
+          orphans: { original: number; thumb: number };
+        };
+        error?: string;
+        message?: string;
+      } | null;
       if (!res.ok || !data?.stats) {
         throw new Error(data?.error || data?.message || "检查失败");
       }
@@ -112,7 +116,10 @@ export default function AdminOtherPanel() {
 
   const cleanupOrphans = async () => {
     if (resourceLoading) return;
-    const ok = await confirm("确认清理孤儿文件吗？", "仅清理 original/thumb 目录中的孤儿文件。");
+    const ok = await confirm(
+      "确认清理孤儿文件吗？",
+      "仅清理 original/thumb 目录中的孤儿文件。",
+    );
     if (!ok) return;
     setResourceLoading(true);
     try {
@@ -121,17 +128,15 @@ export default function AdminOtherPanel() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "cleanup" }),
       });
-      const data = (await res.json().catch(() => null)) as
-        | {
-          removed?: { original: number; thumb: number };
-          stats?: {
-            missing: { original: number; thumb: number };
-            orphans: { original: number; thumb: number };
-          };
-          error?: string;
-          message?: string;
-        }
-        | null;
+      const data = (await res.json().catch(() => null)) as {
+        removed?: { original: number; thumb: number };
+        stats?: {
+          missing: { original: number; thumb: number };
+          orphans: { original: number; thumb: number };
+        };
+        error?: string;
+        message?: string;
+      } | null;
       if (!res.ok) {
         throw new Error(data?.error || data?.message || "清理失败");
       }
@@ -141,7 +146,7 @@ export default function AdminOtherPanel() {
       if (data?.removed) {
         toast(
           `已清理孤儿文件（原图 ${data.removed.original} / 缩略图 ${data.removed.thumb}）`,
-          "success"
+          "success",
         );
       } else {
         toast("已清理孤儿文件", "success");
@@ -161,20 +166,23 @@ export default function AdminOtherPanel() {
       const res = await fetch(`/api/admin/traffic?range=${range}`, {
         cache: "no-store",
       });
-      const data = (await res.json().catch(() => null)) as
-        | {
-          top?: {
-            id: string;
-            title: string | null;
-            type: string;
-            thumbUrl: string;
-            heat: number;
-          }[];
-          daily?: { day: string; heat: number; cumulative: number; visits: number }[];
-          error?: string;
-          message?: string;
-        }
-        | null;
+      const data = (await res.json().catch(() => null)) as {
+        top?: {
+          id: string;
+          title: string | null;
+          type: string;
+          thumbUrl: string;
+          heat: number;
+        }[];
+        daily?: {
+          day: string;
+          heat: number;
+          cumulative: number;
+          visits: number;
+        }[];
+        error?: string;
+        message?: string;
+      } | null;
       if (!res.ok || !data?.daily || !data?.top) {
         throw new Error(data?.error || data?.message || "加载失败");
       }
@@ -197,15 +205,15 @@ export default function AdminOtherPanel() {
 
   const dailyHeat = useMemo(
     () => trafficData?.daily.map((item) => item.heat) ?? [],
-    [trafficData]
+    [trafficData],
   );
   const visitSeries = useMemo(
     () => trafficData?.daily.map((item) => item.visits) ?? [],
-    [trafficData]
+    [trafficData],
   );
   const cumulativeHeat = useMemo(
     () => trafficData?.daily.map((item) => item.cumulative) ?? [],
-    [trafficData]
+    [trafficData],
   );
 
   const rangeLabelMap: Record<typeof trafficRange, string> = {
@@ -217,7 +225,7 @@ export default function AdminOtherPanel() {
   const rangeLabel = rangeLabelMap[trafficRange];
   const dayLabels = useMemo(
     () => trafficData?.daily.map((item) => item.day) ?? [],
-    [trafficData]
+    [trafficData],
   );
 
   const formatDayLabel = (value: string) => {
@@ -293,8 +301,7 @@ export default function AdminOtherPanel() {
             y: {
               ticks: {
                 color: "rgba(255, 255, 255, 0.6)",
-                callback: (value) =>
-                  formatCount(Number(value)),
+                callback: (value) => formatCount(Number(value)),
               },
               grid: {
                 color: "rgba(255, 255, 255, 0.08)",
@@ -322,15 +329,18 @@ export default function AdminOtherPanel() {
     if (resourceLoading) return;
     const ok = await confirm(
       "确认清零全站热度吗？",
-      "该操作会将所有表情包热度重置为 0。"
+      "该操作会将所有表情包热度重置为 0。",
     );
     if (!ok) return;
     setResourceLoading(true);
     try {
       const res = await fetch("/api/admin/heat/reset", { method: "POST" });
-      const data = (await res.json().catch(() => null)) as
-        | { count?: number; stats?: number; error?: string; message?: string }
-        | null;
+      const data = (await res.json().catch(() => null)) as {
+        count?: number;
+        stats?: number;
+        error?: string;
+        message?: string;
+      } | null;
       if (!res.ok) {
         throw new Error(data?.error || data?.message || "清零失败");
       }
@@ -353,14 +363,15 @@ export default function AdminOtherPanel() {
     setPasswordOpen(true);
   };
 
-
   const closePasswordDialog = () => {
     if (passwordLoading) return;
     setPasswordOpen(false);
     setPasswordError("");
   };
 
-  const submitPasswordChange = async (event: React.FormEvent<HTMLFormElement>) => {
+  const submitPasswordChange = async (
+    event: React.FormEvent<HTMLFormElement>,
+  ) => {
     event.preventDefault();
     if (passwordLoading) return;
     const next = passwordForm.next.trim();
@@ -385,9 +396,10 @@ export default function AdminOtherPanel() {
         }),
       });
       if (!res.ok) {
-        const data = (await res.json().catch(() => null)) as
-          | { error?: string; message?: string }
-          | null;
+        const data = (await res.json().catch(() => null)) as {
+          error?: string;
+          message?: string;
+        } | null;
         setPasswordError(data?.error || data?.message || "修改失败");
         return;
       }
@@ -422,32 +434,36 @@ export default function AdminOtherPanel() {
             <div className={styles.trafficToggleGroup}>
               <button
                 type="button"
-                className={`${styles.trafficToggle} ${trafficView === "top" ? styles.trafficToggleActive : ""
-                  }`}
+                className={`${styles.trafficToggle} ${
+                  trafficView === "top" ? styles.trafficToggleActive : ""
+                }`}
                 onClick={() => setTrafficView("top")}
               >
                 热门 Top 30
               </button>
               <button
                 type="button"
-                className={`${styles.trafficToggle} ${trafficView === "visits" ? styles.trafficToggleActive : ""
-                  }`}
+                className={`${styles.trafficToggle} ${
+                  trafficView === "visits" ? styles.trafficToggleActive : ""
+                }`}
                 onClick={() => setTrafficView("visits")}
               >
                 访问趋势
               </button>
               <button
                 type="button"
-                className={`${styles.trafficToggle} ${trafficView === "cumulative" ? styles.trafficToggleActive : ""
-                  }`}
+                className={`${styles.trafficToggle} ${
+                  trafficView === "cumulative" ? styles.trafficToggleActive : ""
+                }`}
                 onClick={() => setTrafficView("cumulative")}
               >
                 热度总和
               </button>
               <button
                 type="button"
-                className={`${styles.trafficToggle} ${trafficView === "daily" ? styles.trafficToggleActive : ""
-                  }`}
+                className={`${styles.trafficToggle} ${
+                  trafficView === "daily" ? styles.trafficToggleActive : ""
+                }`}
                 onClick={() => setTrafficView("daily")}
               >
                 每日新增
@@ -543,8 +559,9 @@ export default function AdminOtherPanel() {
           {scripts.map((script) => (
             <div key={script.title} className={styles.scriptCard}>
               <div
-                className={`${styles.scriptTitle} ${script.danger ? styles.scriptTitleDanger : ""
-                  }`}
+                className={`${styles.scriptTitle} ${
+                  script.danger ? styles.scriptTitleDanger : ""
+                }`}
               >
                 {script.title}
               </div>
@@ -571,6 +588,14 @@ export default function AdminOtherPanel() {
             <div className={styles.sectionHint}>
               检查缺图与孤儿文件情况，可手动清理孤儿文件。
             </div>
+            {resourceStats && (
+              <p role="status">
+                缺失原图：{resourceStats.missing.original}；缺失缩略图：
+                {resourceStats.missing.thumb}； 孤儿原图：
+                {resourceStats.orphans.original}；孤儿缩略图：
+                {resourceStats.orphans.thumb}
+              </p>
+            )}
             <div className={styles.resourceActions}>
               <button
                 type="button"
@@ -632,10 +657,17 @@ export default function AdminOtherPanel() {
       </div>
       {passwordOpen && mounted
         ? createPortal(
-            <div className={styles.passwordOverlay} role="dialog" aria-modal="true">
+            <div
+              className={styles.passwordOverlay}
+              role="dialog"
+              aria-modal="true"
+            >
               <div className={`${toastStyles.toast} ${styles.passwordModal}`}>
                 <div className={toastStyles.toastMessage}>修改密码</div>
-                <form className={styles.passwordForm} onSubmit={submitPasswordChange}>
+                <form
+                  className={styles.passwordForm}
+                  onSubmit={submitPasswordChange}
+                >
                   <label className={styles.passwordField}>
                     <span className={styles.passwordLabel}>新密码</span>
                     <input
@@ -693,7 +725,7 @@ export default function AdminOtherPanel() {
                 </form>
               </div>
             </div>,
-            document.body
+            document.body,
           )
         : null}
     </section>
