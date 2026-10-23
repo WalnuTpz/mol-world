@@ -1,33 +1,14 @@
-import "dotenv/config";
-import path from "node:path";
+import "./env";
+import { withDatabaseWrite } from "../lib/databaseWrite";
 
-import { PrismaClient } from "@prisma/client";
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
-
-const resolveDbUrl = (rawUrl?: string) => {
-  const fallback = `file:${path
-    .resolve(process.cwd(), "prisma", "dev.db")
-    .replace(/\\/g, "/")}`;
-  if (!rawUrl) return fallback;
-  if (!rawUrl.startsWith("file:")) return rawUrl;
-  const filePath = rawUrl.slice(5);
-  if (filePath.startsWith("/") || /^[A-Za-z]:[\\/]/.test(filePath)) {
-    return `file:${filePath.replace(/\\/g, "/")}`;
-  }
-  const absPath = path.resolve(process.cwd(), filePath).replace(/\\/g, "/");
-  return `file:${absPath}`;
-};
-
-const adapter = new PrismaBetterSqlite3({
-  url: resolveDbUrl(process.env.DATABASE_URL),
-});
-
-const prisma = new PrismaClient({ adapter });
+import type { Prisma } from "@prisma/client";
+import { prisma } from "../lib/db";
 
 async function backfillTable(
+  client: Prisma.TransactionClient,
   table: "Meme" | "Tag",
   orderBy: string,
-  offset: number
+  offset: number,
 ) {
   const sql = `
     WITH pending AS (
@@ -39,19 +20,34 @@ async function backfillTable(
     SET numId = (SELECT rn FROM pending WHERE pending.id = "${table}".id) + ${offset}
     WHERE id IN (SELECT id FROM pending);
   `;
-  const updated = await prisma.$executeRawUnsafe(sql);
+  const updated = await client.$executeRawUnsafe(sql);
   return updated;
 }
 
 async function main() {
-  const memeMax = await prisma.meme.aggregate({ _max: { numId: true } });
-  const tagMax = await prisma.tag.aggregate({ _max: { numId: true } });
-  const memeOffset = memeMax._max.numId ?? 0;
-  const tagOffset = tagMax._max.numId ?? 0;
+  const { memeUpdated, tagUpdated } = await withDatabaseWrite(() =>
+    prisma.$transaction(async (tx) => {
+      const memeMax = await tx.meme.aggregate({ _max: { numId: true } });
+      const tagMax = await tx.tag.aggregate({ _max: { numId: true } });
+      const memeOffset = memeMax._max.numId ?? 0;
+      const tagOffset = tagMax._max.numId ?? 0;
 
-  const memeUpdated = await backfillTable("Meme", `"createdAt" ASC, "id" ASC`, memeOffset);
-  const tagUpdated = await backfillTable("Tag", `"name" ASC, "id" ASC`, tagOffset);
+      const memeUpdated = await backfillTable(
+        tx,
+        "Meme",
+        `"createdAt" ASC, "id" ASC`,
+        memeOffset,
+      );
+      const tagUpdated = await backfillTable(
+        tx,
+        "Tag",
+        `"name" ASC, "id" ASC`,
+        tagOffset,
+      );
 
+      return { memeUpdated, tagUpdated };
+    }),
+  );
   console.log(`Meme numId backfilled: ${memeUpdated}`);
   console.log(`Tag numId backfilled: ${tagUpdated}`);
 }
@@ -59,7 +55,7 @@ async function main() {
 main()
   .catch((error) => {
     console.error(error);
-    process.exit(1);
+    process.exitCode = 1;
   })
   .finally(async () => {
     await prisma.$disconnect();

@@ -1,44 +1,42 @@
-import { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/db";
 import { errorResponse, successResponse } from "@/lib/api";
+import {
+  prepareInteraction,
+  completeInteraction,
+  InteractionError,
+} from "@/lib/interactions";
+import { RateLimitError } from "@/lib/rateLimit";
+import { publicMediaUrl } from "@/lib/mediaUrl";
 
 export async function POST(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const { id } = await Promise.resolve(context.params);
-
-  if (!id) {
-    return errorResponse("请求参数不完整", 400, "MISSING_ID");
-  }
-
-  const day = new Date().toISOString().slice(0, 10);
+  const { id } = await context.params;
+  const body = await request.json().catch(() => null);
   try {
-    const [updated] = await prisma.$transaction([
-      prisma.meme.update({
-        where: { id, status: "PUBLISHED" },
-        data: { copies: { increment: 1 } },
-        select: {
-          id: true,
-          copies: true,
-          downloads: true,
+    if (body?.action === "prepare") {
+      const prepared = await prepareInteraction(request, id, "copy");
+      return successResponse(
+        {
+          token: prepared.token,
+          item: {
+            ...prepared.item,
+            mediaUrl: publicMediaUrl(prepared.item.mediaUrl),
+            thumbUrl: publicMediaUrl(prepared.item.thumbUrl),
+          },
         },
-      }),
-      prisma.memeDailyStat.upsert({
-        where: { day_memeId: { day, memeId: id } },
-        create: { day, memeId: id, copies: 1, downloads: 0 },
-        update: { copies: { increment: 1 } },
-      }),
-    ]);
-
-    return successResponse({ item: updated }, "已记录复制");
-  } catch (error) {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2025"
-    ) {
-      return errorResponse("资源不存在", 404, "NOT_FOUND");
+        "可以复制",
+      );
     }
+    const item = await completeInteraction(request, id, "copy", body?.token);
+    return successResponse({ item }, "已记录复制");
+  } catch (error) {
+    if (error instanceof InteractionError)
+      return errorResponse(error.message, error.status, "INVALID_INTERACTION");
+    if (error instanceof RateLimitError)
+      return errorResponse(error.message, 429, "RATE_LIMIT", {
+        "Retry-After": String(error.retryAfter),
+      });
     throw error;
   }
 }

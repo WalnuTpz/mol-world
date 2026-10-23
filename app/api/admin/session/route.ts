@@ -1,11 +1,9 @@
+import { getCookieValue } from "@/lib/adminAuth";
 import { successResponse } from "@/lib/api";
-import { getAdminSessionCookieName, isAdminSessionValid } from "@/lib/adminSession";
-
-const getCookieValue = (request: Request, name: string) => {
-  const cookie = request.headers.get("cookie") ?? "";
-  const match = cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
-  return match ? decodeURIComponent(match[1]) : null;
-};
+import {
+  getAdminSessionCookieName,
+  isAdminSessionValid,
+} from "@/lib/adminSession";
 
 export async function GET(request: Request) {
   const token = getCookieValue(request, getAdminSessionCookieName());

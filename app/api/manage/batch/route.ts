@@ -1,3 +1,4 @@
+import { withDatabaseWrite } from "@/lib/databaseWrite";
 import type { Prisma } from "@prisma/client";
 import { withTrashedMedia, withMediaWrite } from "@/lib/mediaFiles";
 import { prisma } from "@/lib/db";
@@ -13,8 +14,6 @@ type Payload = {
 const MAX_BATCH = 50;
 
 async function post(request: Request) {
-  const auth = await requireAdmin(request);
-  if (!auth.ok) return auth.response;
   const body = (await request.json().catch(() => null)) as Payload | null;
   const allowedKeys = new Set(["ids", "action"]);
   const extraKeys = Object.keys(body ?? {}).filter(
@@ -50,16 +49,18 @@ async function post(request: Request) {
 
   if (action === "publish" || action === "hide") {
     const status = action === "publish" ? "PUBLISHED" : "HIDDEN";
-    const result = await prisma.meme.updateMany({
-      where: {
-        id: { in: uniqueIds },
-        status: { in: ["PUBLISHED", "HIDDEN"] as const },
-      },
-      data: { status },
-    });
+    const result = await withDatabaseWrite(() =>
+      prisma.meme.updateMany({
+        where: {
+          id: { in: uniqueIds },
+          status: { in: ["PUBLISHED", "HIDDEN"] as const },
+        },
+        data: { status },
+      }),
+    );
     const success = result.count;
     const failed = total - success;
-    void logAudit({
+    await logAudit({
       action: "manage:batch",
       status: "success",
       message: `${status === "PUBLISHED" ? "批量发布" : "批量隐藏"}完成`,
@@ -73,20 +74,26 @@ async function post(request: Request) {
   }
 
   if (action === "reset") {
-    const result = await prisma.$transaction(async (tx) => {
-      const where: Prisma.MemeWhereInput = {
-        id: { in: uniqueIds },
-        status: { in: ["PUBLISHED", "HIDDEN"] as const },
-      };
-      await tx.memeDailyStat.updateMany({
-        where: { meme: where },
-        data: { copies: 0, downloads: 0 },
-      });
-      return tx.meme.updateMany({ where, data: { copies: 0, downloads: 0 } });
-    });
+    const result = await withDatabaseWrite(() =>
+      prisma.$transaction(async (tx) => {
+        const where: Prisma.MemeWhereInput = {
+          id: { in: uniqueIds },
+          status: { in: ["PUBLISHED", "HIDDEN"] as const },
+        };
+        const matching = await tx.meme.findMany({
+          where,
+          select: { id: true },
+        });
+        await tx.memeDailyStat.updateMany({
+          where: { memeId: { in: matching.map((item) => item.id) } },
+          data: { copies: 0, downloads: 0 },
+        });
+        return tx.meme.updateMany({ where, data: { copies: 0, downloads: 0 } });
+      }),
+    );
     const success = result.count;
     const failed = total - success;
-    void logAudit({
+    await logAudit({
       action: "manage:batch",
       status: "success",
       message: "批量热度清零完成",
@@ -124,14 +131,15 @@ async function post(request: Request) {
     }
 
     try {
-      await withTrashedMedia([current.mediaUrl, current.thumbUrl], () =>
-        prisma.$transaction([
-          prisma.memeTag.deleteMany({ where: { memeId: id } }),
-          prisma.meme.delete({ where: { id } }),
-        ]),
+      await withTrashedMedia(
+        [current.mediaUrl, current.thumbUrl],
+        async (tx) => {
+          await tx.memeTag.deleteMany({ where: { memeId: id } });
+          return tx.meme.delete({ where: { id } });
+        },
       );
       deleted += 1;
-      void logAudit({
+      await logAudit({
         action: "manage:delete",
         status: "success",
         targetType: "meme",
@@ -142,7 +150,7 @@ async function post(request: Request) {
     } catch (error) {
       console.error(error);
       failed.push(id);
-      void logAudit({
+      await logAudit({
         action: "manage:delete",
         status: "error",
         targetType: "meme",
@@ -165,5 +173,11 @@ async function post(request: Request) {
   );
 }
 
-export const POST = (...args: Parameters<typeof post>) =>
-  withMediaWrite(() => post(...args));
+export const POST = async (...args: Parameters<typeof post>) => {
+  const auth = await requireAdmin(args[0]);
+  if (!auth.ok) return auth.response;
+  return withMediaWrite(async () => {
+    const current = await requireAdmin(args[0]);
+    return current.ok ? post(...args) : current.response;
+  });
+};

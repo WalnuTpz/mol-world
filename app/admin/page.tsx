@@ -11,7 +11,10 @@ import AdminOtherPanel from "@/components/AdminOtherPanel";
 import AdminTagsPanel from "@/components/AdminTagsPanel";
 import AdminParamsPanel from "@/components/AdminParamsPanel";
 import AdminLoginTrigger from "@/components/AdminLoginTrigger";
-import { getAdminSessionCookieName, isAdminSessionValid } from "@/lib/adminSession";
+import {
+  getAdminSessionCookieName,
+  isAdminSessionValid,
+} from "@/lib/adminSession";
 import { getAppConfig } from "@/lib/appConfig";
 
 type SearchParams = {
@@ -21,24 +24,6 @@ type SearchParams = {
 function getParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
-
-const viewLabels = {
-  review: "待审核",
-  manage: "内容管理",
-  tags: "标签管理",
-  params: "参数管理",
-  logs: "操作日志",
-  other: "其他内容",
-} as const;
-
-const viewDescriptions = {
-  review: "查看并审核新上传的表情包内容。",
-  manage: "管理已发布或隐藏的表情包。",
-  tags: "管理表情包标签与关联关系。",
-  params: "管理随机池、热门数量与缓存参数。",
-  logs: "查看上传/审核/删除等操作记录。",
-  other: "管理流量热度、脚本入口与资源维护等运营功能。",
-} as const;
 
 export default async function AdminPage({
   searchParams,
@@ -58,7 +43,7 @@ export default async function AdminPage({
       : "manage";
   const cookieStore = await cookies();
   const authed = await isAdminSessionValid(
-    cookieStore.get(getAdminSessionCookieName())?.value
+    cookieStore.get(getAdminSessionCookieName())?.value,
   );
   if (!authed) {
     redirect("/");
@@ -86,7 +71,9 @@ export default async function AdminPage({
             <nav className={baseStyles.nav}>
               <Link
                 className={`${baseStyles.navItem} ${
-                  view === "manage" ? baseStyles.navItemActive : baseStyles.navItemInactive
+                  view === "manage"
+                    ? baseStyles.navItemActive
+                    : baseStyles.navItemInactive
                 }`}
                 href="/admin?view=manage"
               >
@@ -94,7 +81,9 @@ export default async function AdminPage({
               </Link>
               <Link
                 className={`${baseStyles.navItem} ${
-                  view === "tags" ? baseStyles.navItemActive : baseStyles.navItemInactive
+                  view === "tags"
+                    ? baseStyles.navItemActive
+                    : baseStyles.navItemInactive
                 }`}
                 href="/admin?view=tags"
               >
@@ -102,7 +91,9 @@ export default async function AdminPage({
               </Link>
               <Link
                 className={`${baseStyles.navItem} ${
-                  view === "params" ? baseStyles.navItemActive : baseStyles.navItemInactive
+                  view === "params"
+                    ? baseStyles.navItemActive
+                    : baseStyles.navItemInactive
                 }`}
                 href="/admin?view=params"
               >
@@ -110,7 +101,9 @@ export default async function AdminPage({
               </Link>
               <Link
                 className={`${baseStyles.navItem} ${
-                  view === "review" ? baseStyles.navItemActive : baseStyles.navItemInactive
+                  view === "review"
+                    ? baseStyles.navItemActive
+                    : baseStyles.navItemInactive
                 }`}
                 href="/admin?view=review"
               >
@@ -118,7 +111,9 @@ export default async function AdminPage({
               </Link>
               <Link
                 className={`${baseStyles.navItem} ${
-                  view === "logs" ? baseStyles.navItemActive : baseStyles.navItemInactive
+                  view === "logs"
+                    ? baseStyles.navItemActive
+                    : baseStyles.navItemInactive
                 }`}
                 href="/admin?view=logs"
               >
@@ -126,7 +121,9 @@ export default async function AdminPage({
               </Link>
               <Link
                 className={`${baseStyles.navItem} ${
-                  view === "other" ? baseStyles.navItemActive : baseStyles.navItemInactive
+                  view === "other"
+                    ? baseStyles.navItemActive
+                    : baseStyles.navItemInactive
                 }`}
                 href="/admin?view=other"
               >

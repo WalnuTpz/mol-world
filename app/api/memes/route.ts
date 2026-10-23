@@ -1,22 +1,18 @@
+import { publicMediaUrl } from "@/lib/mediaUrl";
+import { pagination } from "@/lib/pagination";
 import { prisma } from "@/lib/db";
 import { successResponse } from "@/lib/api";
 import { sortTags } from "@/lib/tags";
 import { buildCacheControl, getAppConfig } from "@/lib/appConfig";
 
-function parseIntParam(value: string | null, fallback: number) {
-  const parsed = Number.parseInt(value ?? "", 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
-}
-
 export async function GET(request: Request) {
   const config = await getAppConfig();
   const { searchParams } = new URL(request.url);
-  const page = parseIntParam(searchParams.get("page"), 1);
-  const limit = Math.min(
-    parseIntParam(searchParams.get("limit"), config.listLimit),
+  const { page, limit, skip } = pagination(
+    searchParams.get("page"),
+    searchParams.get("limit"),
     config.listLimit,
   );
-  const skip = (page - 1) * limit;
 
   const where = {
     status: "PUBLISHED" as const,
@@ -25,7 +21,7 @@ export async function GET(request: Request) {
   const [items, total] = await Promise.all([
     prisma.meme.findMany({
       where,
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       skip,
       take: limit,
       select: {
@@ -50,6 +46,8 @@ export async function GET(request: Request) {
 
   const normalized = items.map((item) => ({
     ...item,
+    mediaUrl: publicMediaUrl(item.mediaUrl),
+    thumbUrl: publicMediaUrl(item.thumbUrl),
     tags: sortTags(item.tags.map((t) => t.tag.name)),
   }));
 

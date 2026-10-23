@@ -93,6 +93,8 @@ export default function LogPanel({ pageLimit = 20 }: LogPanelProps) {
   }, [queryInput]);
 
   useEffect(() => {
+    // Start the requested asynchronous page fetch with its pending state.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadPage(page, query);
     return () => {
       requestVersion.current += 1;
@@ -100,6 +102,8 @@ export default function LogPanel({ pageLimit = 20 }: LogPanelProps) {
   }, [loadPage, page, query]);
 
   useEffect(() => {
+    // Synchronize this panel with the requested page and its asynchronous data.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setJumpValue(String(page));
   }, [page]);
 

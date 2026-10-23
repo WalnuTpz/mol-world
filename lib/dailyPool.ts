@@ -1,3 +1,5 @@
+import { withDatabaseWrite } from "@/lib/databaseWrite";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 
 export const pickRandomSubset = <T>(items: T[], count: number) => {
@@ -11,51 +13,66 @@ export const pickRandomSubset = <T>(items: T[], count: number) => {
 
 export const ensureDailyPools = async (
   day: string,
-  memeIds: string[],
+  memeIds: string[] | null,
   groupCount: number,
   groupSize: number,
   rebuild = false,
 ) => {
-  if (memeIds.length === 0) return [];
-
-  return prisma.$transaction(async (tx) => {
-    const expectedSize = Math.min(groupSize, memeIds.length);
-    const existing = await tx.dailyPool.findMany({
-      where: { day },
-      include: { _count: { select: { items: true } } },
-    });
-
-    const shouldRebuild =
-      rebuild ||
-      existing.length !== groupCount ||
-      existing.some((group) => group._count.items !== expectedSize);
-
-    if (shouldRebuild) {
-      await tx.dailyPoolItem.deleteMany({ where: { pool: { day } } });
-      await tx.dailyPool.deleteMany({ where: { day } });
-
-      for (let i = 0; i < groupCount; i += 1) {
-        const ids = pickRandomSubset(memeIds, groupSize);
-        await tx.dailyPool.create({
-          data: {
-            day,
-            groupIndex: i,
-            items: {
-              create: ids.map((id) => ({
-                meme: { connect: { id } },
-              })),
-            },
+  return withDatabaseWrite(() =>
+    prisma.$transaction(async (tx) => {
+      const total = memeIds
+        ? memeIds.length
+        : await tx.meme.count({ where: { status: "PUBLISHED" } });
+      if (!total) return [];
+      const expectedSize = Math.min(groupSize, total);
+      const existing = await tx.dailyPool.findMany({
+        where: { day },
+        include: {
+          _count: {
+            select: { items: { where: { meme: { status: "PUBLISHED" } } } },
           },
-        });
-      }
-    }
+        },
+      });
 
-    return tx.dailyPool.findMany({
-      where: { day },
-      select: {
-        groupIndex: true,
-        items: { select: { memeId: true } },
-      },
-    });
-  });
+      const shouldRebuild =
+        rebuild ||
+        existing.length !== groupCount ||
+        existing.some((group) => group._count.items !== expectedSize);
+
+      if (shouldRebuild) {
+        await tx.dailyPool.deleteMany({ where: { day: { lt: day } } });
+        await tx.dailyPoolItem.deleteMany({ where: { pool: { day } } });
+        await tx.dailyPool.deleteMany({ where: { day } });
+
+        for (let i = 0; i < groupCount; i += 1) {
+          const ids = memeIds
+            ? pickRandomSubset(memeIds, groupSize)
+            : (
+                await tx.$queryRaw<{ id: string }[]>(
+                  Prisma.sql`SELECT id FROM Meme WHERE status = 'PUBLISHED' ORDER BY RANDOM() LIMIT ${expectedSize}`,
+                )
+              ).map((row) => row.id);
+          await tx.dailyPool.create({
+            data: {
+              day,
+              groupIndex: i,
+              items: {
+                create: ids.map((id) => ({
+                  meme: { connect: { id } },
+                })),
+              },
+            },
+          });
+        }
+      }
+
+      return tx.dailyPool.findMany({
+        where: { day },
+        select: {
+          groupIndex: true,
+          items: { select: { memeId: true } },
+        },
+      });
+    }),
+  );
 };

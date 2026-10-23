@@ -7,6 +7,7 @@ import {
   type KeyboardEvent,
   type MouseEvent,
 } from "react";
+import { useRouter } from "next/navigation";
 import NextImage from "next/image";
 
 import styles from "./MemeCard.module.css";
@@ -17,8 +18,14 @@ type MemeType = "STATIC" | "ANIMATED";
 
 const DEFAULT_COPY_COOLDOWN_MS = 5000;
 const DEFAULT_DOWNLOAD_COOLDOWN_MS = 10_000;
-let lastCopyAt = 0;
-let lastDownloadAt = 0;
+const interactionTimes = new Map<string, number>();
+// Shared by cards, consumed only by event handlers.
+function consumeCooldown(kind: "copy" | "download", milliseconds: number) {
+  const now = Date.now();
+  if (now - (interactionTimes.get(kind) ?? 0) < milliseconds) return false;
+  interactionTimes.set(kind, now);
+  return true;
+}
 const COPY_FAIL_MESSAGE = "尝试右键/长按保存图片或更新浏览器";
 
 export type MemeCardProps = {
@@ -48,250 +55,190 @@ export default function MemeCard({
   const [selected, setSelected] = useState(false);
   const highlightTimerRef = useRef<number | null>(null);
   const toast = useToast();
+  const router = useRouter();
   const visibleTags = tags.slice(0, 4);
   const isGifThumb = thumbUrl.toLowerCase().endsWith(".gif");
-  const blobToDataUrl = (blob: Blob) =>
-    new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result));
-      reader.onerror = () => reject(reader.error);
-      reader.readAsDataURL(blob);
-    });
-
-  const resolveOriginalUrl = (url: string) => {
-    try {
-      const parsed = new URL(url, window.location.origin);
-      if (parsed.pathname === "/_next/image") {
-        const original = parsed.searchParams.get("url");
-        if (original) {
-          return original.startsWith("/")
-            ? original
-            : new URL(original, window.location.origin).toString();
-        }
-      }
-      return parsed.toString();
-    } catch {
-      return url;
-    }
-  };
-
-  const copyText = async (text: string) => {
-    if (!navigator.clipboard?.writeText) return "fail" as const;
-    await navigator.clipboard.writeText(text);
-    return "text" as const;
-  };
-
-  const copyBlobToClipboard = async (blob: Blob) => {
-    if (!navigator.clipboard?.write || typeof ClipboardItem === "undefined") {
-      return "fail" as const;
-    }
-    await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
-    return "clipboard" as const;
-  };
-
-  const loadImage = (url: string) =>
-    new Promise<HTMLImageElement>((resolve, reject) => {
-      const img = new window.Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => resolve(img);
-      img.onerror = () => reject(new Error("image load failed"));
-      img.src = resolveOriginalUrl(url);
-    });
-
-  const copyPngFromUrl = async (url: string) => {
-    const img = await loadImage(url);
-    const canvas = document.createElement("canvas");
-    canvas.width = img.naturalWidth;
-    canvas.height = img.naturalHeight;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return "fail" as const;
-    ctx.drawImage(img, 0, 0);
-    const pngBlob = await new Promise<Blob | null>((resolve) =>
-      canvas.toBlob(resolve, "image/png"),
-    );
-    if (!pngBlob) return "fail" as const;
-
-    try {
-      return await copyBlobToClipboard(pngBlob);
-    } catch {
-      const dataUrl = await blobToDataUrl(pngBlob);
-      return await copyText(dataUrl);
-    }
-  };
-
-  const copyGifFromUrl = async (url: string) => {
-    const res = await fetch(resolveOriginalUrl(url));
-    const blob = await res.blob();
-    if (blob.type !== "image/gif") return "fail" as const;
-    try {
-      return await copyBlobToClipboard(blob);
-    } catch {
-      return "fail" as const;
-    }
-  };
-
   const triggerHighlight = () => {
     setSelected(true);
-    if (highlightTimerRef.current) {
+    if (highlightTimerRef.current)
       window.clearTimeout(highlightTimerRef.current);
-    }
     highlightTimerRef.current = window.setTimeout(() => {
       setSelected(false);
       highlightTimerRef.current = null;
     }, 800);
   };
-
-  useEffect(() => {
-    return () => {
-      if (highlightTimerRef.current) {
+  useEffect(
+    () => () => {
+      if (highlightTimerRef.current)
         window.clearTimeout(highlightTimerRef.current);
-      }
-    };
-  }, []);
+    },
+    [],
+  );
+
+  type CopyGrant = {
+    token: string;
+    item: { mediaUrl: string; thumbUrl: string; type: MemeType };
+  };
+  const prepareCopy = async (): Promise<CopyGrant> => {
+    const response = await fetch(`/api/memes/${id}/copy`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "prepare" }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error ?? "无法复制图片");
+    return data;
+  };
+  const copyBlob = async (
+    grant: CopyGrant,
+    mime: "image/png" | "image/gif",
+  ) => {
+    const url =
+      mime === "image/gif" || grant.item.type === "STATIC"
+        ? grant.item.mediaUrl
+        : grant.item.thumbUrl;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error("图片加载失败");
+    const blob = await response.blob();
+    if (mime === "image/gif" || blob.type === "image/png") return blob;
+    const bitmap = await createImageBitmap(blob);
+    try {
+      const canvas = document.createElement("canvas");
+      canvas.width = bitmap.width;
+      canvas.height = bitmap.height;
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("浏览器不支持图片转换");
+      context.drawImage(bitmap, 0, 0);
+      return await new Promise<Blob>((resolve, reject) =>
+        canvas.toBlob(
+          (value) =>
+            value ? resolve(value) : reject(new Error("图片转换失败")),
+          "image/png",
+        ),
+      );
+    } finally {
+      bitmap.close();
+    }
+  };
 
   const handleCopy = async () => {
     triggerHighlight();
-    const now = Date.now();
-    const cooldown = Math.max(
-      0,
-      Number.isFinite(copyCooldownMs ?? DEFAULT_COPY_COOLDOWN_MS)
-        ? Number(copyCooldownMs ?? DEFAULT_COPY_COOLDOWN_MS)
-        : DEFAULT_COPY_COOLDOWN_MS,
-    );
-    if (now - lastCopyAt < cooldown) {
+    if (!consumeCooldown("copy", copyCooldownMs ?? DEFAULT_COPY_COOLDOWN_MS)) {
       toast("操作过于频繁", "error", undefined, "请稍后再试");
       return;
     }
-    lastCopyAt = now;
-    try {
-      if (type === "STATIC") {
-        const result = await copyPngFromUrl(mediaUrl);
-        if (result === "clipboard") {
-          await incrementCopy();
-          toast("已复制图片", "success");
-          return;
-        }
-        if (result === "text") {
-          await incrementCopy();
-          toast("已复制图片（文本形式）", "success");
-          return;
-        }
-        toast(COPY_FAIL_MESSAGE, "error");
-        return;
-      }
-
-      const gifResult = await copyGifFromUrl(mediaUrl);
-      if (gifResult === "clipboard") {
-        await incrementCopy();
-        toast("已复制动图", "success", undefined, "（可通过下载获取完整动图）");
-        return;
-      }
-
-      const thumbResult = await copyPngFromUrl(thumbUrl);
-      if (thumbResult === "clipboard") {
-        await incrementCopy();
-        toast(
-          "已复制封面图",
-          "success",
-          undefined,
-          "（可通过下载获取完整动图）",
-        );
-        return;
-      }
-      if (thumbResult === "text") {
-        await incrementCopy();
-        toast(
-          "已复制封面图（文本形式）",
-          "success",
-          undefined,
-          "（可通过下载获取完整动图）",
-        );
-        return;
-      }
+    const canWriteImage =
+      !!navigator.clipboard?.write && typeof ClipboardItem !== "undefined";
+    if (!canWriteImage && !navigator.clipboard?.writeText) {
       toast(COPY_FAIL_MESSAGE, "error");
-    } catch (error) {
-      console.error(error);
-      toast(COPY_FAIL_MESSAGE, "error");
+      return;
     }
+    const mime =
+      canWriteImage &&
+      type === "ANIMATED" &&
+      ClipboardItem.supports?.("image/gif")
+        ? "image/gif"
+        : "image/png";
+    const grant = prepareCopy();
+    const blob = grant.then((value) => copyBlob(value, mime));
+    // Pass a promise immediately while the click's user activation is alive.
+    // Safari can reject a clipboard write started only after network awaits.
+    let textCopy = false;
+    const writeAsText = async () => {
+      const value = await blob;
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(value);
+      });
+      await navigator.clipboard.writeText(dataUrl);
+      textCopy = true;
+    };
+    try {
+      if (canWriteImage) {
+        try {
+          await navigator.clipboard.write([
+            new ClipboardItem({ [mime]: blob }),
+          ]);
+        } catch (error) {
+          if (!navigator.clipboard.writeText) throw error;
+          await writeAsText();
+        }
+      } else await writeAsText();
+    } catch (error) {
+      void blob.catch(() => {});
+      toast(
+        error instanceof Error ? error.message : COPY_FAIL_MESSAGE,
+        "error",
+      );
+      return;
+    }
+    const prepared = await grant;
+    try {
+      const response = await fetch(`/api/memes/${id}/copy`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: prepared.token }),
+      });
+      if (response.ok) {
+        const data = (await response.json()) as {
+          item: { copies: number; downloads: number };
+        };
+        setCount(data.item.copies + data.item.downloads);
+      }
+    } catch (error) {
+      console.error("Copy succeeded; recording the interaction failed", error);
+    }
+    toast(
+      textCopy
+        ? "已复制图片（文本形式）"
+        : type === "ANIMATED" && mime === "image/png"
+          ? "已复制封面图"
+          : "已复制图片",
+      "success",
+    );
   };
 
-  const handleDownload = async (e: MouseEvent<HTMLButtonElement>) => {
-    e.stopPropagation();
-    const now = Date.now();
-    const cooldown = Math.max(
-      0,
-      Number.isFinite(downloadCooldownMs ?? DEFAULT_DOWNLOAD_COOLDOWN_MS)
-        ? Number(downloadCooldownMs ?? DEFAULT_DOWNLOAD_COOLDOWN_MS)
-        : DEFAULT_DOWNLOAD_COOLDOWN_MS,
-    );
-    if (now - lastDownloadAt < cooldown) {
+  const handleDownload = async (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    if (
+      !consumeCooldown(
+        "download",
+        downloadCooldownMs ?? DEFAULT_DOWNLOAD_COOLDOWN_MS,
+      )
+    ) {
       toast("操作过于频繁", "error", undefined, "请稍后再试");
       return;
     }
-    lastDownloadAt = now;
     try {
-      const probe = await fetch(mediaUrl, { method: "HEAD" });
-      if (!probe.ok) {
-        throw new Error("下载失败");
-      }
+      const prepared = await fetch(`/api/memes/${id}/download`, {
+        method: "POST",
+      });
+      const grant = await prepared.json();
+      if (!prepared.ok) throw new Error(grant.error ?? "下载失败");
+      const response = await fetch(grant.url);
+      if (!response.ok) throw new Error("下载失败");
+      const url = URL.createObjectURL(await response.blob());
       const link = document.createElement("a");
-      link.href = mediaUrl;
-      link.download = "";
+      link.href = url;
+      link.download = decodeURIComponent(
+        new URL(mediaUrl, window.location.origin).pathname.split("/").pop()!,
+      );
       document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
-      void incrementDownload();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setCount((previous) => previous + 1);
     } catch (error) {
-      console.error(error);
-      toast("下载失败", "error");
+      toast(error instanceof Error ? error.message : "下载失败", "error");
     }
   };
-
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.target !== event.currentTarget) return;
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       void handleCopy();
-    }
-  };
-
-  const incrementCopy = async () => {
-    try {
-      const res = await fetch(`/api/memes/${id}/copy`, { method: "POST" });
-      if (!res.ok) return;
-      const data = (await res.json()) as {
-        item?: { copies?: number; downloads?: number };
-      };
-      if (
-        typeof data.item?.copies === "number" &&
-        typeof data.item?.downloads === "number"
-      ) {
-        setCount(data.item.copies + data.item.downloads);
-      } else {
-        setCount((prev) => prev + 1);
-      }
-    } catch {
-      // ignore
-    }
-  };
-
-  const incrementDownload = async () => {
-    try {
-      const res = await fetch(`/api/memes/${id}/download`, { method: "POST" });
-      if (!res.ok) return;
-      const data = (await res.json()) as {
-        item?: { copies?: number; downloads?: number };
-      };
-      if (
-        typeof data.item?.copies === "number" &&
-        typeof data.item?.downloads === "number"
-      ) {
-        setCount(data.item.copies + data.item.downloads);
-      } else {
-        setCount((prev) => prev + 1);
-      }
-    } catch {
-      // ignore
     }
   };
 
@@ -309,7 +256,7 @@ export default function MemeCard({
           src={thumbUrl}
           alt={title ?? "meme"}
           fill
-          sizes="(max-width: 680px) 100vw, (max-width: 960px) 50vw, 25vw"
+          sizes="(max-width: 680px) 50vw, (max-width: 960px) 33vw, 25vw"
           unoptimized={isGifThumb}
         />
         <span className={styles.badge}>
@@ -341,7 +288,7 @@ export default function MemeCard({
               className={styles.tag}
               onClick={(event) => {
                 event.stopPropagation();
-                window.location.href = `/?view=search&q=${encodeURIComponent(tag)}`;
+                router.push(`/?view=search&q=${encodeURIComponent(tag)}`);
               }}
             >
               #{tag}

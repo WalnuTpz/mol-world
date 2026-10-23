@@ -129,7 +129,6 @@
   }
 }
 
-
 .scriptCard {
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -353,7 +352,6 @@
   font-weight: 600;
 }
 
-
 .trafficList {
   list-style: none;
   padding: 0;
@@ -404,7 +402,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-.trafficItem:nth-child(-n+3) .trafficRank {
+.trafficItem:nth-child(-n + 3) .trafficRank {
   background: rgba(255, 186, 64, 0.28);
   color: #ffd37a;
 }

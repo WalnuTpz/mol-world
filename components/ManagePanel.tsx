@@ -108,17 +108,19 @@ export default function ManagePanel({ pageLimit = 12 }: ManagePanelProps) {
         }
         setItems(data.items);
         setTotal(data.total);
-        setDrafts(
+        setDrafts((previous) =>
           Object.fromEntries(
             data.items.map((item) => [
               item.id,
-              {
-                title: item.title ?? "",
-                tags: item.tags.join(" "),
-                status: item.status,
-                editing: false,
-                saving: false,
-              },
+              previous[item.id]?.editing
+                ? previous[item.id]
+                : {
+                    title: item.title ?? "",
+                    tags: item.tags.join(" "),
+                    status: item.status,
+                    editing: false,
+                    saving: false,
+                  },
             ]),
           ),
         );
@@ -140,6 +142,8 @@ export default function ManagePanel({ pageLimit = 12 }: ManagePanelProps) {
   }, [queryInput]);
 
   useEffect(() => {
+    // Synchronize this panel with the requested page and its asynchronous data.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadPage(page, query);
     return () => {
       requestVersion.current += 1;
@@ -147,6 +151,8 @@ export default function ManagePanel({ pageLimit = 12 }: ManagePanelProps) {
   }, [loadPage, page, query]);
 
   useEffect(() => {
+    // Synchronize this panel with the requested page and its asynchronous data.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelected((prev) => {
       if (prev.size === 0) return prev;
       const visible = new Set(items.map((item) => item.id));
@@ -159,6 +165,8 @@ export default function ManagePanel({ pageLimit = 12 }: ManagePanelProps) {
   }, [items]);
 
   useEffect(() => {
+    // Synchronize this panel with the requested page and its asynchronous data.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setJumpValue(String(page));
   }, [page]);
 

@@ -1,3 +1,4 @@
+import { withDatabaseWrite } from "@/lib/databaseWrite";
 import { prisma } from "@/lib/db";
 import { errorResponse, successResponse } from "@/lib/api";
 import { requireAdmin } from "@/lib/adminAuth";
@@ -7,15 +8,17 @@ export async function POST(request: Request) {
   const auth = await requireAdmin(request);
   if (!auth.ok) return auth.response;
   try {
-    const [memeResult, statResult] = await prisma.$transaction([
-      prisma.meme.updateMany({
-        data: { copies: 0, downloads: 0 },
-      }),
-      prisma.memeDailyStat.updateMany({
-        data: { copies: 0, downloads: 0 },
-      }),
-    ]);
-    void logAudit({
+    const [memeResult, statResult] = await withDatabaseWrite(() =>
+      prisma.$transaction([
+        prisma.meme.updateMany({
+          data: { copies: 0, downloads: 0 },
+        }),
+        prisma.memeDailyStat.updateMany({
+          data: { copies: 0, downloads: 0 },
+        }),
+      ]),
+    );
+    await logAudit({
       action: "manage:reset-heat",
       status: "success",
       message: "全站热度清零",
@@ -24,10 +27,10 @@ export async function POST(request: Request) {
     });
     return successResponse(
       { count: memeResult.count, stats: statResult.count },
-      "清零成功"
+      "清零成功",
     );
   } catch (error) {
-    void logAudit({
+    await logAudit({
       action: "manage:reset-heat",
       status: "error",
       message: "全站热度清零失败",

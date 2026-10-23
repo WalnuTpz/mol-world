@@ -1,3 +1,4 @@
+import { withDatabaseWrite } from "@/lib/databaseWrite";
 import { prisma } from "@/lib/db";
 import {
   APP_CONFIG_DEFAULTS,
@@ -5,9 +6,6 @@ import {
   type AppConfig,
   type AppConfigKey,
 } from "@/lib/appConfigDefaults";
-
-const CACHE_TTL_MS = 10_000;
-let cachedConfig: { value: AppConfig; expiresAt: number } | null = null;
 
 const sanitizeValue = (key: AppConfigKey, raw: unknown) => {
   const rule = APP_CONFIG_RULES[key];
@@ -33,43 +31,19 @@ const buildConfig = (rows: { key: string; value: string }[]): AppConfig => {
 };
 
 export const getAppConfig = async (): Promise<AppConfig> => {
-  if (cachedConfig && cachedConfig.expiresAt > Date.now()) {
-    return cachedConfig.value;
-  }
-  const delegate = (
-    prisma as unknown as {
-      appConfig?: { findMany: typeof prisma.appConfig.findMany };
-    }
-  ).appConfig;
-  if (!delegate?.findMany) {
-    return { ...APP_CONFIG_DEFAULTS };
-  }
-  const rows = await delegate.findMany({
+  const rows = await prisma.appConfig.findMany({
     select: {
       key: true,
       value: true,
     },
   });
   const config = buildConfig(rows);
-  cachedConfig = { value: config, expiresAt: Date.now() + CACHE_TTL_MS };
   return config;
-};
-
-export const invalidateAppConfigCache = () => {
-  cachedConfig = null;
 };
 
 export const updateAppConfig = async (
   updates: Partial<Record<AppConfigKey, number | string>>,
 ) => {
-  const delegate = (
-    prisma as unknown as {
-      appConfig?: { upsert: typeof prisma.appConfig.upsert };
-    }
-  ).appConfig;
-  if (!delegate?.upsert) {
-    return { ok: false as const, error: "参数表未就绪，请先迁移数据库" };
-  }
   const entries = Object.entries(updates);
   if (entries.length === 0) {
     return { ok: false as const, error: "没有可保存的参数" };
@@ -92,17 +66,18 @@ export const updateAppConfig = async (
     normalized[typedKey] = value;
   }
 
-  await prisma.$transaction(
-    Object.entries(normalized).map(([key, value]) =>
-      delegate.upsert({
-        where: { key },
-        create: { key, value: String(value) },
-        update: { value: String(value) },
-      }),
+  await withDatabaseWrite(() =>
+    prisma.$transaction(
+      Object.entries(normalized).map(([key, value]) =>
+        prisma.appConfig.upsert({
+          where: { key },
+          create: { key, value: String(value) },
+          update: { value: String(value) },
+        }),
+      ),
     ),
   );
 
-  invalidateAppConfigCache();
   const config = await getAppConfig();
   return { ok: true as const, config };
 };

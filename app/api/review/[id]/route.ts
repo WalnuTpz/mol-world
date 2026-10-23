@@ -1,6 +1,17 @@
-import { withTrashedMedia, withMediaWrite } from "@/lib/mediaFiles";
+import { publicMediaUrl } from "@/lib/mediaUrl";
+import { updateNameOrder } from "@/lib/nameOrder";
+import {
+  withTrashedMedia,
+  withMediaWrite,
+  withMediaMutation,
+  mediaPath,
+} from "@/lib/mediaFiles";
 import path from "node:path";
-import { mkdir, rename, unlink } from "node:fs/promises";
+import { copyFile } from "node:fs/promises";
+import { constants } from "node:fs";
+import { randomUUID } from "node:crypto";
+import type { Prisma } from "@prisma/client";
+import { withDatabaseWrite } from "@/lib/databaseWrite";
 
 import { prisma } from "@/lib/db";
 import { errorResponse, successResponse } from "@/lib/api";
@@ -20,82 +31,21 @@ type Payload = {
 
 export const runtime = "nodejs";
 
-const ensureDir = async (dir: string) => {
-  await mkdir(dir, { recursive: true });
-};
-
-const getUploadSource = (mediaUrl: string) => {
-  if (!mediaUrl.startsWith("/uploads/")) return null;
-  const filename = path.basename(mediaUrl);
-  if (!filename) return null;
-  const uploadDir = path.join(process.cwd(), "public", "uploads");
-  const sourcePath = path.join(uploadDir, filename);
-  return { filename, sourcePath };
-};
-
-const moveToLibrary = async (
-  id: string,
-  mediaUrl: string,
-  animated: boolean,
-) => {
-  const source = getUploadSource(mediaUrl);
-  if (!source) {
-    return null;
-  }
-
-  const ext = path.extname(source.filename) || ".png";
-  const originalDir = path.join(process.cwd(), "public", "memes", "original");
-  const thumbDir = path.join(process.cwd(), "public", "memes", "thumb");
-  await ensureDir(originalDir);
-  await ensureDir(thumbDir);
-
-  const targetName = `${id}${ext}`;
-  const targetPath = path.join(originalDir, targetName);
-
-  const thumbName = `${id}.${animated ? "gif" : "jpg"}`;
-  const thumbPath = path.join(thumbDir, thumbName);
-  let moved = false;
-  try {
-    await rename(source.sourcePath, targetPath);
-    moved = true;
-    await generateThumb(targetPath, thumbPath, animated);
-  } catch (error) {
-    if (!moved) throw error;
-    try {
-      await rename(targetPath, source.sourcePath);
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
-        throw err;
-      }
-    }
-    try {
-      await unlink(thumbPath);
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
-        throw err;
-      }
-    }
-    throw error;
-  }
-
+const libraryFiles = (id: string, mediaUrl: string, animated: boolean) => {
+  const ext = path.extname(mediaUrl);
+  const name = `${id}-${randomUUID()}`;
+  const original = `/memes/original/${name}${ext}`;
+  const thumbnail = `/memes/thumb/${name}.${animated ? "gif" : "jpg"}`;
   return {
-    mediaUrl: `/memes/original/${targetName}`,
-    thumbUrl: `/memes/thumb/${thumbName}`,
-    rollback: async () => {
-      try {
-        await rename(targetPath, source.sourcePath);
-      } catch (err) {
-        if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
-          throw err;
-        }
-      }
-      try {
-        await unlink(thumbPath);
-      } catch (err) {
-        if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
-          throw err;
-        }
-      }
+    mediaUrl: original,
+    thumbUrl: thumbnail,
+    prepare: async () => {
+      await copyFile(
+        mediaPath(mediaUrl),
+        mediaPath(original),
+        constants.COPYFILE_EXCL,
+      );
+      await generateThumb(mediaPath(original), mediaPath(thumbnail), animated);
     },
   };
 };
@@ -104,13 +54,11 @@ async function patch(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const auth = await requireAdmin(request);
-  if (!auth.ok) return auth.response;
   const config = await getAppConfig();
   const tagRules = getTagRulesFromConfig(config);
   const { id } = await Promise.resolve(context.params);
   if (!id) {
-    void logAudit({
+    await logAudit({
       action: "review:update",
       status: "error",
       message: "请求参数不完整",
@@ -121,7 +69,7 @@ async function patch(
 
   const rawBody = await request.text();
   if (!rawBody.trim()) {
-    void logAudit({
+    await logAudit({
       action: "review:update",
       status: "error",
       message: "请求参数不完整",
@@ -135,7 +83,7 @@ async function patch(
   try {
     body = JSON.parse(rawBody) as Payload;
   } catch {
-    void logAudit({
+    await logAudit({
       action: "review:update",
       status: "error",
       message: "请求参数格式错误",
@@ -153,7 +101,7 @@ async function patch(
     (key) => !allowedKeys.has(key),
   );
   if (extraKeys.length > 0) {
-    void logAudit({
+    await logAudit({
       action: "review:update",
       status: "error",
       message: "请求参数不合法",
@@ -204,7 +152,7 @@ async function patch(
     });
 
     if (!current) {
-      void logAudit({
+      await logAudit({
         action: "review:delete",
         status: "error",
         message: "资源不存在",
@@ -218,7 +166,7 @@ async function patch(
       current.status !== "PENDING" ||
       !current.mediaUrl.startsWith("/uploads/")
     ) {
-      void logAudit({
+      await logAudit({
         action: "review:delete",
         status: "error",
         message: "当前状态不可审核",
@@ -230,13 +178,14 @@ async function patch(
     }
 
     try {
-      await withTrashedMedia([current.mediaUrl, current.thumbUrl], () =>
-        prisma.$transaction([
-          prisma.memeTag.deleteMany({ where: { memeId: id } }),
-          prisma.meme.delete({ where: { id } }),
-        ]),
+      await withTrashedMedia(
+        [current.mediaUrl, current.thumbUrl],
+        async (tx) => {
+          await tx.memeTag.deleteMany({ where: { memeId: id } });
+          return tx.meme.delete({ where: { id } });
+        },
       );
-      void logAudit({
+      await logAudit({
         action: "review:delete",
         status: "success",
         targetType: "meme",
@@ -246,7 +195,7 @@ async function patch(
       });
     } catch (error) {
       console.error(error);
-      void logAudit({
+      await logAudit({
         action: "review:delete",
         status: "error",
         targetType: "meme",
@@ -270,7 +219,7 @@ async function patch(
     },
   });
   if (!current) {
-    void logAudit({
+    await logAudit({
       action: "review:update",
       status: "error",
       message: "资源不存在",
@@ -284,7 +233,7 @@ async function patch(
     current.status !== "PENDING" ||
     !current.mediaUrl.startsWith("/uploads/")
   ) {
-    void logAudit({
+    await logAudit({
       action: "review:update",
       status: "error",
       message: "当前状态不可审核",
@@ -295,33 +244,16 @@ async function patch(
     return errorResponse("当前状态不可审核", 400, "INVALID_STATE");
   }
 
-  let moved: Awaited<ReturnType<typeof moveToLibrary>> = null;
-  if (status) {
-    try {
-      moved = await moveToLibrary(
-        current.id,
-        current.mediaUrl,
-        current.type === "ANIMATED",
-      );
-    } catch {
-      void logAudit({
-        action: "review:update",
-        status: "error",
-        targetType: "meme",
-        targetId: id,
-        message: "文件处理失败，请重试",
-        request,
-      });
-      return errorResponse("文件处理失败，请重试", 500, "FILE_MOVE_FAILED");
-    }
-  }
+  const moved = status
+    ? libraryFiles(current.id, current.mediaUrl, current.type === "ANIMATED")
+    : null;
 
   let updated;
   try {
-    const result = await prisma.$transaction(async (tx) => {
+    const save = async (tx: Prisma.TransactionClient) => {
       const tagRows =
         body.tags !== undefined ? await ensureTagsWithNumId(tx, tags) : [];
-      return tx.meme.update({
+      const item = await tx.meme.update({
         where: { id },
         data: {
           title,
@@ -355,17 +287,20 @@ async function patch(
           },
         },
       });
-    });
-    updated = result;
-  } catch {
-    if (moved?.rollback) {
-      try {
-        await moved.rollback();
-      } catch (rollbackError) {
-        console.error("Review rollback failed", rollbackError);
-      }
-    }
-    void logAudit({
+      if (body.title !== undefined) await updateNameOrder(tx, id);
+      return item;
+    };
+    updated = moved
+      ? await withMediaMutation(
+          [moved.mediaUrl, moved.thumbUrl],
+          [current.mediaUrl],
+          moved.prepare,
+          save,
+        )
+      : await withDatabaseWrite(() => prisma.$transaction(save));
+  } catch (error) {
+    console.error("Review update failed", error);
+    await logAudit({
       action: "review:update",
       status: "error",
       targetType: "meme",
@@ -376,7 +311,7 @@ async function patch(
     return errorResponse("保存失败，请重试", 500, "DB_UPDATE_FAILED");
   }
 
-  void logAudit({
+  await logAudit({
     action: "review:update",
     status: "success",
     targetType: "meme",
@@ -390,6 +325,8 @@ async function patch(
     {
       item: {
         ...updated,
+        mediaUrl: publicMediaUrl(updated.mediaUrl),
+        thumbUrl: publicMediaUrl(updated.thumbUrl),
         tags: sortTags(updated.tags.map((t) => t.tag.name)),
       },
     },
@@ -397,5 +334,11 @@ async function patch(
   );
 }
 
-export const PATCH = (...args: Parameters<typeof patch>) =>
-  withMediaWrite(() => patch(...args));
+export const PATCH = async (...args: Parameters<typeof patch>) => {
+  const auth = await requireAdmin(args[0]);
+  if (!auth.ok) return auth.response;
+  return withMediaWrite(async () => {
+    const current = await requireAdmin(args[0]);
+    return current.ok ? patch(...args) : current.response;
+  });
+};

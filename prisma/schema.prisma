@@ -24,6 +24,8 @@ model Meme {
   type       MemeType
   mediaUrl   String
   thumbUrl   String
+  nameOrder  Float      @default(0)
+  heat       Int        @default(0)
   copies     Int        @default(0)
   downloads  Int        @default(0)
   isFeatured Boolean    @default(false)
@@ -32,7 +34,13 @@ model Meme {
   updatedAt  DateTime   @updatedAt
   tags       MemeTag[]
   dailyPools DailyPoolItem[]
-  dailyStats MemeDailyStat[]
+
+  @@index([status, createdAt, id])
+  @@index([nameOrder, id])
+  @@index([status, nameOrder, id])
+  @@index([status, heat, createdAt, id])
+  @@index([mediaUrl])
+  @@index([thumbUrl])
 }
 
 model Tag {
@@ -49,6 +57,7 @@ model MemeTag {
   tag    Tag  @relation(fields: [tagId], references: [id])
 
   @@id([memeId, tagId])
+  @@index([tagId])
 }
 
 model MemeDailyStat {
@@ -56,7 +65,6 @@ model MemeDailyStat {
   memeId    String
   copies    Int    @default(0)
   downloads Int    @default(0)
-  meme      Meme   @relation(fields: [memeId], references: [id], onDelete: Cascade)
 
   @@id([day, memeId])
   @@index([day])
@@ -66,6 +74,7 @@ model MemeDailyStat {
 model SiteDailyStat {
   day       String   @id
   visits    Int      @default(0)
+  visitors  Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -88,6 +97,7 @@ model DailyPoolItem {
   meme Meme      @relation(fields: [memeId], references: [id], onDelete: Cascade)
 
   @@unique([poolId, memeId])
+  @@index([memeId])
 }
 
 model AuditLog {
@@ -120,4 +130,51 @@ model AdminCredential {
   salt      String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model AdminSession {
+  tokenHash      String   @id
+  user           String
+  credentialHash String
+  expiresAt      DateTime
+
+  @@index([expiresAt])
+}
+
+model MediaOperation {
+  id        String   @id
+  state     String
+  created   Json
+  retired   Json
+  createdAt DateTime @default(now())
+}
+
+model RateLimit {
+  key     String   @id
+  count   Int
+  resetAt DateTime
+
+  @@index([resetAt])
+}
+
+model VisitorSession {
+  tokenHash String   @id
+  expiresAt DateTime
+  @@index([expiresAt])
+}
+
+model SiteDailyVisitor {
+  day         String
+  visitorHash String
+  @@id([day, visitorHash])
+}
+
+model InteractionGrant {
+  tokenHash   String   @id
+  visitorHash String
+  memeId      String
+  kind        String
+  expiresAt   DateTime
+  consumedAt  DateTime?
+  @@index([expiresAt])
 }

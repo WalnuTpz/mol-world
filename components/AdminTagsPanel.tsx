@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import baseStyles from "@/app/page.module.css";
 import styles from "@/components/AdminTagsPanel.module.css";
@@ -21,7 +21,9 @@ type AdminTagsPanelProps = {
   pageLimit?: number;
 };
 
-export default function AdminTagsPanel({ pageLimit = 20 }: AdminTagsPanelProps) {
+export default function AdminTagsPanel({
+  pageLimit = 20,
+}: AdminTagsPanelProps) {
   const confirm = useToastConfirm();
   const toast = useToast();
   const [query, setQuery] = useState("");
@@ -37,36 +39,47 @@ export default function AdminTagsPanel({ pageLimit = 20 }: AdminTagsPanelProps) 
   const [error, setError] = useState("");
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [revision, setRevision] = useState(0);
   const [jumpValue, setJumpValue] = useState("1");
   const [sortField, setSortField] = useState<SortField>("count");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
   const limit = Math.max(1, Math.round(pageLimit));
 
-  const loadList = async (targetPage: number, targetQuery: string, mode: SortMode) => {
-    const params = new URLSearchParams({
-      page: String(targetPage),
-      limit: String(limit),
-      sort: mode,
-    });
-    if (targetQuery.trim()) params.set("q", targetQuery.trim());
-    const res = await fetch(`/api/admin/tags?${params.toString()}`);
-    if (!res.ok) throw new Error("加载失败");
-    return (await res.json()) as {
-      items: TagItem[];
-      page: number;
-      limit: number;
-      total: number;
-    };
-  };
+  const loadList = useCallback(
+    async (targetPage: number, targetQuery: string, mode: SortMode) => {
+      const params = new URLSearchParams({
+        page: String(targetPage),
+        limit: String(limit),
+        sort: mode,
+      });
+      if (targetQuery.trim()) params.set("q", targetQuery.trim());
+      const res = await fetch(`/api/admin/tags?${params.toString()}`);
+      if (!res.ok) throw new Error("加载失败");
+      return (await res.json()) as {
+        items: TagItem[];
+        page: number;
+        limit: number;
+        total: number;
+      };
+    },
+    [limit],
+  );
 
   useEffect(() => {
     let cancelled = false;
+    // Start the request and show its pending state together.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     setError("");
     const mode = `${sortField}_${sortOrder}` as SortMode;
     loadList(page, query, mode)
       .then((data) => {
         if (cancelled) return;
+        const lastPage = Math.max(1, Math.ceil(data.total / limit));
+        if (page > lastPage) {
+          setPage(lastPage);
+          return;
+        }
         setItems(data.items);
         setTotal(data.total);
       })
@@ -82,17 +95,24 @@ export default function AdminTagsPanel({ pageLimit = 20 }: AdminTagsPanelProps) 
     return () => {
       cancelled = true;
     };
-  }, [page, query, sortField, sortOrder, toast]);
+  }, [page, query, sortField, sortOrder, toast, loadList, limit, revision]);
 
   useEffect(() => {
+    // Synchronize this panel with the requested page and its asynchronous data.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPage(1);
   }, [query, sortField, sortOrder]);
 
   useEffect(() => {
+    // Synchronize this panel with the requested page and its asynchronous data.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setJumpValue(String(page));
   }, [page]);
 
-  const totalPages = useMemo(() => Math.max(1, Math.ceil(total / limit)), [total, limit]);
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(total / limit)),
+    [total, limit],
+  );
   const hasPrev = page > 1;
   const hasNext = page < totalPages;
   const disableJump = loading || totalPages <= 1;
@@ -134,12 +154,7 @@ export default function AdminTagsPanel({ pageLimit = 20 }: AdminTagsPanelProps) 
         } | null;
         throw new Error(data?.error || data?.message || "保存失败");
       }
-      const data = (await res.json()) as { item?: TagItem };
-      if (data.item) {
-        setItems((prev) =>
-          prev.map((tag) => (tag.id === item.id ? data.item! : tag))
-        );
-      }
+      setRevision((value) => value + 1);
       cancelEdit();
       toast("已更新", "success");
     } catch (err) {
@@ -162,7 +177,10 @@ export default function AdminTagsPanel({ pageLimit = 20 }: AdminTagsPanelProps) 
       toast("来源与目标不能相同", "error");
       return;
     }
-    const ok = await confirm("确认合并标签吗？", "该操作会合并关联关系并删除原标签。");
+    const ok = await confirm(
+      "确认合并标签吗？",
+      "该操作会合并关联关系并删除原标签。",
+    );
     if (!ok) return;
     setMerging(true);
     try {
@@ -184,9 +202,7 @@ export default function AdminTagsPanel({ pageLimit = 20 }: AdminTagsPanelProps) 
       toast(`${data.message || "已合并"}${mergedText}`, "success");
       setMergeFrom("");
       setMergeTo("");
-      const list = await loadList(page, query, `${sortField}_${sortOrder}` as SortMode);
-      setItems(list.items);
-      setTotal(list.total);
+      setRevision((value) => value + 1);
     } catch (err) {
       const message = err instanceof Error ? err.message : "合并失败";
       toast(message, "error");
@@ -202,14 +218,14 @@ export default function AdminTagsPanel({ pageLimit = 20 }: AdminTagsPanelProps) 
       `确认${label}吗？`,
       mode === "force"
         ? "该标签将被删除，关联关系也会清除。"
-        : "仅移除关联关系，标签本体保留。"
+        : "仅移除关联关系，标签本体保留。",
     );
     if (!ok) return;
     setDeletingId(item.id);
     try {
       const res = await fetch(
         `/api/admin/tags/${item.id}/delete?mode=${mode}`,
-        { method: "DELETE" }
+        { method: "DELETE" },
       );
       if (!res.ok) {
         const data = (await res.json().catch(() => null)) as {
@@ -220,13 +236,7 @@ export default function AdminTagsPanel({ pageLimit = 20 }: AdminTagsPanelProps) 
       }
       const data = (await res.json()) as { message?: string };
       toast(data.message || "已删除", "success");
-      const list = await loadList(page, query, `${sortField}_${sortOrder}` as SortMode);
-      if (list.items.length === 0 && page > 1) {
-        setPage(page - 1);
-        return;
-      }
-      setItems(list.items);
-      setTotal(list.total);
+      setRevision((value) => value + 1);
     } catch (err) {
       const message = err instanceof Error ? err.message : "删除失败";
       toast(message, "error");
@@ -413,7 +423,9 @@ export default function AdminTagsPanel({ pageLimit = 20 }: AdminTagsPanelProps) 
           <div className={baseStyles.pageNav}>
             <button
               type="button"
-              className={hasPrev ? baseStyles.pageNavBtn : baseStyles.pageNavBtnDisabled}
+              className={
+                hasPrev ? baseStyles.pageNavBtn : baseStyles.pageNavBtnDisabled
+              }
               onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
               disabled={!hasPrev}
             >
@@ -421,7 +433,9 @@ export default function AdminTagsPanel({ pageLimit = 20 }: AdminTagsPanelProps) 
             </button>
             <button
               type="button"
-              className={hasNext ? baseStyles.pageNavBtn : baseStyles.pageNavBtnDisabled}
+              className={
+                hasNext ? baseStyles.pageNavBtn : baseStyles.pageNavBtnDisabled
+              }
               onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
               disabled={!hasNext}
             >

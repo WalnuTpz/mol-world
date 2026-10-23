@@ -1,90 +1,64 @@
-import "dotenv/config";
-import { access, readdir } from "node:fs/promises";
+import "./env";
+import sharp from "sharp";
+import { access } from "node:fs/promises";
 import path from "node:path";
-
-import { PrismaClient } from "@prisma/client";
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
-
+import { prisma } from "../lib/db";
 import { generateThumb } from "../lib/thumbs";
+import {
+  mediaPath,
+  withMediaWrite,
+  withMediaMutation,
+} from "../lib/mediaFiles";
 
-const resolveDbUrl = (rawUrl?: string) => {
-  const fallback = `file:${path
-    .resolve(process.cwd(), "prisma", "dev.db")
-    .replace(/\\/g, "/")}`;
-  if (!rawUrl) return fallback;
-  if (!rawUrl.startsWith("file:")) return rawUrl;
-  const filePath = rawUrl.slice(5);
-  if (filePath.startsWith("/") || /^[A-Za-z]:[\\/]/.test(filePath)) {
-    return `file:${filePath.replace(/\\/g, "/")}`;
-  }
-  const absPath = path.resolve(process.cwd(), filePath).replace(/\\/g, "/");
-  return `file:${absPath}`;
-};
-
-const adapter = new PrismaBetterSqlite3({
-  url: resolveDbUrl(process.env.DATABASE_URL),
-});
-
-const prisma = new PrismaClient({ adapter });
-
-const ALLOWED_EXT = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp"]);
-
-const fileExists = async (filePath: string) => {
+async function exists(filename: string) {
   try {
-    await access(filePath);
+    await access(filename);
     return true;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
     return false;
   }
-};
-
-async function main() {
-  const originalDir = path.join(process.cwd(), "public", "memes", "original");
-  const thumbDir = path.join(process.cwd(), "public", "memes", "thumb");
-  const files = (await readdir(originalDir)).filter((file) =>
-    ALLOWED_EXT.has(path.extname(file).toLowerCase()),
-  );
-
-  let generated = 0;
-  let updated = 0;
-
-  for (const file of files) {
-    const ext = path.extname(file).toLowerCase();
-    const base = path.basename(file, path.extname(file));
-    const animated = ext === ".gif";
-    const thumbName = `${base}.${animated ? "gif" : "jpg"}`;
-    const inputPath = path.join(originalDir, file);
-    const thumbPath = path.join(thumbDir, thumbName);
-    const thumbUrl = `/memes/thumb/${thumbName}`;
-    const mediaUrl = `/memes/original/${file}`;
-
-    const meme = await prisma.meme.findFirst({
-      where: { mediaUrl },
-      select: { id: true },
-    });
-    if (!meme) continue;
-
-    if (!(await fileExists(thumbPath))) {
-      await generateThumb(inputPath, thumbPath, animated);
-      generated += 1;
-    }
-
-    await prisma.meme.update({
-      where: { id: meme.id },
-      data: { thumbUrl },
-    });
-    updated += 1;
-  }
-
-  console.log(`Generated ${generated} thumbs, updated ${updated} records.`);
 }
 
+async function main() {
+  return withMediaWrite(async () => {
+    const rows = await prisma.meme.findMany({
+      where: { mediaUrl: { startsWith: "/memes/original/" } },
+      select: { mediaUrl: true },
+    });
+    let generated = 0;
+    let updated = 0;
+    for (const mediaUrl of new Set(rows.map((row) => row.mediaUrl))) {
+      const file = path.posix.basename(mediaUrl);
+      const inputPath = mediaPath(mediaUrl);
+      const metadata = await sharp(inputPath, { animated: true }).metadata();
+      const animated =
+        path.extname(file).toLowerCase() === ".gif" ||
+        (metadata.pages ?? 1) > 1;
+      const thumbUrl = `/memes/thumb/${file}.${animated ? "gif" : "jpg"}`;
+      const present = await exists(mediaPath(thumbUrl));
+      const result = await withMediaMutation(
+        present ? [] : [thumbUrl],
+        [],
+        async () => {
+          if (!present)
+            await generateThumb(inputPath, mediaPath(thumbUrl), animated);
+        },
+        (tx) =>
+          tx.meme.updateMany({
+            where: { mediaUrl },
+            data: { thumbUrl, type: animated ? "ANIMATED" : "STATIC" },
+          }),
+      );
+      if (!present) generated += 1;
+      updated += result.count;
+    }
+    console.log(`Generated ${generated} thumbs, updated ${updated} records.`);
+  });
+}
 main()
   .catch((error) => {
     console.error(error);
-    process.exit(1);
+    process.exitCode = 1;
   })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+  .finally(() => prisma.$disconnect());

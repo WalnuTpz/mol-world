@@ -1,7 +1,9 @@
-import sharp from "sharp";
-import { withMediaWrite } from "@/lib/mediaFiles";
-import path from "node:path";
-import { mkdir, writeFile, unlink } from "node:fs/promises";
+import { updateNameOrder } from "@/lib/nameOrder";
+import { clientKey, consumeLimits, RateLimitError } from "@/lib/rateLimit";
+import { getCookieValue } from "@/lib/adminAuth";
+import sharp, { type Metadata } from "sharp";
+import { withMediaWrite, withMediaMutation, mediaPath } from "@/lib/mediaFiles";
+import { writeFile } from "node:fs/promises";
 
 import { prisma } from "@/lib/db";
 import { errorResponse, successResponse } from "@/lib/api";
@@ -23,29 +25,12 @@ const ALLOWED_TYPES: Record<string, string> = {
   "image/webp": ".webp",
 };
 
-const uploadCooldown = new Map<string, number>();
-let lastGlobalUploadAt = 0;
-let globalUploading = false;
-
-const getClientId = (request: Request) => {
-  const forwarded = request.headers.get("x-forwarded-for");
-  const ip =
-    forwarded?.split(",")[0]?.trim() || request.headers.get("x-real-ip");
-  return ip ?? "unknown";
-};
-
-const getCookieValue = (request: Request, name: string) => {
-  const cookie = request.headers.get("cookie") ?? "";
-  const match = cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
-  return match ? decodeURIComponent(match[1]) : null;
-};
-
 const isAdminAuthed = async (request: Request) => {
   const token = getCookieValue(request, getAdminSessionCookieName());
   return isAdminSessionValid(token);
 };
 
-async function post(request: Request) {
+export async function POST(request: Request) {
   const config = await getAppConfig();
   const tagRules = getTagRulesFromConfig(config);
   const maxSize = config.uploadMaxSizeMb * 1024 * 1024;
@@ -54,7 +39,23 @@ async function post(request: Request) {
   const reviewQueueLimit = config.reviewQueueLimit;
   let formData: FormData;
   try {
-    formData = await request.formData();
+    const reader = request.body?.getReader();
+    if (!reader) return errorResponse("缺少上传数据", 400, "INVALID_BODY");
+    const chunks: Uint8Array[] = [];
+    let size = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > maxSize + 64 * 1024) {
+        await reader.cancel();
+        return errorResponse("文件超过大小限制", 413, "FILE_TOO_LARGE");
+      }
+      chunks.push(value);
+    }
+    formData = await new Response(Buffer.concat(chunks), {
+      headers: request.headers,
+    }).formData();
   } catch {
     return errorResponse("上传数据格式错误", 400, "INVALID_BODY");
   }
@@ -63,7 +64,7 @@ async function post(request: Request) {
   const rawTags = formData.get("tags");
 
   if (!(file instanceof File)) {
-    void logAudit({
+    await logAudit({
       action: "upload",
       status: "error",
       message: "缺少文件",
@@ -73,7 +74,7 @@ async function post(request: Request) {
   }
 
   if (file.size > maxSize) {
-    void logAudit({
+    await logAudit({
       action: "upload",
       status: "error",
       message: "文件超过大小限制",
@@ -85,7 +86,7 @@ async function post(request: Request) {
 
   const ext = ALLOWED_TYPES[file.type];
   if (!ext) {
-    void logAudit({
+    await logAudit({
       action: "upload",
       status: "error",
       message: "文件格式不支持",
@@ -96,9 +97,14 @@ async function post(request: Request) {
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
-  let metadata: sharp.Metadata;
+  let metadata: Metadata;
   try {
-    metadata = await sharp(buffer, { animated: true }).metadata();
+    const decoded = sharp(buffer, {
+      animated: true,
+      limitInputPixels: 40_000_000,
+    });
+    metadata = await decoded.metadata();
+    await decoded.stats();
   } catch {
     return errorResponse("图片数据无效", 400, "INVALID_IMAGE");
   }
@@ -123,128 +129,110 @@ async function post(request: Request) {
   const tags =
     typeof rawTags === "string" ? normalizeTagInput(rawTags, tagRules) : [];
 
-  if (title) {
-    const existing = await prisma.meme.findFirst({
-      where: { title },
-      select: { id: true },
+  return withMediaWrite(async () => {
+    if (title) {
+      const existing = await prisma.meme.findFirst({
+        where: { title },
+        select: { id: true },
+      });
+      if (existing) {
+        await logAudit({
+          action: "upload",
+          status: "error",
+          message: "上传失败（已存在该表情包）",
+          data: { title },
+          request,
+        });
+        return errorResponse(
+          "上传失败（已存在该表情包）",
+          409,
+          "DUPLICATE_MEME",
+        );
+      }
+    }
+
+    const pendingCount = await prisma.meme.count({
+      where: {
+        status: { in: ["PENDING", "HIDDEN"] as const },
+        mediaUrl: { startsWith: "/uploads/" },
+      },
     });
-    if (existing) {
-      void logAudit({
+    if (pendingCount >= reviewQueueLimit) {
+      await logAudit({
         action: "upload",
         status: "error",
-        message: "上传失败（已存在该表情包）",
-        data: { title },
+        message: "上传失败（目前审核队列已过载）",
+        data: { pendingCount },
         request,
       });
-      return errorResponse("上传失败（已存在该表情包）", 409, "DUPLICATE_MEME");
-    }
-  }
-
-  const pendingCount = await prisma.meme.count({
-    where: {
-      status: { in: ["PENDING", "HIDDEN"] as const },
-      mediaUrl: { startsWith: "/uploads/" },
-    },
-  });
-  if (pendingCount >= reviewQueueLimit) {
-    void logAudit({
-      action: "upload",
-      status: "error",
-      message: "上传失败（目前审核队列已过载）",
-      data: { pendingCount },
-      request,
-    });
-    return errorResponse("上传失败（目前审核队列已过载）", 409, "QUEUE_FULL");
-  }
-
-  const clientId = getClientId(request);
-  const now = Date.now();
-  const isAdmin = await isAdminAuthed(request);
-  if (!isAdmin) {
-    if (globalUploading || now - lastGlobalUploadAt < globalCooldownMs) {
-      const retryAfter = Math.ceil(
-        (globalCooldownMs - (now - lastGlobalUploadAt)) / 1000,
-      );
-      return errorResponse("操作过于频繁，请稍后再试", 429, "RATE_LIMIT", {
-        "Retry-After": String(Math.max(1, retryAfter)),
-      });
+      return errorResponse("上传失败（目前审核队列已过载）", 409, "QUEUE_FULL");
     }
 
-    const lastUploadAt = uploadCooldown.get(clientId);
-    if (lastUploadAt && now - lastUploadAt < uploadCooldownMs) {
-      const retryAfter = Math.ceil(
-        (uploadCooldownMs - (now - lastUploadAt)) / 1000,
-      );
-      return errorResponse(
-        "上传过于频繁，请稍后再试",
-        429,
-        "UPLOAD_RATE_LIMIT",
-        { "Retry-After": String(retryAfter) },
-      );
-    }
-  }
+    const isAdmin = await isAdminAuthed(request);
+    try {
+      const filename = `${crypto.randomUUID()}${ext}`;
+      const mediaUrl = `/uploads/${filename}`;
+      const type =
+        ext === ".gif" || (metadata.pages ?? 1) > 1 ? "ANIMATED" : "STATIC";
 
-  if (!isAdmin) globalUploading = true;
-  let writtenPath: string | undefined;
-  try {
-    const uploadDir = path.join(process.cwd(), "public", "uploads");
-    await mkdir(uploadDir, { recursive: true });
-
-    const filename = `${crypto.randomUUID()}${ext}`;
-    const filePath = path.join(uploadDir, filename);
-    await writeFile(filePath, buffer);
-    writtenPath = filePath;
-
-    const mediaUrl = `/uploads/${filename}`;
-    const type =
-      ext === ".gif" || (metadata.pages ?? 1) > 1 ? "ANIMATED" : "STATIC";
-
-    const created = await prisma.$transaction(async (tx) => {
-      const numId = await getNextMemeNumId(tx);
-      const tagRows = await ensureTagsWithNumId(tx, tags);
-      return tx.meme.create({
-        data: {
-          numId,
-          title,
-          type,
-          mediaUrl,
-          thumbUrl: mediaUrl,
-          status: "PENDING",
-          tags:
-            tagRows.length > 0
-              ? {
-                  create: tagRows.map((tag) => ({
-                    tag: { connect: { id: tag.id } },
-                  })),
-                }
-              : undefined,
+      const created = await withMediaMutation(
+        [mediaUrl],
+        [],
+        () => writeFile(mediaPath(mediaUrl), buffer, { flag: "wx" }),
+        async (tx) => {
+          if (!isAdmin)
+            await consumeLimits(tx, [
+              { key: "upload:global", maximum: 1, windowMs: globalCooldownMs },
+              {
+                key: `upload:${clientKey(request)}`,
+                maximum: 1,
+                windowMs: uploadCooldownMs,
+              },
+            ]);
+          const numId = await getNextMemeNumId(tx);
+          const tagRows = await ensureTagsWithNumId(tx, tags);
+          const item = await tx.meme.create({
+            data: {
+              numId,
+              title,
+              type,
+              mediaUrl,
+              thumbUrl: mediaUrl,
+              status: "PENDING",
+              tags:
+                tagRows.length > 0
+                  ? {
+                      create: tagRows.map((tag) => ({
+                        tag: { connect: { id: tag.id } },
+                      })),
+                    }
+                  : undefined,
+            },
+            select: { id: true, title: true },
+          });
+          await updateNameOrder(tx, item.id);
+          return item;
         },
-        select: { id: true, title: true },
+      );
+
+      await logAudit({
+        action: "upload",
+        status: "success",
+        targetType: "meme",
+        targetId: created.id,
+        message: "已提交，等待审核",
+        data: { title: created.title ?? null },
+        request,
       });
-    });
 
-    uploadCooldown.set(clientId, now);
-    lastGlobalUploadAt = now;
-
-    void logAudit({
-      action: "upload",
-      status: "success",
-      targetType: "meme",
-      targetId: created.id,
-      message: "已提交，等待审核",
-      data: { title: created.title ?? null },
-      request,
-    });
-
-    return successResponse({}, "已提交，等待审核");
-  } catch (error) {
-    if (writtenPath) await unlink(writtenPath);
-    console.error("Upload failed", error);
-    return errorResponse("上传失败，请重试", 500, "UPLOAD_FAILED");
-  } finally {
-    if (!isAdmin) globalUploading = false;
-  }
+      return successResponse({}, "已提交，等待审核");
+    } catch (error) {
+      if (error instanceof RateLimitError)
+        return errorResponse(error.message, 429, "UPLOAD_RATE_LIMIT", {
+          "Retry-After": String(error.retryAfter),
+        });
+      console.error("Upload failed", error);
+      return errorResponse("上传失败，请重试", 500, "UPLOAD_FAILED");
+    }
+  });
 }
-
-export const POST = (...args: Parameters<typeof post>) =>
-  withMediaWrite(() => post(...args));

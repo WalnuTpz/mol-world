@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/db";
@@ -6,8 +7,9 @@ import { requireAdmin } from "@/lib/adminAuth";
 import { normalizeSearchTokens } from "@/lib/tags";
 
 const escapeCsv = (value: string | null | undefined) => {
-  const raw = value ?? "";
-  const needsQuote = /[",\n]/.test(raw);
+  const input = value ?? "";
+  const raw = /^[=+@\-\t\r]/.test(input) ? `'${input}` : input;
+  const needsQuote = /[",\r\n]/.test(raw);
   const escaped = raw.replace(/"/g, '""');
   return needsQuote ? `"${escaped}"` : escaped;
 };
@@ -56,11 +58,23 @@ export async function GET(request: Request) {
         }
       : timeFilter;
 
-  try {
-    const items = await prisma.auditLog.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
+  const startedAt = new Date();
+  type Cursor = { id: string; createdAt: Date };
+  const load = (cursor?: Cursor) => {
+    const boundary: Prisma.AuditLogWhereInput = cursor
+      ? {
+          OR: [
+            { createdAt: { lt: cursor.createdAt } },
+            { createdAt: cursor.createdAt, id: { lt: cursor.id } },
+          ],
+        }
+      : {};
+    return prisma.auditLog.findMany({
+      where: { AND: [where, { createdAt: { lte: startedAt } }, boundary] },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: 500,
       select: {
+        id: true,
         action: true,
         status: true,
         targetType: true,
@@ -69,33 +83,63 @@ export async function GET(request: Request) {
         createdAt: true,
       },
     });
-
-    const header = ["时间", "动作", "状态", "目标类型", "目标ID", "消息"];
-    const rows = items.map((item) => [
-      formatTime(item.createdAt),
-      item.action,
-      item.status === "success" ? "成功" : "失败",
-      item.targetType ?? "",
-      item.targetId ?? "",
-      item.message ?? "",
-    ]);
-
-    const csvBody = [header, ...rows]
-      .map((row) => row.map(escapeCsv).join(","))
-      .join("\n");
-    const csv = `\uFEFF${csvBody}`;
-    const dateStamp = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-    const filename = `audit-logs-${range}-${dateStamp}.csv`;
-
-    return new NextResponse(csv, {
+  };
+  try {
+    let page = await load();
+    let first = true;
+    let canceled = false;
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream<Uint8Array>({
+      async pull(controller) {
+        try {
+          if (first) {
+            first = false;
+            controller.enqueue(
+              encoder.encode("\uFEFF时间,动作,状态,目标类型,目标ID,消息"),
+            );
+            return;
+          }
+          if (!page.length) {
+            controller.close();
+            return;
+          }
+          const last = page[page.length - 1];
+          const csv = page
+            .map((item) =>
+              [
+                formatTime(item.createdAt),
+                item.action,
+                item.status === "success" ? "成功" : "失败",
+                item.targetType,
+                item.targetId,
+                item.message,
+              ]
+                .map(escapeCsv)
+                .join(","),
+            )
+            .join("\n");
+          controller.enqueue(encoder.encode(`\n${csv}`));
+          page = page.length === 500 ? await load(last) : [];
+        } catch (error) {
+          if (!canceled) controller.error(error);
+        }
+      },
+      cancel() {
+        canceled = true;
+      },
+    });
+    const stamp = startedAt.toISOString().slice(0, 10).replace(/-/g, "");
+    return new NextResponse(stream, {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": `attachment; filename=\"${filename}\"`,
+        "Content-Disposition": `attachment; filename="audit-logs-${range}-${stamp}.csv"`,
         "Cache-Control": "no-store",
       },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "导出失败";
-    return errorResponse(message, 500);
+    return errorResponse(
+      error instanceof Error ? error.message : "导出失败",
+      500,
+    );
   }
 }

@@ -1,189 +1,84 @@
-import "dotenv/config";
+import "./env";
 import path from "node:path";
-import { access, rename } from "node:fs/promises";
+import { access, copyFile } from "node:fs/promises";
+import { constants } from "node:fs";
+import { prisma } from "../lib/db";
+import {
+  mediaPath,
+  withMediaWrite,
+  withMediaMutation,
+} from "../lib/mediaFiles";
 
-import { PrismaClient } from "@prisma/client";
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
-
-const ORIGINAL_PREFIX = "/memes/original/";
-const THUMB_PREFIX = "/memes/thumb/";
-
-const resolveDbUrl = (rawUrl?: string) => {
-  const fallback = `file:${path
-    .resolve(process.cwd(), "prisma", "dev.db")
-    .replace(/\\/g, "/")}`;
-  if (!rawUrl) return fallback;
-  if (!rawUrl.startsWith("file:")) return rawUrl;
-  const filePath = rawUrl.slice(5);
-  if (filePath.startsWith("/") || /^[A-Za-z]:[\\/]/.test(filePath)) {
-    return `file:${filePath.replace(/\\/g, "/")}`;
-  }
-  const absPath = path.resolve(process.cwd(), filePath).replace(/\\/g, "/");
-  return `file:${absPath}`;
-};
-
-const adapter = new PrismaBetterSqlite3({
-  url: resolveDbUrl(process.env.DATABASE_URL),
-});
-
-const prisma = new PrismaClient({ adapter });
-
-const publicDir = path.join(process.cwd(), "public");
-
-const toFsPath = (url: string) =>
-  path.join(publicDir, url.replace(/^\//, "").replace(/\//g, path.sep));
-
-const fileExists = async (filePath: string) => {
+async function exists(filename: string) {
   try {
-    await access(filePath);
+    await access(filename);
     return true;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
     return false;
   }
-};
-
-const computeTarget = async (
-  dir: string,
-  base: string,
-  ext: string,
-  currentPath: string,
-) => {
-  let filename = `${base}${ext}`;
-  let targetPath = path.join(dir, filename);
-  if (targetPath === currentPath) {
-    return { filename, targetPath, changed: false };
-  }
-  let counter = 2;
-  while (await fileExists(targetPath)) {
-    filename = `${base}-${counter}${ext}`;
-    targetPath = path.join(dir, filename);
-    counter += 1;
-  }
-  return { filename, targetPath, changed: true };
-};
-
-async function main() {
-  const memes = await prisma.meme.findMany({
-    select: {
-      id: true,
-      numId: true,
-      mediaUrl: true,
-      thumbUrl: true,
-    },
-  });
-
-  let renamedMedia = 0;
-  let renamedThumb = 0;
-  let updated = 0;
-  let skipped = 0;
-  let missing = 0;
-
-  for (const meme of memes) {
-    if (!meme.numId) {
-      skipped += 1;
-      continue;
-    }
-    if (!meme.mediaUrl.startsWith(ORIGINAL_PREFIX)) {
-      skipped += 1;
-      continue;
-    }
-
-    const baseName = String(meme.numId);
-
-    const mediaPath = toFsPath(meme.mediaUrl);
-    if (!(await fileExists(mediaPath))) {
-      missing += 1;
-      continue;
-    }
-
-    const mediaExt = path.extname(mediaPath);
-    const originalDir = path.dirname(mediaPath);
-    const mediaTarget = await computeTarget(
-      originalDir,
-      baseName,
-      mediaExt,
-      mediaPath,
-    );
-
-    let newMediaUrl = meme.mediaUrl;
-    let newThumbUrl = meme.thumbUrl;
-    const renames: Array<{ from: string; to: string }> = [];
-
-    try {
-      if (mediaTarget.changed) {
-        await rename(mediaPath, mediaTarget.targetPath);
-        newMediaUrl = `${ORIGINAL_PREFIX}${mediaTarget.filename}`;
-        renames.push({ from: mediaTarget.targetPath, to: mediaPath });
-        renamedMedia += 1;
-      }
-
-      if (meme.thumbUrl === meme.mediaUrl) newThumbUrl = newMediaUrl;
-      if (meme.thumbUrl.startsWith(THUMB_PREFIX)) {
-        const thumbPath = toFsPath(meme.thumbUrl);
-        if (await fileExists(thumbPath)) {
-          const thumbExt = path.extname(thumbPath);
-          const thumbDir = path.dirname(thumbPath);
-          const thumbTarget = await computeTarget(
-            thumbDir,
-            baseName,
-            thumbExt,
-            thumbPath,
-          );
-          if (thumbTarget.changed) {
-            await rename(thumbPath, thumbTarget.targetPath);
-            newThumbUrl = `${THUMB_PREFIX}${thumbTarget.filename}`;
-            renames.push({ from: thumbTarget.targetPath, to: thumbPath });
-            renamedThumb += 1;
-          }
-        } else {
-          missing += 1;
-        }
-      }
-
-      if (newMediaUrl === meme.mediaUrl && newThumbUrl === meme.thumbUrl) {
-        continue;
-      }
-
-      await prisma.meme.update({
-        where: { id: meme.id },
-        data: {
-          mediaUrl: newMediaUrl,
-          thumbUrl: newThumbUrl,
-        },
-      });
-      updated += 1;
-    } catch (error) {
-      console.error(`Update failed for ${meme.id}`, error);
-      for (const entry of renames.reverse()) {
-        try {
-          if (await fileExists(entry.from)) {
-            await rename(entry.from, entry.to);
-          }
-        } catch (revertError) {
-          console.error(`Revert failed for ${entry.from}`, revertError);
-        }
-      }
-      throw error;
-    }
-  }
-
-  console.log(
-    [
-      `updated=${updated}`,
-      `renamedMedia=${renamedMedia}`,
-      `renamedThumb=${renamedThumb}`,
-      `missing=${missing}`,
-      `skipped=${skipped}`,
-    ].join(" "),
-  );
 }
-
+async function targetFor(source: string, numId: number) {
+  const directory = path.posix.dirname(source);
+  const ext = path.posix.extname(source);
+  let target = `${directory}/${numId}${ext}`;
+  if (target === source) return source;
+  for (let suffix = 2; await exists(mediaPath(target)); suffix++)
+    target = `${directory}/${numId}-${suffix}${ext}`;
+  return target;
+}
+async function main() {
+  return withMediaWrite(async () => {
+    const rows = await prisma.meme.findMany({
+      select: { id: true, numId: true, mediaUrl: true, thumbUrl: true },
+      orderBy: { numId: "asc" },
+    });
+    const processed = new Set<string>();
+    let updated = 0;
+    for (const row of rows) {
+      if (!row.numId || !row.mediaUrl.startsWith("/memes/original/")) continue;
+      const changes: { source: string; target: string }[] = [];
+      for (const source of new Set([row.mediaUrl, row.thumbUrl])) {
+        if (processed.has(source)) continue;
+        processed.add(source);
+        if (!(await exists(mediaPath(source))))
+          throw new Error(`Missing referenced media: ${source}`);
+        const target = await targetFor(source, row.numId);
+        if (target !== source) changes.push({ source, target });
+      }
+      if (!changes.length) continue;
+      await withMediaMutation(
+        changes.map((x) => x.target),
+        changes.map((x) => x.source),
+        async () => {
+          for (const change of changes)
+            await copyFile(
+              mediaPath(change.source),
+              mediaPath(change.target),
+              constants.COPYFILE_EXCL,
+            );
+        },
+        async (tx) => {
+          for (const change of changes) {
+            await tx.meme.updateMany({
+              where: { mediaUrl: change.source },
+              data: { mediaUrl: change.target },
+            });
+            await tx.meme.updateMany({
+              where: { thumbUrl: change.source },
+              data: { thumbUrl: change.target },
+            });
+          }
+        },
+      );
+      updated += changes.length;
+    }
+    console.log(`Renamed ${updated} files and every database reference.`);
+  });
+}
 main()
   .catch((error) => {
     console.error(error);
-    process.exit(1);
+    process.exitCode = 1;
   })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+  .finally(() => prisma.$disconnect());

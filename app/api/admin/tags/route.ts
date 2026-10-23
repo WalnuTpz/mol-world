@@ -1,12 +1,8 @@
+import { pagination } from "@/lib/pagination";
 import { prisma } from "@/lib/db";
 import { successResponse } from "@/lib/api";
 import { requireAdmin } from "@/lib/adminAuth";
 import { getAppConfig } from "@/lib/appConfig";
-
-function parseIntParam(value: string | null, fallback: number) {
-  const parsed = Number.parseInt(value ?? "", 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
-}
 
 type SortMode = "count_desc" | "count_asc" | "name_asc" | "name_desc";
 
@@ -27,14 +23,13 @@ export async function GET(request: Request) {
   if (!auth.ok) return auth.response;
   const config = await getAppConfig();
   const { searchParams } = new URL(request.url);
-  const page = parseIntParam(searchParams.get("page"), 1);
-  const limit = Math.min(
-    parseIntParam(searchParams.get("limit"), config.tagPageLimit),
-    config.tagPageLimit
+  const { page, limit, skip } = pagination(
+    searchParams.get("page"),
+    searchParams.get("limit"),
+    config.tagPageLimit,
   );
   const q = (searchParams.get("q") ?? "").trim();
   const sort = resolveSort(searchParams.get("sort"));
-  const skip = (page - 1) * limit;
 
   const where = q ? { name: { contains: q } } : {};
   const countOrder: "asc" | "desc" = sort === "count_asc" ? "asc" : "desc";
@@ -50,7 +45,7 @@ export async function GET(request: Request) {
       where,
       skip,
       take: limit,
-      orderBy,
+      orderBy: [orderBy, { id: "asc" }],
       select: {
         id: true,
         numId: true,
@@ -70,6 +65,6 @@ export async function GET(request: Request) {
 
   return successResponse(
     { items: normalized, page, limit, total, q, sort },
-    "查询成功"
+    "查询成功",
   );
 }

@@ -28,7 +28,13 @@ export async function generateStaticThumb(
   await ensureDirForFile(outputPath);
 
   await sharp(inputPath)
-    .resize({ width: maxSize, height: maxSize, fit: "inside" })
+    .rotate()
+    .resize({
+      width: maxSize,
+      height: maxSize,
+      fit: "inside",
+      withoutEnlargement: true,
+    })
     .jpeg({ quality: staticQuality })
     .toFile(outputPath);
 }
@@ -42,7 +48,12 @@ export async function generateAnimatedThumb(
   await ensureDirForFile(outputPath);
 
   await sharp(inputPath, { animated: true })
-    .resize({ width: maxSize, height: maxSize, fit: "inside" })
+    .resize({
+      width: maxSize,
+      height: maxSize,
+      fit: "inside",
+      withoutEnlargement: true,
+    })
     .gif({
       colours: gifColors,
     })

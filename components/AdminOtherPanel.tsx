@@ -1,13 +1,108 @@
 "use client";
 
 import styles from "@/app/admin/page.module.css";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import Chart from "chart.js/auto";
 
 import { useToast, useToastConfirm } from "@/components/ToastProvider";
 import toastStyles from "@/components/Toast.module.css";
 import { formatCount } from "@/lib/format";
+
+const formatDayLabel = (value: string) => {
+  if (!value) return "";
+  return value.length >= 5 ? value.slice(5) : value;
+};
+
+const TrafficLineChart = ({
+  labels,
+  data,
+  ariaLabel,
+}: {
+  labels: string[];
+  data: number[];
+  ariaLabel: string;
+}) => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  useEffect(() => {
+    if (!canvasRef.current) return;
+    const safeLabels = labels.map(formatDayLabel);
+    const ctx = canvasRef.current.getContext("2d");
+    if (!ctx) return;
+    const chart = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: safeLabels,
+        datasets: [
+          {
+            data,
+            borderColor: "rgba(255, 255, 255, 0.9)",
+            backgroundColor: "rgba(255, 255, 255, 0.08)",
+            borderWidth: 2,
+            pointRadius: 2,
+            pointHoverRadius: 4,
+            tension: 0.35,
+            fill: true,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            enabled: true,
+            backgroundColor: "rgba(20, 20, 20, 0.9)",
+            borderColor: "rgba(255, 255, 255, 0.12)",
+            borderWidth: 1,
+            titleColor: "#fff",
+            bodyColor: "#fff",
+            displayColors: false,
+          },
+        },
+        interaction: {
+          mode: "index",
+          intersect: false,
+        },
+        scales: {
+          x: {
+            ticks: {
+              color: "rgba(255, 255, 255, 0.6)",
+              maxTicksLimit: 6,
+            },
+            grid: {
+              color: "rgba(255, 255, 255, 0.08)",
+            },
+          },
+          y: {
+            ticks: {
+              precision: 0,
+              color: "rgba(255, 255, 255, 0.6)",
+              callback: (value) => formatCount(Number(value)),
+            },
+            grid: {
+              color: "rgba(255, 255, 255, 0.08)",
+            },
+          },
+        },
+      },
+    });
+    return () => chart.destroy();
+  }, [labels, data]);
+
+  return (
+    <div className={styles.trafficChartBox}>
+      <canvas
+        ref={canvasRef}
+        className={styles.trafficChartCanvas}
+        aria-label={ariaLabel}
+        role="img"
+      />
+    </div>
+  );
+};
 
 export default function AdminOtherPanel() {
   const toast = useToast();
@@ -22,7 +117,7 @@ export default function AdminOtherPanel() {
     "7d",
   );
   const [trafficView, setTrafficView] = useState<
-    "visits" | "top" | "cumulative" | "daily"
+    "visits" | "visitors" | "top" | "cumulative" | "daily"
   >("top");
   const [trafficData, setTrafficData] = useState<{
     top: {
@@ -32,7 +127,13 @@ export default function AdminOtherPanel() {
       thumbUrl: string;
       heat: number;
     }[];
-    daily: { day: string; heat: number; cumulative: number; visits: number }[];
+    daily: {
+      day: string;
+      heat: number;
+      cumulative: number;
+      visits: number;
+      visitors: number;
+    }[];
   } | null>(null);
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
@@ -41,40 +142,41 @@ export default function AdminOtherPanel() {
     next: "",
     confirm: "",
   });
-  const [mounted, setMounted] = useState(false);
 
+  const scriptRunner =
+    process.env.NODE_ENV === "production" ? "NODE_ENV=production pnpm" : "pnpm";
   const scripts = [
     {
       title: "回填 numId",
       desc: "为表情包/标签补齐 numId 编号。",
-      command: "pnpm tsx prisma/backfill-numid.ts",
+      command: `${scriptRunner} data:ids`,
     },
     {
       title: "回填缩略图",
       desc: "为已有素材批量生成缩略图。",
-      command: "pnpm tsx prisma/backfill-thumbs.ts",
+      command: `${scriptRunner} media:thumbnails`,
     },
     {
       title: "标题标签回填",
       desc: "根据标题关键词自动补齐标签。",
-      command: "pnpm tsx prisma/backfill-title-tags.ts",
+      command: `${scriptRunner} data:title-tags`,
     },
     {
       title: "重建随机池（危险）",
       desc: "按当前已发布表情包重建今日随机池。",
-      command: "pnpm tsx prisma/rebuild-daily-pool.ts",
+      command: `${scriptRunner} data:daily-pool`,
       danger: true,
     },
     {
       title: "按编号重命名文件（危险）",
       desc: "将素材文件名改为对应 numId 编号。",
-      command: "pnpm tsx prisma/rename-media-by-numid.ts",
+      command: `${scriptRunner} media:rename`,
       danger: true,
     },
     {
       title: "清理 trash 目录（危险）",
-      desc: "删除 public/trash 内所有文件。",
-      command: "pnpm tsx prisma/cleanup-trash.ts",
+      desc: "永久删除 data/trash 与旧上传回收目录中的文件。",
+      command: `${scriptRunner} media:clean-trash`,
       danger: true,
     },
   ];
@@ -159,52 +261,64 @@ export default function AdminOtherPanel() {
     }
   };
 
-  const loadTraffic = async (range: typeof trafficRange = trafficRange) => {
-    if (trafficLoading) return;
-    setTrafficLoading(true);
-    try {
-      const res = await fetch(`/api/admin/traffic?range=${range}`, {
-        cache: "no-store",
-      });
-      const data = (await res.json().catch(() => null)) as {
-        top?: {
-          id: string;
-          title: string | null;
-          type: string;
-          thumbUrl: string;
-          heat: number;
-        }[];
-        daily?: {
-          day: string;
-          heat: number;
-          cumulative: number;
-          visits: number;
-        }[];
-        error?: string;
-        message?: string;
-      } | null;
-      if (!res.ok || !data?.daily || !data?.top) {
-        throw new Error(data?.error || data?.message || "加载失败");
+  const trafficRequest = useRef(0);
+  const loadTraffic = useCallback(
+    async (range: typeof trafficRange) => {
+      const version = ++trafficRequest.current;
+      setTrafficLoading(true);
+      try {
+        const res = await fetch(`/api/admin/traffic?range=${range}`, {
+          cache: "no-store",
+        });
+        const data = (await res.json().catch(() => null)) as {
+          top?: {
+            id: string;
+            title: string | null;
+            type: string;
+            thumbUrl: string;
+            heat: number;
+          }[];
+          daily?: {
+            day: string;
+            heat: number;
+            cumulative: number;
+            visits: number;
+            visitors: number;
+          }[];
+          error?: string;
+          message?: string;
+        } | null;
+        if (!res.ok || !data?.daily || !data?.top) {
+          throw new Error(data?.error || data?.message || "加载失败");
+        }
+        if (version === trafficRequest.current)
+          setTrafficData({ top: data.top, daily: data.daily });
+      } catch (err) {
+        if (version !== trafficRequest.current) return;
+        const message = err instanceof Error ? err.message : "加载失败";
+        toast(message, "error");
+      } finally {
+        if (version === trafficRequest.current) setTrafficLoading(false);
       }
-      setTrafficData({ top: data.top, daily: data.daily });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "加载失败";
-      toast(message, "error");
-    } finally {
-      setTrafficLoading(false);
-    }
-  };
+    },
+    [toast],
+  );
 
   useEffect(() => {
+    // Synchronize this panel with the requested page and its asynchronous data.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadTraffic(trafficRange);
-  }, [trafficRange]);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+    return () => {
+      trafficRequest.current += 1;
+    };
+  }, [trafficRange, loadTraffic]);
 
   const dailyHeat = useMemo(
     () => trafficData?.daily.map((item) => item.heat) ?? [],
+    [trafficData],
+  );
+  const visitorSeries = useMemo(
+    () => trafficData?.daily.map((item) => item.visitors) ?? [],
     [trafficData],
   );
   const visitSeries = useMemo(
@@ -227,103 +341,6 @@ export default function AdminOtherPanel() {
     () => trafficData?.daily.map((item) => item.day) ?? [],
     [trafficData],
   );
-
-  const formatDayLabel = (value: string) => {
-    if (!value) return "";
-    return value.length >= 5 ? value.slice(5) : value;
-  };
-
-  const TrafficLineChart = ({
-    labels,
-    data,
-    ariaLabel,
-  }: {
-    labels: string[];
-    data: number[];
-    ariaLabel: string;
-  }) => {
-    const canvasRef = useRef<HTMLCanvasElement | null>(null);
-    const safeLabels = labels.map(formatDayLabel);
-    const safeData =
-      safeLabels.length === data.length
-        ? data
-        : data.slice(0, safeLabels.length);
-    useEffect(() => {
-      if (!canvasRef.current) return;
-      const ctx = canvasRef.current.getContext("2d");
-      if (!ctx) return;
-      const chart = new Chart(ctx, {
-        type: "line",
-        data: {
-          labels: safeLabels,
-          datasets: [
-            {
-              data: safeData,
-              borderColor: "rgba(255, 255, 255, 0.9)",
-              backgroundColor: "rgba(255, 255, 255, 0.08)",
-              borderWidth: 2,
-              pointRadius: 2,
-              pointHoverRadius: 4,
-              tension: 0.35,
-              fill: true,
-            },
-          ],
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              enabled: true,
-              backgroundColor: "rgba(20, 20, 20, 0.9)",
-              borderColor: "rgba(255, 255, 255, 0.12)",
-              borderWidth: 1,
-              titleColor: "#fff",
-              bodyColor: "#fff",
-              displayColors: false,
-            },
-          },
-          interaction: {
-            mode: "index",
-            intersect: false,
-          },
-          scales: {
-            x: {
-              ticks: {
-                color: "rgba(255, 255, 255, 0.6)",
-                maxTicksLimit: 6,
-              },
-              grid: {
-                color: "rgba(255, 255, 255, 0.08)",
-              },
-            },
-            y: {
-              ticks: {
-                color: "rgba(255, 255, 255, 0.6)",
-                callback: (value) => formatCount(Number(value)),
-              },
-              grid: {
-                color: "rgba(255, 255, 255, 0.08)",
-              },
-            },
-          },
-        },
-      });
-      return () => chart.destroy();
-    }, [safeLabels.join("|"), safeData.join("|")]);
-
-    return (
-      <div className={styles.trafficChartBox}>
-        <canvas
-          ref={canvasRef}
-          className={styles.trafficChartCanvas}
-          aria-label={ariaLabel}
-          role="img"
-        />
-      </div>
-    );
-  };
 
   const resetHeat = async () => {
     if (resourceLoading) return;
@@ -405,20 +422,24 @@ export default function AdminOtherPanel() {
       }
       toast("密码已更新", "success");
       setPasswordOpen(false);
+    } catch {
+      setPasswordError("修改失败，请检查网络后重试");
     } finally {
       setPasswordLoading(false);
     }
   };
 
-  const handleLogout = () => {
-    confirm("确认退出管理员登录吗？").then((ok) => {
-      if (!ok) return;
-      fetch("/api/admin/logout", { method: "POST" })
-        .catch(() => null)
-        .finally(() => {
-          window.location.href = "/";
-        });
-    });
+  const router = useRouter();
+  const handleLogout = async () => {
+    if (!(await confirm("确认退出管理员登录吗？"))) return;
+    try {
+      const response = await fetch("/api/admin/logout", { method: "POST" });
+      if (!response.ok) throw new Error("退出失败，请重试");
+      router.push("/");
+      router.refresh();
+    } catch {
+      toast("退出失败，请重试", "error");
+    }
   };
 
   return (
@@ -449,6 +470,13 @@ export default function AdminOtherPanel() {
                 onClick={() => setTrafficView("visits")}
               >
                 访问趋势
+              </button>
+              <button
+                type="button"
+                className={`${styles.trafficToggle} ${trafficView === "visitors" ? styles.trafficToggleActive : ""}`}
+                onClick={() => setTrafficView("visitors")}
+              >
+                独立访客
               </button>
               <button
                 type="button"
@@ -493,11 +521,22 @@ export default function AdminOtherPanel() {
           </div>
         </div>
         <div className={styles.sectionHint}>
-          展示热门 Top 30 、访问与热度趋势（{rangeLabel}）。
+          展示热门 Top 30、访问、独立访客与热度趋势（{rangeLabel}
+          ）。独立访客按浏览器标识每日去重，清除 Cookie 或更换浏览器会重新计算。
         </div>
         <div className={styles.trafficPanel}>
           <div className={styles.trafficPanelBody}>
-            {trafficView === "visits" ? (
+            {trafficView === "visitors" ? (
+              visitorSeries.length ? (
+                <TrafficLineChart
+                  labels={dayLabels}
+                  data={visitorSeries}
+                  ariaLabel="独立访客趋势"
+                />
+              ) : (
+                <div className={styles.trafficEmpty}>暂无数据</div>
+              )
+            ) : trafficView === "visits" ? (
               visitSeries.length ? (
                 <TrafficLineChart
                   labels={dayLabels}
@@ -655,7 +694,7 @@ export default function AdminOtherPanel() {
           </div>
         </div>
       </div>
-      {passwordOpen && mounted
+      {passwordOpen
         ? createPortal(
             <div
               className={styles.passwordOverlay}

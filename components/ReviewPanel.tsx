@@ -49,7 +49,7 @@ export default function ReviewPanel({ pageLimit = 12 }: ReviewPanelProps) {
   const limit = Math.max(1, Math.round(pageLimit));
   const requestVersion = useRef(0);
   const loadPage = useCallback(
-    async (targetPage: number) => {
+    async (targetPage: number, resetIds: string[] = []) => {
       const version = ++requestVersion.current;
       setLoading(true);
       setError("");
@@ -72,15 +72,17 @@ export default function ReviewPanel({ pageLimit = 12 }: ReviewPanelProps) {
         }
         setItems(data.items);
         setTotal(data.total);
-        setDrafts(
+        setDrafts((previous) =>
           Object.fromEntries(
             data.items.map((item) => [
               item.id,
-              {
-                title: item.title ?? "",
-                tags: item.tags.join(" "),
-                saving: false,
-              },
+              !resetIds.includes(item.id) && previous[item.id]
+                ? previous[item.id]
+                : {
+                    title: item.title ?? "",
+                    tags: item.tags.join(" "),
+                    saving: false,
+                  },
             ]),
           ),
         );
@@ -95,6 +97,8 @@ export default function ReviewPanel({ pageLimit = 12 }: ReviewPanelProps) {
   );
 
   useEffect(() => {
+    // Synchronize this panel with the requested page and its asynchronous data.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadPage(page);
     return () => {
       requestVersion.current += 1;
@@ -102,6 +106,8 @@ export default function ReviewPanel({ pageLimit = 12 }: ReviewPanelProps) {
   }, [loadPage, page]);
 
   useEffect(() => {
+    // Synchronize this panel with the requested page and its asynchronous data.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelected((prev) => {
       if (prev.size === 0) return prev;
       const visible = new Set(items.map((item) => item.id));
@@ -114,6 +120,8 @@ export default function ReviewPanel({ pageLimit = 12 }: ReviewPanelProps) {
   }, [items]);
 
   useEffect(() => {
+    // Synchronize this panel with the requested page and its asynchronous data.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setJumpValue(String(page));
   }, [page]);
 
@@ -160,7 +168,8 @@ export default function ReviewPanel({ pageLimit = 12 }: ReviewPanelProps) {
         throw new Error(data?.error || data?.message || "保存失败，请重试");
       }
       await res.json();
-      await loadPage(page);
+      updateDraft(id, { saving: false });
+      await loadPage(page, [id]);
     } catch (err) {
       updateDraft(id, { saving: false });
       const message = err instanceof Error ? err.message : "保存失败，请重试";

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 
 import baseStyles from "@/app/page.module.css";
@@ -24,14 +25,9 @@ export default function AdminLoginTrigger({
   const [pass, setPass] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [mounted, setMounted] = useState(false);
   const [isAuthed, setIsAuthed] = useState<boolean | null>(
-    typeof authed === "boolean" ? authed : null
+    typeof authed === "boolean" ? authed : null,
   );
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   useEffect(() => {
     if (typeof authed === "boolean") return;
@@ -42,7 +38,7 @@ export default function AdminLoginTrigger({
   }, [authed]);
 
   const openLogin = () => {
-    if (isAuthed) {
+    if (authed ?? isAuthed) {
       router.push("/admin");
       return;
     }
@@ -70,9 +66,9 @@ export default function AdminLoginTrigger({
         body: JSON.stringify({ user: user.trim(), pass }),
       });
       if (!res.ok) {
-        const data = (await res.json().catch(() => null)) as
-          | { error?: string }
-          | null;
+        const data = (await res.json().catch(() => null)) as {
+          error?: string;
+        } | null;
         setError(data?.error || "账号或密码错误");
         return;
       }
@@ -80,6 +76,8 @@ export default function AdminLoginTrigger({
       setIsAuthed(true);
       router.push("/admin");
       router.refresh();
+    } catch {
+      setError("登录请求失败，请稍后重试");
     } finally {
       setLoading(false);
     }
@@ -93,7 +91,7 @@ export default function AdminLoginTrigger({
         onClick={openLogin}
         aria-label="管理控制台"
       >
-        <img
+        <Image
           className={iconClassName ?? baseStyles.brandIcon}
           src="/brand-icon.png"
           alt="MolWorld"
@@ -103,7 +101,7 @@ export default function AdminLoginTrigger({
         />
       </button>
 
-      {open && mounted
+      {open
         ? createPortal(
             <div
               className={modalStyles.overlay}
@@ -163,7 +161,7 @@ export default function AdminLoginTrigger({
                 </form>
               </div>
             </div>,
-            document.body
+            document.body,
           )
         : null}
     </>

@@ -1,3 +1,6 @@
+import { publicMediaUrl } from "@/lib/mediaUrl";
+import { updateNameOrder } from "@/lib/nameOrder";
+import { withDatabaseWrite } from "@/lib/databaseWrite";
 import { withTrashedMedia, withMediaWrite } from "@/lib/mediaFiles";
 import { prisma } from "@/lib/db";
 import { errorResponse, successResponse } from "@/lib/api";
@@ -18,13 +21,11 @@ async function patch(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const auth = await requireAdmin(request);
-  if (!auth.ok) return auth.response;
   const config = await getAppConfig();
   const tagRules = getTagRulesFromConfig(config);
   const { id } = await Promise.resolve(context.params);
   if (!id) {
-    void logAudit({
+    await logAudit({
       action: "manage:update",
       status: "error",
       message: "请求参数不完整",
@@ -42,7 +43,7 @@ async function patch(
     (key) => !allowedKeys.has(key),
   );
   if (extraKeys.length > 0) {
-    void logAudit({
+    await logAudit({
       action: "manage:update",
       status: "error",
       message: "请求参数不合法",
@@ -90,7 +91,7 @@ async function patch(
     });
 
     if (!current) {
-      void logAudit({
+      await logAudit({
         action: "manage:delete",
         status: "error",
         message: "资源不存在",
@@ -104,7 +105,7 @@ async function patch(
       current.status === "PENDING" ||
       current.mediaUrl.startsWith("/uploads/")
     ) {
-      void logAudit({
+      await logAudit({
         action: "manage:delete",
         status: "error",
         message: "当前状态不可管理",
@@ -116,13 +117,14 @@ async function patch(
     }
 
     try {
-      await withTrashedMedia([current.mediaUrl, current.thumbUrl], () =>
-        prisma.$transaction([
-          prisma.memeTag.deleteMany({ where: { memeId: id } }),
-          prisma.meme.delete({ where: { id } }),
-        ]),
+      await withTrashedMedia(
+        [current.mediaUrl, current.thumbUrl],
+        async (tx) => {
+          await tx.memeTag.deleteMany({ where: { memeId: id } });
+          return tx.meme.delete({ where: { id } });
+        },
       );
-      void logAudit({
+      await logAudit({
         action: "manage:delete",
         status: "success",
         targetType: "meme",
@@ -132,7 +134,7 @@ async function patch(
       });
     } catch (error) {
       console.error(error);
-      void logAudit({
+      await logAudit({
         action: "manage:delete",
         status: "error",
         targetType: "meme",
@@ -151,7 +153,7 @@ async function patch(
     select: { id: true, status: true, mediaUrl: true },
   });
   if (!current) {
-    void logAudit({
+    await logAudit({
       action: "manage:update",
       status: "error",
       message: "资源不存在",
@@ -165,7 +167,7 @@ async function patch(
     current.status === "PENDING" ||
     current.mediaUrl.startsWith("/uploads/")
   ) {
-    void logAudit({
+    await logAudit({
       action: "manage:update",
       status: "error",
       message: "当前状态不可管理",
@@ -176,46 +178,51 @@ async function patch(
     return errorResponse("当前状态不可管理", 400, "INVALID_STATE");
   }
 
-  const result = await prisma.$transaction(async (tx) => {
-    const tagRows = tags.length > 0 ? await ensureTagsWithNumId(tx, tags) : [];
-    return tx.meme.update({
-      where: { id },
-      data: {
-        ...(body.title !== undefined ? { title } : {}),
-        ...(status ? { status } : {}),
-        ...(body.tags !== undefined
-          ? {
-              tags: {
-                deleteMany: {},
-                create: tagRows.map((tag) => ({
-                  tag: { connect: { id: tag.id } },
-                })),
-              },
-            }
-          : {}),
-      },
-      select: {
-        id: true,
-        title: true,
-        type: true,
-        mediaUrl: true,
-        thumbUrl: true,
-        status: true,
-        copies: true,
-        downloads: true,
-        createdAt: true,
-        updatedAt: true,
-        tags: {
-          select: {
-            tag: { select: { name: true } },
+  const result = await withDatabaseWrite(() =>
+    prisma.$transaction(async (tx) => {
+      const tagRows =
+        tags.length > 0 ? await ensureTagsWithNumId(tx, tags) : [];
+      const item = await tx.meme.update({
+        where: { id },
+        data: {
+          ...(body.title !== undefined ? { title } : {}),
+          ...(status ? { status } : {}),
+          ...(body.tags !== undefined
+            ? {
+                tags: {
+                  deleteMany: {},
+                  create: tagRows.map((tag) => ({
+                    tag: { connect: { id: tag.id } },
+                  })),
+                },
+              }
+            : {}),
+        },
+        select: {
+          id: true,
+          title: true,
+          type: true,
+          mediaUrl: true,
+          thumbUrl: true,
+          status: true,
+          copies: true,
+          downloads: true,
+          createdAt: true,
+          updatedAt: true,
+          tags: {
+            select: {
+              tag: { select: { name: true } },
+            },
           },
         },
-      },
-    });
-  });
+      });
+      if (body.title !== undefined) await updateNameOrder(tx, id);
+      return item;
+    }),
+  );
   const updated = result;
 
-  void logAudit({
+  await logAudit({
     action: "manage:update",
     status: "success",
     targetType: "meme",
@@ -229,6 +236,8 @@ async function patch(
     {
       item: {
         ...updated,
+        mediaUrl: publicMediaUrl(updated.mediaUrl),
+        thumbUrl: publicMediaUrl(updated.thumbUrl),
         tags: sortTags(updated.tags.map((t) => t.tag.name)),
       },
     },
@@ -236,5 +245,11 @@ async function patch(
   );
 }
 
-export const PATCH = (...args: Parameters<typeof patch>) =>
-  withMediaWrite(() => patch(...args));
+export const PATCH = async (...args: Parameters<typeof patch>) => {
+  const auth = await requireAdmin(args[0]);
+  if (!auth.ok) return auth.response;
+  return withMediaWrite(async () => {
+    const current = await requireAdmin(args[0]);
+    return current.ok ? patch(...args) : current.response;
+  });
+};

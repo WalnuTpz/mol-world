@@ -56,6 +56,7 @@ export default function UploadForm({ maxSizeMb }: { maxSizeMb: number }) {
 
   useEffect(() => {
     const handlePaste = (event: ClipboardEvent) => {
+      if (status === "uploading") return;
       const items = event.clipboardData?.items;
       if (!items || items.length === 0) return;
       const fileItem = Array.from(items).find(
@@ -82,11 +83,11 @@ export default function UploadForm({ maxSizeMb }: { maxSizeMb: number }) {
     return () => {
       window.removeEventListener("paste", handlePaste);
     };
-  }, [isValidFile, maxSizeMb, toast]);
+  }, [isValidFile, maxSizeMb, toast, status]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!allowSubmit()) return;
+    if (status === "uploading" || !allowSubmit()) return;
     if (!selectedFile) {
       setStatus("error");
       toast("请先选择图片", "error");
@@ -286,6 +287,7 @@ export default function UploadForm({ maxSizeMb }: { maxSizeMb: number }) {
             <input
               ref={fileRef}
               className={styles.fileInput}
+              disabled={status === "uploading"}
               type="file"
               accept="image/*"
               onChange={handleFileChange}
@@ -298,6 +300,7 @@ export default function UploadForm({ maxSizeMb }: { maxSizeMb: number }) {
                 className={styles.input}
                 type="text"
                 placeholder="给你的 mol 取一个可爱的名字"
+                disabled={status === "uploading"}
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
               />
@@ -308,6 +311,7 @@ export default function UploadForm({ maxSizeMb }: { maxSizeMb: number }) {
                 className={styles.input}
                 type="text"
                 placeholder="给你的 mol 添加一些标签（用空格隔开）"
+                disabled={status === "uploading"}
                 value={tags}
                 onChange={(event) =>
                   setTags(normalizeTagInput(event.target.value))

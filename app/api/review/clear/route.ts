@@ -7,8 +7,6 @@ import { logAudit } from "@/lib/audit";
 export const runtime = "nodejs";
 
 async function post(request: Request) {
-  const auth = await requireAdmin(request);
-  if (!auth.ok) return auth.response;
   const pending = await prisma.meme.findMany({
     where: {
       status: "PENDING" as const,
@@ -22,7 +20,7 @@ async function post(request: Request) {
   });
 
   if (pending.length === 0) {
-    void logAudit({
+    await logAudit({
       action: "review:clear",
       status: "success",
       message: "已清空审核队列",
@@ -36,14 +34,13 @@ async function post(request: Request) {
     const ids = pending.map((item) => item.id);
     await withTrashedMedia(
       pending.flatMap((item) => [item.mediaUrl, item.thumbUrl]),
-      () =>
-        prisma.$transaction([
-          prisma.memeTag.deleteMany({ where: { memeId: { in: ids } } }),
-          prisma.meme.deleteMany({ where: { id: { in: ids } } }),
-        ]),
+      async (tx) => {
+        await tx.memeTag.deleteMany({ where: { memeId: { in: ids } } });
+        return tx.meme.deleteMany({ where: { id: { in: ids } } });
+      },
     );
 
-    void logAudit({
+    await logAudit({
       action: "review:clear",
       status: "success",
       message: "已清空审核队列",
@@ -53,7 +50,7 @@ async function post(request: Request) {
     return successResponse({ count: pending.length }, "已清空审核队列");
   } catch (error) {
     console.error(error);
-    void logAudit({
+    await logAudit({
       action: "review:clear",
       status: "error",
       message: "清理失败，请重试",
@@ -64,5 +61,11 @@ async function post(request: Request) {
   }
 }
 
-export const POST = (...args: Parameters<typeof post>) =>
-  withMediaWrite(() => post(...args));
+export const POST = async (...args: Parameters<typeof post>) => {
+  const auth = await requireAdmin(args[0]);
+  if (!auth.ok) return auth.response;
+  return withMediaWrite(async () => {
+    const current = await requireAdmin(args[0]);
+    return current.ok ? post(...args) : current.response;
+  });
+};

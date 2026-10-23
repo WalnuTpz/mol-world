@@ -1,24 +1,45 @@
+import {
+  VISITOR_COOKIE,
+  visitorHash,
+  createVisitor,
+  visitorCookie,
+  tokenDigest,
+} from "@/lib/visitors";
+import { clientKey, consumeRateLimits, RateLimitError } from "@/lib/rateLimit";
+import {
+  isAdminSessionValid,
+  getAdminSessionCookieName,
+} from "@/lib/adminSession";
 import { NextResponse, type NextRequest } from "next/server";
 
 const unauthorizedJson = () =>
-  NextResponse.json({ ok: false, error: "未登录", code: "UNAUTHORIZED" }, { status: 401 });
+  NextResponse.json(
+    { ok: false, error: "未登录", code: "UNAUTHORIZED" },
+    { status: 401, headers: { "Cache-Control": "no-store" } },
+  );
 
-const API_RATE_LIMIT_WINDOW_MS = 60 * 1000;
-const API_RATE_LIMIT_MAX = 120;
-const apiRateLimit = new Map<string, { count: number; startedAt: number }>();
-
-const getClientId = (request: NextRequest) => {
-  const forwarded = request.headers.get("x-forwarded-for");
-  const ip = forwarded?.split(",")[0]?.trim() || request.headers.get("x-real-ip");
-  return ip ?? "unknown";
-};
-
-const isAdminAuthed = (request: NextRequest) =>
-  Boolean(request.cookies.get("admin_session")?.value);
-
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const authed = isAdminAuthed(request);
+  const origin = request.headers.get("origin");
+  let sameHost = true;
+  if (origin) {
+    try {
+      sameHost =
+        new URL(origin).host ===
+        (request.headers.get("host") ?? request.nextUrl.host);
+    } catch {
+      sameHost = false;
+    }
+  }
+  if (!["GET", "HEAD", "OPTIONS"].includes(request.method) && !sameHost) {
+    return NextResponse.json(
+      { ok: false, error: "请求来源不合法", code: "INVALID_ORIGIN" },
+      { status: 403 },
+    );
+  }
+  const authed = await isAdminSessionValid(
+    request.cookies.get(getAdminSessionCookieName())?.value,
+  );
   const isAdminApi =
     pathname.startsWith("/api/review") ||
     pathname.startsWith("/api/manage") ||
@@ -33,39 +54,60 @@ export function proxy(request: NextRequest) {
   }
 
   if (pathname.startsWith("/api/") && !authed) {
-    const clientId = getClientId(request);
-    const now = Date.now();
-    const current = apiRateLimit.get(clientId);
-    if (!current || now - current.startedAt >= API_RATE_LIMIT_WINDOW_MS) {
-      apiRateLimit.set(clientId, { count: 1, startedAt: now });
-    } else {
-      current.count += 1;
-      if (current.count > API_RATE_LIMIT_MAX) {
-        const retryAfter = Math.ceil(
-          (API_RATE_LIMIT_WINDOW_MS - (now - current.startedAt)) / 1000
-        );
-        return NextResponse.json(
-          {
-            ok: false,
-            error: "操作过于频繁，请稍后再试",
-            code: "RATE_LIMIT",
+    try {
+      await consumeRateLimits([
+        { key: `api:${clientKey(request)}`, maximum: 120, windowMs: 60_000 },
+      ]);
+    } catch (error) {
+      if (!(error instanceof RateLimitError)) throw error;
+      return NextResponse.json(
+        { ok: false, error: error.message, code: "RATE_LIMIT" },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(error.retryAfter),
+            "Cache-Control": "no-store",
           },
-          {
-            status: 429,
-            headers: { "Retry-After": String(Math.max(1, retryAfter)) },
-          }
-        );
-      }
+        },
+      );
     }
   }
 
-  return NextResponse.next();
+  const headers = new Headers(request.headers);
+  headers.delete("x-molworld-visitor");
+  let newVisitor: string | null = null;
+  const prefetch =
+    request.headers.has("next-router-prefetch") ||
+    request.headers.has("next-router-segment-prefetch") ||
+    request.headers.get("purpose") === "prefetch" ||
+    request.headers.get("sec-purpose")?.includes("prefetch");
+  if (pathname === "/" && request.method === "GET" && !prefetch) {
+    let hash = await visitorHash(request);
+    if (!hash) {
+      newVisitor = await createVisitor();
+      hash = tokenDigest(newVisitor);
+      const cookies = (headers.get("cookie") ?? "")
+        .split(";")
+        .map((value) => value.trim())
+        .filter((value) => value && !value.startsWith(`${VISITOR_COOKIE}=`));
+      headers.set(
+        "cookie",
+        [...cookies, `${VISITOR_COOKIE}=${newVisitor}`].join("; "),
+      );
+    }
+    headers.set("x-molworld-visitor", hash);
+  }
+  const response = NextResponse.next({ request: { headers } });
+  if (newVisitor)
+    response.headers.append("Set-Cookie", visitorCookie(newVisitor));
+  return response;
 }
 
 export default proxy;
 
 export const config = {
   matcher: [
+    "/",
     "/api/review/:path*",
     "/api/manage/:path*",
     "/api/admin/:path*",

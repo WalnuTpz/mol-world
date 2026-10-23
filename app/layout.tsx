@@ -1,18 +1,7 @@
 import type { Metadata } from "next";
-import { Noto_Sans_SC, Space_Grotesk } from "next/font/google";
 import ToastProvider from "@/components/ToastProvider";
+import "./fonts.css";
 import "./globals.css";
-
-const spaceGrotesk = Space_Grotesk({
-  variable: "--font-space",
-  subsets: ["latin"],
-});
-
-const notoSansSC = Noto_Sans_SC({
-  variable: "--font-noto-sc",
-  weight: ["400", "500", "600", "700"],
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "MolWorld",
@@ -25,8 +14,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${spaceGrotesk.variable} ${notoSansSC.variable}`}>
+    <html lang="zh-CN">
+      <body>
         <ToastProvider>{children}</ToastProvider>
       </body>
     </html>

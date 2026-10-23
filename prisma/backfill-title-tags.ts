@@ -1,8 +1,8 @@
-import "dotenv/config";
-import path from "node:path";
+import "./env";
+import { withDatabaseWrite } from "../lib/databaseWrite";
 
-import { PrismaClient } from "@prisma/client";
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import { prisma } from "../lib/db";
+import { getAppConfig, getTagRulesFromConfig } from "../lib/appConfig";
 
 import { normalizeTags } from "../lib/tags";
 import { ensureTagsWithNumId } from "../lib/numId";
@@ -21,87 +21,71 @@ const TAGS = [
   "像素",
 ];
 
-const MAX_TAGS = 8;
-
-const resolveDbUrl = (rawUrl?: string) => {
-  const fallback = `file:${path
-    .resolve(process.cwd(), "prisma", "dev.db")
-    .replace(/\\/g, "/")}`;
-  if (!rawUrl) return fallback;
-  if (!rawUrl.startsWith("file:")) return rawUrl;
-  const filePath = rawUrl.slice(5);
-  if (filePath.startsWith("/") || /^[A-Za-z]:[\\/]/.test(filePath)) {
-    return `file:${filePath.replace(/\\/g, "/")}`;
-  }
-  const absPath = path.resolve(process.cwd(), filePath).replace(/\\/g, "/");
-  return `file:${absPath}`;
-};
-
-const adapter = new PrismaBetterSqlite3({
-  url: resolveDbUrl(process.env.DATABASE_URL),
-});
-
-const prisma = new PrismaClient({ adapter });
-
 async function main() {
-  const memes = await prisma.meme.findMany({
-    select: {
-      id: true,
-      title: true,
-      tags: {
-        select: {
-          tag: { select: { name: true } },
-        },
-      },
-    },
-  });
-
-  let updated = 0;
-
-  for (const meme of memes) {
-    const title = meme.title?.trim() ?? "";
-    if (!title) continue;
-
-    const matches = TAGS.filter((tag) => title.includes(tag));
-    if (matches.length === 0) continue;
-
-    const normalizedMatches = normalizeTags(matches, 99);
-    const existing = meme.tags.map((t) => t.tag.name);
-    const existingSet = new Set(existing);
-
-    if (existing.length >= MAX_TAGS) continue;
-
-    const toAdd: string[] = [];
-    for (const tag of normalizedMatches) {
-      if (existingSet.has(tag)) continue;
-      toAdd.push(tag);
-      if (existing.length + toAdd.length >= MAX_TAGS) break;
-    }
-
-    if (toAdd.length === 0) continue;
-
-    const tagRows = await ensureTagsWithNumId(prisma, toAdd);
-    await prisma.meme.update({
-      where: { id: meme.id },
-      data: {
+  await withDatabaseWrite(async () => {
+    const rules = getTagRulesFromConfig(await getAppConfig());
+    const memes = await prisma.meme.findMany({
+      select: {
+        id: true,
+        title: true,
         tags: {
-          create: tagRows.map((tag) => ({
-            tag: { connect: { id: tag.id } },
-          })),
+          select: {
+            tag: { select: { name: true } },
+          },
         },
       },
     });
 
-    updated += 1;
-  }
+    let updated = 0;
 
-  console.log(`Updated ${updated} memes with title-based tags.`);
+    for (const meme of memes) {
+      const title = meme.title?.trim() ?? "";
+      if (!title) continue;
+
+      const matches = TAGS.filter((tag) => title.includes(tag));
+      if (matches.length === 0) continue;
+
+      const normalizedMatches = normalizeTags(matches, rules);
+      const existing = meme.tags.map((t) => t.tag.name);
+      const existingSet = new Set(existing);
+
+      if (existing.length >= rules.maxTags) continue;
+
+      const toAdd: string[] = [];
+      for (const tag of normalizedMatches) {
+        if (existingSet.has(tag)) continue;
+        toAdd.push(tag);
+        if (existing.length + toAdd.length >= rules.maxTags) break;
+      }
+
+      if (toAdd.length === 0) continue;
+
+      await withDatabaseWrite(() =>
+        prisma.$transaction(async (tx) => {
+          const tagRows = await ensureTagsWithNumId(tx, toAdd);
+          await tx.meme.update({
+            where: { id: meme.id },
+            data: {
+              tags: {
+                create: tagRows.map((tag) => ({
+                  tag: { connect: { id: tag.id } },
+                })),
+              },
+            },
+          });
+        }),
+      );
+      updated += 1;
+    }
+
+    console.log(`Updated ${updated} memes with title-based tags.`);
+  });
 }
 
 main()
   .catch((error) => {
     console.error(error);
-    process.exit(1);
+    process.exitCode = 1;
   })
   .finally(async () => {
     await prisma.$disconnect();

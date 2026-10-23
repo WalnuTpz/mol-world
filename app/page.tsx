@@ -1,5 +1,15 @@
+import { getRandomMemes, getMemeRows } from "@/lib/memeQueries";
+import { recordVisit } from "@/lib/visitors";
+import { publicMediaUrl } from "@/lib/mediaUrl";
+import { pagination } from "@/lib/pagination";
+import {
+  memeSelect as select,
+  getPopularMemes,
+  getSortedMemePage,
+  type MemeRow,
+} from "@/lib/memeQueries";
 import Link from "next/link";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 
 import HomeNav from "@/components/HomeNav";
 import MemeGrid from "@/components/MemeGrid";
@@ -32,48 +42,15 @@ function getParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
 
-function parseIntParam(value: string | undefined, fallback: number) {
-  const parsed = Number.parseInt(value ?? "", 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
-}
-
 const getDayKey = () => new Date().toISOString().slice(0, 10);
-
-const select = {
-  id: true,
-  title: true,
-  type: true,
-  mediaUrl: true,
-  thumbUrl: true,
-  copies: true,
-  downloads: true,
-  isFeatured: true,
-  createdAt: true,
-  tags: {
-    select: {
-      tag: { select: { name: true } },
-    },
-  },
-};
-
-type MemeRow = {
-  id: string;
-  title: string | null;
-  type: "STATIC" | "ANIMATED";
-  mediaUrl: string;
-  thumbUrl: string;
-  copies: number;
-  downloads: number;
-  isFeatured: boolean;
-  createdAt: Date;
-  tags: { tag: { name: string } }[];
-};
 
 type MemeCardItem = Omit<MemeRow, "tags"> & { tags: string[] };
 
 const normalizeItems = (list: MemeRow[]): MemeCardItem[] =>
   list.map((item) => ({
     ...item,
+    mediaUrl: publicMediaUrl(item.mediaUrl),
+    thumbUrl: publicMediaUrl(item.thumbUrl),
     tags: sortTags(item.tags.map((t) => t.tag.name)),
   }));
 
@@ -86,23 +63,17 @@ export default async function Home({
   const authed = await isAdminSessionValid(
     cookieStore.get(getAdminSessionCookieName())?.value,
   );
-  const today = getDayKey();
-  await prisma.siteDailyStat.upsert({
-    where: { day: today },
-    create: { day: today, visits: 1 },
-    update: { visits: { increment: 1 } },
-  });
+  const requestHeaders = await headers();
   const config = await getAppConfig();
-  const resolvedParams =
-    (await Promise.resolve(searchParams)) ?? ({} as SearchParams);
+  const resolvedParams = await searchParams;
   const viewParam = getParam(resolvedParams?.view);
   const q = (getParam(resolvedParams?.q) ?? "").trim();
-  const limit = Math.min(
-    parseIntParam(getParam(resolvedParams?.limit), config.listLimit),
+  const { page, limit, skip } = pagination(
+    getParam(resolvedParams.page),
+    getParam(resolvedParams.limit),
     config.listLimit,
   );
   const hotLimit = config.hotLimit;
-  const page = parseIntParam(getParam(resolvedParams?.page), 1);
   const hotSortParam = getParam(resolvedParams?.hotSort);
   const hotSort =
     hotSortParam === "random" || hotSortParam === "hot"
@@ -141,80 +112,25 @@ export default async function Home({
   let totalPages = 1;
 
   if (view === "hot") {
-    const baseWhere = { status: "PUBLISHED" as const };
     if (hotSort === "random") {
-      const ids = await prisma.meme.findMany({
-        where: baseWhere,
-        select: { id: true },
-      });
-      const memeIds = ids.map((item) => item.id);
       const pools = await ensureDailyPools(
         getDayKey(),
-        memeIds,
+        null,
         config.dailyPoolGroups,
         config.dailyPoolSize,
       );
-      if (pools.length > 0) {
-        const group = pickRandomSubset(pools, 1)[0];
-        const groupIds = group.items.map((item) => item.memeId);
-        if (groupIds.length > 0) {
-          const list = await prisma.meme.findMany({
-            where: {
-              status: "PUBLISHED" as const,
-              id: { in: groupIds },
-            },
-            select,
-          });
-          const map = new Map(list.map((item) => [item.id, item]));
-          const ordered = groupIds
-            .map((id) => map.get(id))
-            .filter(Boolean) as MemeRow[];
-          let filled = ordered;
-          const missingCount = Math.max(0, hotLimit - ordered.length);
-          if (missingCount > 0) {
-            const candidateIds = memeIds.filter((id) => !groupIds.includes(id));
-            if (candidateIds.length > 0) {
-              const fillIds = pickRandomSubset(candidateIds, missingCount);
-              const fillList = await prisma.meme.findMany({
-                where: {
-                  status: "PUBLISHED" as const,
-                  id: { in: fillIds },
-                },
-                select,
-              });
-              const fillMap = new Map(fillList.map((item) => [item.id, item]));
-              const fillers = fillIds
-                .map((id) => fillMap.get(id))
-                .filter(Boolean) as MemeRow[];
-              filled = ordered.concat(fillers);
-            }
-          }
-          items = normalizeItems(filled.slice(0, hotLimit));
-        } else {
-          items = [];
-        }
-      } else {
-        items = [];
-      }
+      const group = pickRandomSubset(pools, 1)[0];
+      const groupIds = group?.items.map((item) => item.memeId) ?? [];
+      const rows = await getMemeRows(groupIds.slice(0, hotLimit));
+      const missing = Math.max(0, hotLimit - rows.length);
+      const extra = missing ? await getRandomMemes(missing, groupIds) : [];
+      items = normalizeItems([...rows, ...extra]);
     } else {
-      const list = await prisma.meme.findMany({
-        where: baseWhere,
-        select,
-      });
-      const sorted = list
-        .slice()
-        .sort((a, b) => {
-          const heatDiff = b.copies + b.downloads - (a.copies + a.downloads);
-          if (heatDiff !== 0) return heatDiff;
-          return b.createdAt.getTime() - a.createdAt.getTime();
-        })
-        .slice(0, hotLimit);
-      items = normalizeItems(sorted);
+      items = normalizeItems(await getPopularMemes(hotLimit));
     }
   }
 
   if (view === "all") {
-    const skip = (page - 1) * limit;
     const where = {
       status: "PUBLISHED" as const,
       ...(allType === "animated"
@@ -225,29 +141,15 @@ export default async function Home({
     };
 
     if (sort === "name") {
-      const list = await prisma.meme.findMany({ where, select });
-      const collator = new Intl.Collator("zh-Hans-CN", {
-        sensitivity: "base",
-        numeric: true,
-      });
-      list.sort((a, b) => {
-        if (!a.title && !b.title) return 0;
-        if (!a.title) return 1;
-        if (!b.title) return -1;
-        const diff = collator.compare(a.title, b.title);
-        if (diff !== 0) return diff;
-        return b.createdAt.getTime() - a.createdAt.getTime();
-      });
-
-      const normalized = normalizeItems(list as MemeRow[]);
-      total = normalized.length;
+      const result = await getSortedMemePage(where, "name", skip, limit);
+      total = result.total;
       totalPages = Math.max(1, Math.ceil(total / limit));
-      items = normalized.slice(skip, skip + limit);
+      items = normalizeItems(result.items);
     } else {
       const orderBy =
         sort === "earliest"
-          ? [{ createdAt: "asc" as const }]
-          : [{ createdAt: "desc" as const }];
+          ? [{ createdAt: "asc" as const }, { id: "asc" as const }]
+          : [{ createdAt: "desc" as const }, { id: "desc" as const }];
 
       const [list, count] = await Promise.all([
         prisma.meme.findMany({
@@ -271,7 +173,6 @@ export default async function Home({
       total = 0;
       totalPages = 1;
     } else {
-      const skip = (page - 1) * limit;
       const tokens = normalizeSearchTokens(q);
       const where =
         tokens.length > 0
@@ -288,46 +189,16 @@ export default async function Home({
               status: "PUBLISHED" as const,
             };
 
-      if (sort === "name") {
-        const list = await prisma.meme.findMany({
-          where,
-          select,
-        });
-        const collator = new Intl.Collator("zh-Hans-CN", {
-          sensitivity: "base",
-          numeric: true,
-        });
-        list.sort((a, b) => {
-          if (!a.title && !b.title) return 0;
-          if (!a.title) return 1;
-          if (!b.title) return -1;
-          const diff = collator.compare(a.title, b.title);
-          if (diff !== 0) return diff;
-          return b.createdAt.getTime() - a.createdAt.getTime();
-        });
-        const normalized = normalizeItems(list as MemeRow[]);
-        total = normalized.length;
+      if (sort === "name" || sort === "heat") {
+        const result = await getSortedMemePage(where, sort, skip, limit);
+        total = result.total;
         totalPages = Math.max(1, Math.ceil(total / limit));
-        items = normalized.slice(skip, skip + limit);
-      } else if (sort === "heat") {
-        const list = await prisma.meme.findMany({
-          where,
-          select,
-        });
-        list.sort((a, b) => {
-          const heatDiff = b.copies + b.downloads - (a.copies + a.downloads);
-          if (heatDiff !== 0) return heatDiff;
-          return b.createdAt.getTime() - a.createdAt.getTime();
-        });
-        const normalized = normalizeItems(list as MemeRow[]);
-        total = normalized.length;
-        totalPages = Math.max(1, Math.ceil(total / limit));
-        items = normalized.slice(skip, skip + limit);
+        items = normalizeItems(result.items);
       } else {
         const orderBy =
           sort === "earliest"
-            ? { createdAt: "asc" as const }
-            : { createdAt: "desc" as const };
+            ? [{ createdAt: "asc" as const }, { id: "asc" as const }]
+            : [{ createdAt: "desc" as const }, { id: "desc" as const }];
         const [list, count] = await Promise.all([
           prisma.meme.findMany({
             where,
@@ -361,7 +232,9 @@ export default async function Home({
         : "请输入关键词开始搜索，可用空格分隔多个关键词。"
       : view === "all"
         ? "暂无公开表情包，请先在审核页通过内容。"
-        : "暂无热门表情包，请先在管理页设置精选内容。";
+        : "暂无热门表情包，请先在审核页通过内容。";
+  const visitor = requestHeaders.get("x-molworld-visitor");
+  if (visitor) await recordVisit(visitor);
   return (
     <div
       className={`${styles.page} ${

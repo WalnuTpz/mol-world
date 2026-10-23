@@ -1,26 +1,22 @@
+import { withDatabaseWrite } from "@/lib/databaseWrite";
+import { pagination } from "@/lib/pagination";
 import { prisma } from "@/lib/db";
 import { errorResponse, successResponse } from "@/lib/api";
 import { requireAdmin } from "@/lib/adminAuth";
 import { normalizeSearchTokens } from "@/lib/tags";
 import { getAppConfig } from "@/lib/appConfig";
 
-function parseIntParam(value: string | null, fallback: number) {
-  const parsed = Number.parseInt(value ?? "", 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
-}
-
 export async function GET(request: Request) {
   const auth = await requireAdmin(request);
   if (!auth.ok) return auth.response;
   const config = await getAppConfig();
   const { searchParams } = new URL(request.url);
-  const page = parseIntParam(searchParams.get("page"), 1);
-  const limit = Math.min(
-    parseIntParam(searchParams.get("limit"), config.logPageLimit),
+  const { page, limit, skip } = pagination(
+    searchParams.get("page"),
+    searchParams.get("limit"),
     config.logPageLimit,
   );
   const q = (searchParams.get("q") ?? "").trim();
-  const skip = (page - 1) * limit;
   const range = searchParams.get("range") ?? "7d";
   if (!["3d", "7d", "30d", "all"].includes(range))
     return errorResponse("无效的时间范围", 400, "INVALID_RANGE");
@@ -49,7 +45,7 @@ export async function GET(request: Request) {
   const [items, total] = await Promise.all([
     prisma.auditLog.findMany({
       where,
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       skip,
       take: limit,
       select: {
@@ -99,7 +95,9 @@ export async function POST(request: Request) {
   }
 
   const where = since ? { createdAt: { gte: since } } : {};
-  const result = await prisma.auditLog.deleteMany({ where });
+  const result = await withDatabaseWrite(() =>
+    prisma.auditLog.deleteMany({ where }),
+  );
 
   return successResponse({ count: result.count }, "删除成功");
 }

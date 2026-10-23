@@ -1,3 +1,4 @@
+import { withDatabaseWrite } from "@/lib/databaseWrite";
 import { prisma } from "@/lib/db";
 import type { Prisma } from "@prisma/client";
 
@@ -23,18 +24,20 @@ const getClientMeta = (request?: Request) => {
 export const logAudit = async (input: AuditInput) => {
   try {
     const { actorIp, actorUa } = getClientMeta(input.request);
-    await prisma.auditLog.create({
-      data: {
-        action: input.action,
-        status: input.status,
-        targetType: input.targetType ?? null,
-        targetId: input.targetId ?? null,
-        message: input.message ?? null,
-        data: input.data ?? undefined,
-        actorIp,
-        actorUa,
-      },
-    });
+    await withDatabaseWrite(() =>
+      prisma.auditLog.create({
+        data: {
+          action: input.action,
+          status: input.status,
+          targetType: input.targetType ?? null,
+          targetId: input.targetId ?? null,
+          message: input.message ?? null,
+          data: input.data ?? undefined,
+          actorIp,
+          actorUa,
+        },
+      }),
+    );
   } catch (error) {
     console.error("audit log failed", error);
   }

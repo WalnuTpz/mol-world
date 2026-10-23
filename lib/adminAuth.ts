@@ -1,10 +1,20 @@
 import { errorResponse } from "@/lib/api";
-import { getAdminSessionCookieName, isAdminSessionValid } from "@/lib/adminSession";
+import {
+  getAdminSessionCookieName,
+  isAdminSessionValid,
+} from "@/lib/adminSession";
 
-const getCookieValue = (request: Request, name: string) => {
-  const cookie = request.headers.get("cookie") ?? "";
-  const match = cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
-  return match ? decodeURIComponent(match[1]) : null;
+export const getCookieValue = (request: Request, name: string) => {
+  const part = (request.headers.get("cookie") ?? "")
+    .split(";")
+    .map((value) => value.trim())
+    .find((value) => value.startsWith(`${name}=`));
+  if (!part) return null;
+  try {
+    return decodeURIComponent(part.slice(name.length + 1));
+  } catch {
+    return null;
+  }
 };
 
 export const requireAdmin = async (request: Request) => {

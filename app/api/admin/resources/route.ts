@@ -9,9 +9,9 @@ import { requireAdmin } from "@/lib/adminAuth";
 const ORIGINAL_PREFIX = "/memes/original/";
 const THUMB_PREFIX = "/memes/thumb/";
 
-const PUBLIC_DIR = path.join(process.cwd(), "public");
-const ORIGINAL_DIR = path.join(PUBLIC_DIR, "memes", "original");
-const THUMB_DIR = path.join(PUBLIC_DIR, "memes", "thumb");
+const DATA_DIR = path.join(process.cwd(), "data");
+const ORIGINAL_DIR = path.join(DATA_DIR, "memes", "original");
+const THUMB_DIR = path.join(DATA_DIR, "memes", "thumb");
 
 const IGNORED_FILES = new Set([".gitkeep", ".DS_Store"]);
 
@@ -110,8 +110,6 @@ export async function GET(request: Request) {
 }
 
 async function post(request: Request) {
-  const auth = await requireAdmin(request);
-  if (!auth.ok) return auth.response;
   let payload: { action?: string } | null = null;
   try {
     payload = (await request.json().catch(() => null)) as {
@@ -166,5 +164,11 @@ async function post(request: Request) {
   }
 }
 
-export const POST = (...args: Parameters<typeof post>) =>
-  withMediaWrite(() => post(...args));
+export const POST = async (...args: Parameters<typeof post>) => {
+  const auth = await requireAdmin(args[0]);
+  if (!auth.ok) return auth.response;
+  return withMediaWrite(async () => {
+    const current = await requireAdmin(args[0]);
+    return current.ok ? post(...args) : current.response;
+  });
+};

@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "./env";
 import { prisma } from "../lib/db";
 import { getAppConfig } from "../lib/appConfig";
 import { ensureDailyPools } from "../lib/dailyPool";
@@ -6,13 +6,9 @@ import { ensureDailyPools } from "../lib/dailyPool";
 async function main() {
   const day = new Date().toISOString().slice(0, 10);
   const config = await getAppConfig();
-  const memes = await prisma.meme.findMany({
-    where: { status: "PUBLISHED" },
-    select: { id: true },
-  });
   const pools = await ensureDailyPools(
     day,
-    memes.map((item) => item.id),
+    null,
     config.dailyPoolGroups,
     config.dailyPoolSize,
     true,

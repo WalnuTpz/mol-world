@@ -10,8 +10,5 @@ export async function GET(request: Request) {
     prisma.memeTag.count(),
   ]);
 
-  return successResponse(
-    { totalTags, totalLinks },
-    "统计完成"
-  );
+  return successResponse({ totalTags, totalLinks }, "统计完成");
 }

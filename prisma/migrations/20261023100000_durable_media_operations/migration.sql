@@ -1,0 +1,7 @@
+CREATE TABLE "MediaOperation" (
+  "id" TEXT NOT NULL PRIMARY KEY,
+  "state" TEXT NOT NULL,
+  "created" JSONB NOT NULL,
+  "retired" JSONB NOT NULL,
+  "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
